@@ -3,7 +3,9 @@ from app.triage.ai_classifier import AIClassifier, CompactMessagePayload
 from app.triage.deterministic_classifier import MessagePayload, classify_message
 
 
-def classify_and_persist(message: Message, ai_classifier: AIClassifier | None = None) -> MessageClassification:
+def classify_and_persist(
+    message: Message, ai_classifier: AIClassifier | None = None
+) -> MessageClassification:
     deterministic = classify_message(
         MessagePayload(
             sender_email=message.sender_email,

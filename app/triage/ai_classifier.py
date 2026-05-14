@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Protocol
 
-from app.triage.deterministic_classifier import ClassificationResult, MessagePayload
+from app.triage.deterministic_classifier import ClassificationResult
 
 
 @dataclass
@@ -15,8 +15,7 @@ class CompactMessagePayload:
 
 
 class AIClassifier(Protocol):
-    def classify(self, payload: CompactMessagePayload) -> ClassificationResult:
-        ...
+    def classify(self, payload: CompactMessagePayload) -> ClassificationResult: ...
 
 
 class MockAIClassifier:

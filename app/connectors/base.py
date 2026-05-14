@@ -22,5 +22,7 @@ class NormalizedMessage:
 class BaseConnector:
     source_type: str
 
-    def fetch_recent_messages(self, limit: int = 100, since: datetime | None = None) -> list[NormalizedMessage]:
+    def fetch_recent_messages(
+        self, limit: int = 100, since: datetime | None = None
+    ) -> list[NormalizedMessage]:
         raise NotImplementedError

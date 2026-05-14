@@ -10,7 +10,15 @@ RECEIPT_KEYWORDS = {"receipt", "invoice", "payment", "order confirmation", "tran
 SYSTEM_KEYWORDS = {"noreply", "do-not-reply", "notification", "system", "alert"}
 CLIENT_KEYWORDS = {"proposal", "contract", "client", "deliverable", "scope", "milestone"}
 URGENCY_KEYWORDS = {"urgent", "asap", "today", "tomorrow", "deadline", "immediately"}
-QUESTION_PATTERNS = [r"\?", r"can you", r"could you", r"please", r"let me know", r"need your", r"reply"]
+QUESTION_PATTERNS = [
+    r"\?",
+    r"can you",
+    r"could you",
+    r"please",
+    r"let me know",
+    r"need your",
+    r"reply",
+]
 HUMAN_FREEMAIL_DOMAINS = {"gmail.com", "outlook.com", "hotmail.com", "yahoo.com", "icloud.com"}
 
 
@@ -54,12 +62,21 @@ def classify_message(payload: MessagePayload) -> ClassificationResult:
     combined = f"{subject} {snippet}".lower()
     headers = {k.lower(): v for k, v in (payload.headers or {}).items()}
 
-    list_unsub = "list-unsubscribe" in headers or "unsubscribe" in headers.get("list-unsubscribe", "").lower()
+    list_unsub = (
+        "list-unsubscribe" in headers
+        or "unsubscribe" in headers.get("list-unsubscribe", "").lower()
+    )
     is_newsletter = list_unsub or _contains_any(combined, NEWSLETTER_KEYWORDS)
     is_marketing = _contains_any(combined, MARKETING_KEYWORDS) or is_newsletter
     is_receipt = _contains_any(combined, RECEIPT_KEYWORDS)
-    is_system_notification = _contains_any(combined, SYSTEM_KEYWORDS) or "noreply" in (payload.sender_email or "").lower()
-    is_client_work = _contains_any(combined, CLIENT_KEYWORDS) or _domain(payload.sender_email) not in HUMAN_FREEMAIL_DOMAINS
+    is_system_notification = (
+        _contains_any(combined, SYSTEM_KEYWORDS)
+        or "noreply" in (payload.sender_email or "").lower()
+    )
+    is_client_work = (
+        _contains_any(combined, CLIENT_KEYWORDS)
+        or _domain(payload.sender_email) not in HUMAN_FREEMAIL_DOMAINS
+    )
     is_group_noise = is_marketing or is_newsletter or is_system_notification
     is_human_personal = not is_group_noise and not is_receipt
 

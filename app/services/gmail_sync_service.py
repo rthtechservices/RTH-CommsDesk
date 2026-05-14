@@ -9,14 +9,15 @@ from app.models.entities import (
     BodyStoredMode,
     Contact,
     Message,
-    MessageClassification,
     MessageThread,
 )
 from app.services.attention_service import upsert_attention_item
 from app.services.classification_service import classify_and_persist
 
 
-def _find_or_create_contact(db: Session, sender_email: str | None, sender_name: str | None) -> Contact | None:
+def _find_or_create_contact(
+    db: Session, sender_email: str | None, sender_name: str | None
+) -> Contact | None:
     if not sender_email:
         return None
     contact = db.query(Contact).filter_by(primary_email=sender_email).first()
@@ -71,7 +72,9 @@ def sync_gmail_messages(db: Session, since: datetime | None = None) -> int:
             subject=item.subject,
             snippet=item.snippet,
             body_text=item.body_text,
-            body_stored_mode=BodyStoredMode.FULL_TEXT if item.body_text else BodyStoredMode.SNIPPET_ONLY,
+            body_stored_mode=(
+                BodyStoredMode.FULL_TEXT if item.body_text else BodyStoredMode.SNIPPET_ONLY
+            ),
             is_unread=item.is_unread,
             has_attachments=item.has_attachments,
         )
@@ -83,7 +86,9 @@ def sync_gmail_messages(db: Session, since: datetime | None = None) -> int:
         db.flush()
 
         thread.unread_count += 1 if message.is_unread else 0
-        thread.last_message_at = max(thread.last_message_at or message.received_at, message.received_at)
+        thread.last_message_at = max(
+            thread.last_message_at or message.received_at, message.received_at
+        )
 
         upsert_attention_item(db, contact, thread, message, classification)
         synced += 1

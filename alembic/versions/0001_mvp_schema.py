@@ -89,7 +89,9 @@ def upgrade() -> None:
     op.create_table(
         "message_classifications",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("message_id", sa.Integer(), sa.ForeignKey("messages.id"), nullable=False, unique=True),
+        sa.Column(
+            "message_id", sa.Integer(), sa.ForeignKey("messages.id"), nullable=False, unique=True
+        ),
         sa.Column("requires_reply", sa.Boolean(), nullable=False, server_default=sa.false()),
         sa.Column("urgency_level", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("is_human_personal", sa.Boolean(), nullable=False, server_default=sa.false()),
@@ -98,7 +100,9 @@ def upgrade() -> None:
         sa.Column("is_newsletter", sa.Boolean(), nullable=False, server_default=sa.false()),
         sa.Column("is_receipt", sa.Boolean(), nullable=False, server_default=sa.false()),
         sa.Column("is_group_noise", sa.Boolean(), nullable=False, server_default=sa.false()),
-        sa.Column("is_system_notification", sa.Boolean(), nullable=False, server_default=sa.false()),
+        sa.Column(
+            "is_system_notification", sa.Boolean(), nullable=False, server_default=sa.false()
+        ),
         sa.Column("confidence", sa.Numeric(5, 4), nullable=False, server_default="0.0"),
         sa.Column("classification_reason", sa.String(500), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
@@ -138,7 +142,9 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("thread_id", sa.Integer(), sa.ForeignKey("message_threads.id"), nullable=False),
         sa.Column("message_id", sa.Integer(), sa.ForeignKey("messages.id"), nullable=True),
-        sa.Column("voice_profile_id", sa.Integer(), sa.ForeignKey("voice_profiles.id"), nullable=True),
+        sa.Column(
+            "voice_profile_id", sa.Integer(), sa.ForeignKey("voice_profiles.id"), nullable=True
+        ),
         sa.Column("draft_text", sa.Text(), nullable=False),
         sa.Column("status", sa.String(20), nullable=False, server_default="generated"),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),

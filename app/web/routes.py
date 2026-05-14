@@ -16,8 +16,12 @@ templates = Jinja2Templates(directory="app/web/templates")
 
 @web_router.get("/")
 def dashboard(request: Request, db: Session = Depends(get_db)):
-    attention = db.query(AttentionItem).order_by(desc(AttentionItem.attention_score)).limit(30).all()
-    vip_contacts = db.query(Contact).filter_by(is_vip=True).order_by(desc(Contact.updated_at)).limit(20).all()
+    attention = (
+        db.query(AttentionItem).order_by(desc(AttentionItem.attention_score)).limit(30).all()
+    )
+    vip_contacts = (
+        db.query(Contact).filter_by(is_vip=True).order_by(desc(Contact.updated_at)).limit(20).all()
+    )
     unread_human = (
         db.query(Message)
         .join(MessageClassification, MessageClassification.message_id == Message.id)
@@ -30,7 +34,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         db.query(Message)
         .join(MessageClassification, MessageClassification.message_id == Message.id)
         .filter(
-            MessageClassification.is_marketing.is_(True) | MessageClassification.is_newsletter.is_(True)
+            MessageClassification.is_marketing.is_(True)
+            | MessageClassification.is_newsletter.is_(True)
         )
         .order_by(desc(Message.received_at))
         .limit(20)
@@ -91,7 +96,9 @@ def web_requires_reply(message_id: int, db: Session = Depends(get_db)):
 
 
 @web_router.post("/messages/{message_id}/correct-classification")
-def web_correct_classification(message_id: int, reason: str = Form(...), db: Session = Depends(get_db)):
+def web_correct_classification(
+    message_id: int, reason: str = Form(...), db: Session = Depends(get_db)
+):
     c = db.query(MessageClassification).filter_by(message_id=message_id).first()
     if c:
         c.classification_reason = f"Corrected: {reason}"

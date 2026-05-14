@@ -4,7 +4,17 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from enum import StrEnum
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -49,7 +59,9 @@ class Contact(Base):
     preferred_channel: Mapped[str | None] = mapped_column(String(50))
     notes: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
 
 
 class ContactAlias(Base):
@@ -89,14 +101,18 @@ class MessageThread(Base):
     unread_count: Mapped[int] = mapped_column(Integer, default=0)
     requires_attention_score: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
 
     contact: Mapped[Contact | None] = relationship()
 
 
 class Message(Base):
     __tablename__ = "messages"
-    __table_args__ = (UniqueConstraint("source_type", "source_message_id", name="uq_message_source"),)
+    __table_args__ = (
+        UniqueConstraint("source_type", "source_message_id", name="uq_message_source"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     thread_id: Mapped[int] = mapped_column(ForeignKey("message_threads.id"), index=True)
@@ -108,7 +124,9 @@ class Message(Base):
     subject: Mapped[str | None] = mapped_column(String(500))
     snippet: Mapped[str | None] = mapped_column(Text)
     body_text: Mapped[str | None] = mapped_column(Text)
-    body_stored_mode: Mapped[BodyStoredMode] = mapped_column(Enum(BodyStoredMode), default=BodyStoredMode.SNIPPET_ONLY)
+    body_stored_mode: Mapped[BodyStoredMode] = mapped_column(
+        Enum(BodyStoredMode), default=BodyStoredMode.SNIPPET_ONLY
+    )
     is_unread: Mapped[bool] = mapped_column(Boolean, default=True)
     has_attachments: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
@@ -147,9 +165,13 @@ class AttentionItem(Base):
     attention_score: Mapped[int] = mapped_column(Integer, default=0)
     reason: Mapped[str | None] = mapped_column(String(500))
     recommended_action: Mapped[str | None] = mapped_column(String(200))
-    status: Mapped[AttentionStatus] = mapped_column(Enum(AttentionStatus), default=AttentionStatus.NEW)
+    status: Mapped[AttentionStatus] = mapped_column(
+        Enum(AttentionStatus), default=AttentionStatus.NEW
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
 
     contact: Mapped[Contact | None] = relationship(foreign_keys=[contact_id])
     thread: Mapped[MessageThread] = relationship()
@@ -182,7 +204,9 @@ class DraftReply(Base):
     draft_text: Mapped[str] = mapped_column(Text)
     status: Mapped[DraftStatus] = mapped_column(Enum(DraftStatus), default=DraftStatus.GENERATED)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
 
 
 class UserFeedback(Base):

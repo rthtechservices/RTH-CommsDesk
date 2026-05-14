@@ -5,7 +5,13 @@ from datetime import UTC, datetime
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
-from app.models.entities import AttentionItem, Contact, Message, MessageClassification, MessageThread
+from app.models.entities import (
+    AttentionItem,
+    Contact,
+    Message,
+    MessageClassification,
+    MessageThread,
+)
 from app.services.contact_service import contact_importance_weight
 
 
@@ -52,7 +58,9 @@ def upsert_attention_item(
     score = calculate_attention_score(contact, thread, message, classification)
     item = db.query(AttentionItem).filter_by(thread_id=thread.id, message_id=message.id).first()
     if not item:
-        item = AttentionItem(contact_id=contact.id if contact else None, thread_id=thread.id, message_id=message.id)
+        item = AttentionItem(
+            contact_id=contact.id if contact else None, thread_id=thread.id, message_id=message.id
+        )
         db.add(item)
 
     item.attention_score = score

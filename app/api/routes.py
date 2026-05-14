@@ -3,7 +3,13 @@ from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models.entities import AttentionItem, AttentionStatus, Contact, Message, MessageClassification
+from app.models.entities import (
+    AttentionItem,
+    AttentionStatus,
+    Contact,
+    Message,
+    MessageClassification,
+)
 from app.services.attention_service import build_attention_queue
 from app.services.contact_service import mark_contact_noise, mark_contact_vip
 from app.services.draft_service import generate_draft_placeholder
@@ -107,8 +113,12 @@ def generate_draft(message_id: int, db: Session = Depends(get_db)) -> dict:
 
 @api_router.get("/vip-contacts")
 def vip_contacts(db: Session = Depends(get_db)) -> list[dict]:
-    contacts = db.query(Contact).filter_by(is_vip=True).order_by(Contact.updated_at.desc()).limit(50).all()
-    return [{"id": c.id, "display_name": c.display_name, "email": c.primary_email} for c in contacts]
+    contacts = (
+        db.query(Contact).filter_by(is_vip=True).order_by(Contact.updated_at.desc()).limit(50).all()
+    )
+    return [
+        {"id": c.id, "display_name": c.display_name, "email": c.primary_email} for c in contacts
+    ]
 
 
 @api_router.get("/unread-human")

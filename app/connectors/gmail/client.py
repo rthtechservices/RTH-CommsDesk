@@ -28,7 +28,9 @@ class GmailConnector(BaseConnector):
             from google_auth_oauthlib.flow import InstalledAppFlow
             from googleapiclient.discovery import build
         except ImportError as exc:
-            raise RuntimeError("Install optional gmail dependencies: pip install -e .[gmail]") from exc
+            raise RuntimeError(
+                "Install optional gmail dependencies: pip install -e .[gmail]"
+            ) from exc
 
         token_file = Path(self.settings.gmail_token_file)
         creds = None
@@ -49,7 +51,9 @@ class GmailConnector(BaseConnector):
         self._service = build("gmail", "v1", credentials=creds)
         return self._service
 
-    def fetch_recent_messages(self, limit: int = 100, since: datetime | None = None) -> list[NormalizedMessage]:
+    def fetch_recent_messages(
+        self, limit: int = 100, since: datetime | None = None
+    ) -> list[NormalizedMessage]:
         service = self._build_service()
         query_parts = ["in:inbox"]
         if since:
@@ -76,7 +80,11 @@ class GmailConnector(BaseConnector):
             sender_name, sender_email = parseaddr(headers.get("from", ""))
             subject = headers.get("subject")
             internal_date_ms = int(data.get("internalDate", "0"))
-            received_at = datetime.fromtimestamp(internal_date_ms / 1000, tz=UTC) if internal_date_ms else datetime.now(UTC)
+            received_at = (
+                datetime.fromtimestamp(internal_date_ms / 1000, tz=UTC)
+                if internal_date_ms
+                else datetime.now(UTC)
+            )
             snippet = data.get("snippet")
             body_text = self._extract_body(payload) if self.settings.gmail_store_full_body else None
             body_mode = body_text if self.settings.gmail_store_full_body else None
