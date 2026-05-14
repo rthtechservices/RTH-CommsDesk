@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Message Detail</title>
+  </head>
+  <body>
+    <a href="/">← Back</a>
+    {% if message %}
+    <h1>{{ message.subject or '(No subject)' }}</h1>
+    <p><strong>From:</strong> {{ message.sender_display_name or '' }} {{ message.sender_email or '' }}</p>
+    <p><strong>Snippet:</strong> {{ message.snippet or '' }}</p>
+    <p><strong>Body stored mode:</strong> {{ message.body_stored_mode }}</p>
+
+    <h2>Classification</h2>
+    <p>{{ classification.classification_reason if classification else "No classification" }}</p>
+
+    <form method="post" action="/messages/{{ message.id }}/requires-reply">
+      <button type="submit">Mark as requires reply</button>
+    </form>
+
+    <form method="post" action="/messages/{{ message.id }}/correct-classification">
+      <input name="reason" placeholder="Correction" required />
+      <button type="submit">Correct classification</button>
+    </form>
+
+    <form method="post" action="/messages/{{ message.id }}/generate-draft">
+      <button type="submit">Generate draft reply placeholder</button>
+    </form>
+
+    {% if message.thread and message.thread.contact_id %}
+    <form method="post" action="/contacts/{{ message.thread.contact_id }}/vip">
+      <button type="submit">Mark contact VIP</button>
+    </form>
+    {% endif %}
+    {% else %}
+    <p>Message not found.</p>
+    {% endif %}
+  </body>
+</html>

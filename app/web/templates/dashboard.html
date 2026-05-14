@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>RTH CommsDesk</title>
+  </head>
+  <body>
+    <h1>RTH CommsDesk Dashboard</h1>
+    <form method="post" action="/api/sync/gmail"><button type="submit">Sync Gmail</button></form>
+
+    <h2>Attention Queue</h2>
+    <ul>
+      {% for item in attention %}
+      <li>
+        Score {{ item.attention_score }} | {{ item.reason or "No reason" }} | Status {{ item.status }}
+        {% if item.message_id %}<a href="/messages/{{ item.message_id }}">View</a>{% endif %}
+        <form method="post" action="/attention/{{ item.id }}/review" style="display:inline">
+          <button type="submit">Mark as reviewed</button>
+        </form>
+      </li>
+      {% else %}
+      <li>No attention items yet.</li>
+      {% endfor %}
+    </ul>
+
+    <h2>VIP Contacts</h2>
+    <ul>
+      {% for c in vip_contacts %}
+      <li>{{ c.display_name }} ({{ c.primary_email or "" }})</li>
+      {% else %}
+      <li>No VIP contacts yet.</li>
+      {% endfor %}
+    </ul>
+
+    <h2>Recent Unread Human Messages</h2>
+    <ul>
+      {% for m in unread_human %}
+      <li>
+        {{ m.subject or "(No subject)" }} from {{ m.sender_email or "Unknown" }}
+        <a href="/messages/{{ m.id }}">Details</a>
+        <form method="post" action="/contacts/noise" style="display:inline">
+          <input type="hidden" name="sender_email" value="{{ m.sender_email or '' }}" />
+          <button type="submit">Mark sender as noise</button>
+        </form>
+      </li>
+      {% else %}
+      <li>None.</li>
+      {% endfor %}
+    </ul>
+
+    <h2>Suspected Noise</h2>
+    <ul>
+      {% for m in suspected_noise %}
+      <li>{{ m.subject or "(No subject)" }} from {{ m.sender_email or "Unknown" }}</li>
+      {% else %}
+      <li>None.</li>
+      {% endfor %}
+    </ul>
+  </body>
+</html>
