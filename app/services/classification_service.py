@@ -4,14 +4,16 @@ from app.triage.deterministic_classifier import MessagePayload, classify_message
 
 
 def classify_and_persist(
-    message: Message, ai_classifier: AIClassifier | None = None
+    message: Message,
+    headers: dict[str, str] | None = None,
+    ai_classifier: AIClassifier | None = None,
 ) -> MessageClassification:
     deterministic = classify_message(
         MessagePayload(
             sender_email=message.sender_email,
             subject=message.subject,
             snippet=message.snippet,
-            headers=None,
+            headers=headers,
         )
     )
 

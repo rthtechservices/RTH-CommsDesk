@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models.entities import (
     AttentionItem,
+    AttentionStatus,
     Contact,
     Message,
     MessageClassification,
@@ -26,7 +27,10 @@ def calculate_attention_score(
     score += contact_importance_weight(contact)
     score += min(thread.unread_count * 3, 15)
 
-    age_hours = max((datetime.now(UTC) - message.received_at).total_seconds() / 3600, 0)
+    received_at = message.received_at
+    if received_at.tzinfo is None:
+        received_at = received_at.replace(tzinfo=UTC)
+    age_hours = max((datetime.now(UTC) - received_at).total_seconds() / 3600, 0)
     if age_hours > 24:
         score += 8
     elif age_hours > 6:
@@ -69,10 +73,12 @@ def upsert_attention_item(
     return item
 
 
-def build_attention_queue(db: Session) -> list[AttentionItem]:
+def build_attention_queue(db: Session, include_reviewed: bool = False) -> list[AttentionItem]:
+    query = db.query(AttentionItem)
+    if not include_reviewed:
+        query = query.filter(AttentionItem.status == AttentionStatus.NEW)
     return (
-        db.query(AttentionItem)
-        .order_by(desc(AttentionItem.attention_score), desc(AttentionItem.updated_at))
+        query.order_by(desc(AttentionItem.attention_score), desc(AttentionItem.updated_at))
         .limit(100)
         .all()
     )

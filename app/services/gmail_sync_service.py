@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.connectors.gmail.client import GmailConnector
+from app.core.config import get_settings
 from app.models.entities import (
     BodyStoredMode,
     Contact,
@@ -29,10 +31,14 @@ def _find_or_create_contact(
     return contact
 
 
-def sync_gmail_messages(db: Session, since: datetime | None = None) -> int:
-    connector = GmailConnector()
-    messages = connector.fetch_recent_messages(limit=100, since=since)
+def sync_gmail_messages(
+    db: Session, since: datetime | None = None, connector: GmailConnector | None = None
+) -> int:
+    connector = connector or GmailConnector()
+    settings = get_settings()
+    messages = connector.fetch_recent_messages(limit=settings.gmail_read_max_results, since=since)
     synced = 0
+    touched_thread_ids: set[int] = set()
 
     for item in messages:
         contact = _find_or_create_contact(db, item.sender_email, item.sender_display_name)
@@ -53,6 +59,11 @@ def sync_gmail_messages(db: Session, since: datetime | None = None) -> int:
             )
             db.add(thread)
             db.flush()
+        else:
+            if contact and thread.contact_id is None:
+                thread.contact_id = contact.id
+            if item.subject and item.subject != thread.normalized_subject:
+                thread.normalized_subject = item.subject
 
         existing = (
             db.query(Message)
@@ -60,6 +71,7 @@ def sync_gmail_messages(db: Session, since: datetime | None = None) -> int:
             .first()
         )
         if existing:
+            touched_thread_ids.add(thread.id)
             continue
 
         message = Message(
@@ -81,17 +93,28 @@ def sync_gmail_messages(db: Session, since: datetime | None = None) -> int:
         db.add(message)
         db.flush()
 
-        classification = classify_and_persist(message)
+        classification = classify_and_persist(message, headers=item.headers)
         db.add(classification)
         db.flush()
 
-        thread.unread_count += 1 if message.is_unread else 0
-        thread.last_message_at = max(
-            thread.last_message_at or message.received_at, message.received_at
-        )
-
         upsert_attention_item(db, contact, thread, message, classification)
+        touched_thread_ids.add(thread.id)
         synced += 1
+
+    for thread_id in touched_thread_ids:
+        thread = db.get(MessageThread, thread_id)
+        if not thread:
+            continue
+        thread.unread_count = (
+            db.query(func.count(Message.id))
+            .filter(Message.thread_id == thread_id, Message.is_unread.is_(True))
+            .scalar()
+            or 0
+        )
+        thread.last_message_at = (
+            db.query(func.max(Message.received_at)).filter(Message.thread_id == thread_id).scalar()
+            or thread.last_message_at
+        )
 
     db.commit()
     return synced

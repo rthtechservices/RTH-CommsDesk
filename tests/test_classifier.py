@@ -5,14 +5,15 @@ def test_newsletter_detection():
     result = classify_message(
         MessagePayload(
             sender_email="news@updates.com",
-            subject="Weekly newsletter",
-            snippet="unsubscribe any time",
+            subject="General update",
+            snippet="Hello there",
             headers={"List-Unsubscribe": "<mailto:unsubscribe@updates.com>"},
         )
     )
     assert result.is_newsletter is True
     assert result.is_marketing is True
     assert result.requires_reply is False
+    assert "list-unsubscribe header" in result.classification_reason
 
 
 def test_requires_reply_detection():

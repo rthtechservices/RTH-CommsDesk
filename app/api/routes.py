@@ -20,13 +20,26 @@ api_router = APIRouter()
 
 @api_router.post("/sync/gmail")
 def sync_gmail(db: Session = Depends(get_db)) -> dict:
-    result = sync_gmail_messages(db)
+    try:
+        result = sync_gmail_messages(db)
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Gmail OAuth client secrets file is missing. Set GMAIL_CLIENT_SECRETS_FILE "
+                "to a valid path before syncing."
+            ),
+        ) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"synced": result}
 
 
 @api_router.get("/attention")
-def get_attention_queue(db: Session = Depends(get_db)) -> list[dict]:
-    items = build_attention_queue(db)
+def get_attention_queue(
+    include_reviewed: bool = False, db: Session = Depends(get_db)
+) -> list[dict]:
+    items = build_attention_queue(db, include_reviewed=include_reviewed)
     return [
         {
             "id": item.id,
@@ -57,13 +70,19 @@ def get_message(message_id: int, db: Session = Depends(get_db)) -> dict:
 
 @api_router.post("/contacts/{contact_id}/vip")
 def set_vip(contact_id: int, db: Session = Depends(get_db)) -> dict:
-    contact = mark_contact_vip(db, contact_id)
+    try:
+        contact = mark_contact_vip(db, contact_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     return {"contact_id": contact.id, "is_vip": contact.is_vip}
 
 
 @api_router.post("/contacts/noise")
 def set_noise(sender_email: str = Form(...), db: Session = Depends(get_db)) -> dict:
-    contact = mark_contact_noise(db, sender_email)
+    try:
+        contact = mark_contact_noise(db, sender_email)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"contact_id": contact.id, "is_noise": contact.is_noise}
 
 

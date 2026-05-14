@@ -26,6 +26,10 @@ class FakeMessagesAPI:
                 "headers": [
                     {"name": "From", "value": "Alice <alice@example.com>"},
                     {"name": "Subject", "value": "Question"},
+                    {"name": "List-Unsubscribe", "value": "<mailto:unsubscribe@example.com>"},
+                    {"name": "Precedence", "value": "bulk"},
+                    {"name": "Auto-Submitted", "value": "auto-generated"},
+                    {"name": "Reply-To", "value": "no-reply@example.com"},
                 ],
                 "parts": [],
             },
@@ -51,3 +55,6 @@ def test_gmail_connector_fetch_recent_messages():
     assert msg.sender_email == "alice@example.com"
     assert msg.subject == "Question"
     assert msg.body_text is None
+    assert msg.headers is not None
+    assert msg.headers["list-unsubscribe"] == "<mailto:unsubscribe@example.com>"
+    assert msg.headers["precedence"] == "bulk"

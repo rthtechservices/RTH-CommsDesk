@@ -9,6 +9,14 @@ from app.connectors.base import BaseConnector, NormalizedMessage
 from app.core.config import get_settings
 
 GMAIL_READONLY_SCOPE = ["https://www.googleapis.com/auth/gmail.readonly"]
+PRESERVED_HEADERS = {
+    "from",
+    "subject",
+    "list-unsubscribe",
+    "precedence",
+    "auto-submitted",
+    "reply-to",
+}
 
 
 class GmailConnector(BaseConnector):
@@ -41,8 +49,13 @@ class GmailConnector(BaseConnector):
             if creds and creds.expired and creds.refresh_token:
                 creds.refresh(Request())
             else:
+                secrets_file = Path(self.settings.gmail_client_secrets_file)
+                if not secrets_file.exists():
+                    raise FileNotFoundError(
+                        f"Gmail OAuth client secrets file not found: {secrets_file}"
+                    )
                 flow = InstalledAppFlow.from_client_secrets_file(
-                    self.settings.gmail_client_secrets_file,
+                    str(secrets_file),
                     GMAIL_READONLY_SCOPE,
                 )
                 creds = flow.run_local_server(port=0)
@@ -77,6 +90,9 @@ class GmailConnector(BaseConnector):
             )
             payload = data.get("payload", {})
             headers = {h["name"].lower(): h["value"] for h in payload.get("headers", [])}
+            preserved_headers = {
+                key: value for key, value in headers.items() if key in PRESERVED_HEADERS
+            }
             sender_name, sender_email = parseaddr(headers.get("from", ""))
             subject = headers.get("subject")
             internal_date_ms = int(data.get("internalDate", "0"))
@@ -102,6 +118,7 @@ class GmailConnector(BaseConnector):
                     body_text=body_mode,
                     has_attachments=self._has_attachments(payload),
                     is_unread="UNREAD" in data.get("labelIds", []),
+                    headers=preserved_headers,
                 )
             )
 

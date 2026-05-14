@@ -62,16 +62,24 @@ def classify_message(payload: MessagePayload) -> ClassificationResult:
     combined = f"{subject} {snippet}".lower()
     headers = {k.lower(): v for k, v in (payload.headers or {}).items()}
 
-    list_unsub = (
-        "list-unsubscribe" in headers
-        or "unsubscribe" in headers.get("list-unsubscribe", "").lower()
-    )
-    is_newsletter = list_unsub or _contains_any(combined, NEWSLETTER_KEYWORDS)
-    is_marketing = _contains_any(combined, MARKETING_KEYWORDS) or is_newsletter
+    list_unsubscribe_header = headers.get("list-unsubscribe", "").lower()
+    precedence_header = headers.get("precedence", "").lower()
+    auto_submitted_header = headers.get("auto-submitted", "").lower()
+    reply_to_header = headers.get("reply-to", "").lower()
+
+    list_unsub = "list-unsubscribe" in headers or "unsubscribe" in list_unsubscribe_header
+    precedence_bulk = any(token in precedence_header for token in ("bulk", "list", "junk"))
+    auto_generated = bool(auto_submitted_header and auto_submitted_header != "no")
+    reply_to_suspicious = "noreply" in reply_to_header or "no-reply" in reply_to_header
+
+    is_newsletter = list_unsub or precedence_bulk or _contains_any(combined, NEWSLETTER_KEYWORDS)
+    is_marketing = _contains_any(combined, MARKETING_KEYWORDS) or is_newsletter or precedence_bulk
     is_receipt = _contains_any(combined, RECEIPT_KEYWORDS)
     is_system_notification = (
         _contains_any(combined, SYSTEM_KEYWORDS)
         or "noreply" in (payload.sender_email or "").lower()
+        or auto_generated
+        or reply_to_suspicious
     )
     is_client_work = (
         _contains_any(combined, CLIENT_KEYWORDS)
@@ -93,8 +101,14 @@ def classify_message(payload: MessagePayload) -> ClassificationResult:
     reason_parts = []
     if is_newsletter:
         reason_parts.append("newsletter-like signals")
+    if list_unsub:
+        reason_parts.append("list-unsubscribe header")
+    if precedence_bulk:
+        reason_parts.append("bulk/list precedence header")
     if is_marketing:
         reason_parts.append("marketing keywords")
+    if auto_generated:
+        reason_parts.append("auto-submitted header")
     if is_client_work:
         reason_parts.append("work/client-like context")
     if requires_reply:

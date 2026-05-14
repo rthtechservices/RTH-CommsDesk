@@ -17,6 +17,7 @@ class NormalizedMessage:
     body_text: str | None
     has_attachments: bool
     is_unread: bool
+    headers: dict[str, str] | None = None
 
 
 class BaseConnector:
