@@ -86,29 +86,38 @@ def web_mark_reviewed(attention_id: int, db: Session = Depends(get_db)):
 
 
 @web_router.post("/messages/{message_id}/requires-reply")
-def web_requires_reply(message_id: int, db: Session = Depends(get_db)):
+def web_requires_reply(message_id: int, request: Request, db: Session = Depends(get_db)):
     c = db.query(MessageClassification).filter_by(message_id=message_id).first()
     if c:
         c.requires_reply = True
         c.classification_reason = "User marked requires reply"
         db.commit()
-    return RedirectResponse(url=f"/messages/{message_id}", status_code=303)
+    return RedirectResponse(
+        url=request.url_for("message_detail", message_id=message_id), status_code=303
+    )
 
 
 @web_router.post("/messages/{message_id}/correct-classification")
 def web_correct_classification(
-    message_id: int, reason: str = Form(...), db: Session = Depends(get_db)
+    message_id: int,
+    request: Request,
+    reason: str = Form(...),
+    db: Session = Depends(get_db),
 ):
     c = db.query(MessageClassification).filter_by(message_id=message_id).first()
     if c:
         c.classification_reason = f"Corrected: {reason}"
         db.commit()
-    return RedirectResponse(url=f"/messages/{message_id}", status_code=303)
+    return RedirectResponse(
+        url=request.url_for("message_detail", message_id=message_id), status_code=303
+    )
 
 
 @web_router.post("/messages/{message_id}/generate-draft")
-def web_generate_draft(message_id: int, db: Session = Depends(get_db)):
+def web_generate_draft(message_id: int, request: Request, db: Session = Depends(get_db)):
     message = db.get(Message, message_id)
     if message:
         generate_draft_placeholder(db, message)
-    return RedirectResponse(url=f"/messages/{message_id}", status_code=303)
+    return RedirectResponse(
+        url=request.url_for("message_detail", message_id=message_id), status_code=303
+    )
