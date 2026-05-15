@@ -31,6 +31,66 @@ Record completed work here at the end of every phase. Newest entries should be a
 - 
 ```
 
+## 2026-05-15 — Phase 11: Microsoft 365 and Additional Communication Connectors
+
+### Summary
+- Added Microsoft-source connector paths for Outlook and Teams ingestion, normalized into the existing message/thread model.
+- Added notification-summary webhook ingestion for SMS/WhatsApp/Messenger-style payloads with duplicate-safe upsert behavior.
+- Added source channel and source confidence metadata to stored messages with migration support.
+- Added UI source-confidence indicators and source filters for connector-derived and notification-derived records.
+- Added connector-focused tests for Outlook sync, Teams sync, and notification webhook duplicate handling.
+
+### Files changed
+- `app/models/entities.py`
+- `alembic/versions/0011_connector_source_confidence.py`
+- `app/connectors/base.py`
+- `app/connectors/gmail/client.py`
+- `app/connectors/outlook/client.py`
+- `app/connectors/outlook/__init__.py`
+- `app/connectors/teams/client.py`
+- `app/connectors/teams/__init__.py`
+- `app/connectors/notifications/webhook.py`
+- `app/connectors/notifications/__init__.py`
+- `app/services/gmail_sync_service.py`
+- `app/services/external_connectors_service.py`
+- `app/api/routes.py`
+- `app/web/routes.py`
+- `app/web/templates/dashboard.html`
+- `app/web/templates/message_detail.html`
+- `tests/test_external_connectors.py`
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/HELP.md`
+- `docs/phases/PHASE_11_CONNECTORS.md`
+- `docs/PHASE_PLAN.md`
+- `docs/PHASE_STATUS.md`
+- `README.md`
+
+### Tests run
+- `python -m ruff check .` — passed.
+- `python -m pytest -q` — passed, 71 tests.
+
+### Smoke tests
+- App startup: not run manually in this phase.
+- Dashboard: covered by route tests.
+- Key workflow: automated tests cover Outlook ingestion, Teams ingestion, notification webhook dedupe, and source-confidence persistence.
+
+### Documentation updated
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/HELP.md`
+- `docs/phases/PHASE_11_CONNECTORS.md`
+- `docs/PHASE_PLAN.md`
+- `docs/PHASE_STATUS.md`
+- `README.md`
+
+### Known issues
+- Outlook/Teams connectors currently rely on injected Graph-service adapters; full live OAuth client flows remain environment configuration work.
+- Notification-source records are summary fidelity and should not be treated as full message context for high-risk actions.
+
+### Recommended next actions
+- Proceed to Phase 12: Deployment, authentication, and production hardening.
+
 ## 2026-05-15 — Phase 10: Approved Outbound Execution
 
 ### Summary

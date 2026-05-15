@@ -107,6 +107,10 @@ def _effective_since(state: SourceSyncState, explicit_since: datetime | None) ->
 def _update_existing_message(existing: Message, item: NormalizedMessage) -> None:
     existing.sender_display_name = item.sender_display_name
     existing.sender_email = item.sender_email
+    if item.source_channel:
+        existing.source_channel = item.source_channel
+    if item.source_confidence is not None:
+        existing.source_confidence = item.source_confidence
     existing.recipient_emails = _serialize_addresses(item.recipient_emails)
     existing.cc_emails = _serialize_addresses(item.cc_emails)
     existing.received_at = item.received_at or existing.received_at
@@ -415,6 +419,8 @@ def _upsert_messages(
             source_message_id=item.source_message_id,
             sender_display_name=item.sender_display_name,
             sender_email=item.sender_email,
+            source_channel=item.source_channel,
+            source_confidence=item.source_confidence if item.source_confidence is not None else 1.0,
             recipient_emails=_serialize_addresses(item.recipient_emails),
             cc_emails=_serialize_addresses(item.cc_emails),
             received_at=item.received_at or datetime.now(UTC),

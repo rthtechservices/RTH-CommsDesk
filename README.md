@@ -19,14 +19,14 @@ Before assigning work to Codex, Copilot, or another LLM session, have the sessio
 Each LLM session should complete one phase only, update the documentation, and stop for human review.
 
 ## MVP scope
-- Gmail-only connector (read-only)
+- Gmail-first connector workflow with optional Outlook/Teams ingestion and notification-summary webhook intake
 - Metadata/snippet storage by default
 - Deterministic classification and attention scoring
 - Local review-only draft suggestions with voice profiles (no auto-send)
 - Local SQLite for development
 
 ## Known MVP limitations
-- Outlook/Teams/SMS/WhatsApp/Messenger connectors are stubbed only.
+- Outlook/Teams connectors are implemented as mocked Graph-shape adapters; live Microsoft auth/client wiring is environment-specific.
 - AI classifier is provider-neutral but runs with deterministic logic/mock fallback by default.
 - Gmail sync is read-only and duplicate-safe. Recent sync handles the active inbox window, and manual backfill can page farther through the Gmail backlog.
 - Gmail conversation context can be fetched on demand so detail pages show a full thread timeline when full content is available.
@@ -128,4 +128,4 @@ Do not delete or commit `client_secret.json`, `gmail_token.json`, `.env`, or any
 
 The next implementation phase is:
 
-Phase 11 — Microsoft 365 and additional communication connectors.
+Phase 12 — Deployment, authentication, and production hardening.

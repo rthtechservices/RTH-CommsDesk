@@ -278,6 +278,12 @@
           <form method="post" action="/sync/gmail/backfill">
             <button type="submit">Backfill older</button>
           </form>
+          <form method="post" action="/sync/outlook">
+            <button type="submit">Sync Outlook</button>
+          </form>
+          <form method="post" action="/sync/teams">
+            <button type="submit">Sync Teams</button>
+          </form>
         </div>
       </div>
     </header>
@@ -370,6 +376,11 @@
               <select name="source">
                 <option value="">Any</option>
                 <option value="gmail" {% if filter_source == "gmail" %}selected{% endif %}>Gmail</option>
+                <option value="outlook" {% if filter_source == "outlook" %}selected{% endif %}>Outlook</option>
+                <option value="teams" {% if filter_source == "teams" %}selected{% endif %}>Teams</option>
+                <option value="notification_sms" {% if filter_source == "notification_sms" %}selected{% endif %}>Notification SMS</option>
+                <option value="notification_whatsapp" {% if filter_source == "notification_whatsapp" %}selected{% endif %}>Notification WhatsApp</option>
+                <option value="notification_messenger" {% if filter_source == "notification_messenger" %}selected{% endif %}>Notification Messenger</option>
               </select>
             </label>
             <button class="primary" type="submit">Apply</button>
@@ -393,6 +404,8 @@
                   {% if message and message.received_at %} | {{ message.received_at.strftime("%Y-%m-%d %H:%M") }}{% endif %}
                   | {{ item.status.value if item.status.value is defined else item.status }}
                   | {{ item.recommended_action or "Review" }}
+                  {% if message %} | {{ message.source_type }}{% endif %}
+                  {% if message and message.source_confidence is not none %} | {{ "%.0f"|format((message.source_confidence or 0) * 100) }}% source confidence{% endif %}
                 </div>
                 <div class="tags">
                   <span class="tag">{{ row.label }}</span>

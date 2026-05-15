@@ -1,8 +1,3 @@
-from app.connectors.base import BaseConnector
+from app.connectors.notifications.webhook import normalize_notification_payload
 
-
-class NotificationBridgeConnector(BaseConnector):
-    source_type = "notifications"
-
-    def fetch_recent_messages(self, limit: int = 100, since=None):
-        return []
+__all__ = ["normalize_notification_payload"]

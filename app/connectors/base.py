@@ -20,6 +20,8 @@ class NormalizedMessage:
     headers: dict[str, str] | None = None
     recipient_emails: list[str] | None = None
     cc_emails: list[str] | None = None
+    source_channel: str | None = None
+    source_confidence: float | None = None
 
 
 @dataclass

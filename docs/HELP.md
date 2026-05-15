@@ -4,12 +4,15 @@ This file is the user-facing help guide. Keep it simple, practical, and current 
 
 ## What RTH CommsDesk does today
 
-RTH CommsDesk helps review Gmail messages by showing likely important items in an Attention Queue.
+RTH CommsDesk helps review communication messages by showing likely important items in an Attention Queue.
 
 Current MVP features:
 
 - Sync recent Gmail inbox messages in read-only mode.
 - Backfill older Gmail inbox pages in read-only mode.
+- Sync Outlook mailbox messages through the Microsoft connector adapter.
+- Sync Teams chat messages through the Microsoft connector adapter.
+- Ingest notification summaries from SMS/WhatsApp/Messenger-style webhook payloads with confidence metadata.
 - Keep Gmail sync metadata locally so repeat syncs are incremental.
 - Skip duplicate Gmail messages and duplicate attention items on repeat sync.
 - Show the latest sync/backfill counts: fetched, inserted, duplicates skipped, threads updated, and backlog cursor status.
@@ -53,7 +56,7 @@ Current MVP features:
 RTH CommsDesk does not currently:
 
 - Execute any outbound action without explicit approve + confirm steps.
-- Read Outlook, Teams, SMS, or other message channels.
+- Perform live Microsoft Graph mailbox/chat sync without connector service configuration and permissions.
 - Run non-mock production outbound provider calls by default in local development.
 - Use paid or cloud AI credentials as a requirement for local draft generation.
 - Store full email bodies by default.
@@ -163,6 +166,18 @@ Runs a safe manual resync of the recent Gmail window without using the high-wate
 Fetches the next older Gmail inbox page using Gmail's backlog cursor. Use this when the dashboard keeps showing the same recent messages and you want the local queue to move farther back through the mailbox.
 
 Backfill is read-only. It stores local message records and sync diagnostics only.
+
+### Sync Outlook
+
+Runs Outlook ingestion through the Microsoft connector adapter. Records are normalized into the same local thread/message model used by Gmail and appear with source `outlook`.
+
+### Sync Teams
+
+Runs Teams message ingestion through the Microsoft connector adapter. Messages are normalized into local threads with source `teams` and channel metadata so queue filtering and review remain consistent.
+
+### Notification webhook ingest
+
+`POST /api/notifications/webhook` accepts notification summaries (SMS/WhatsApp/Messenger style). These entries are stored as lower-confidence summaries, deduplicated by notification id/source id, and clearly marked with source confidence.
 
 ### View
 

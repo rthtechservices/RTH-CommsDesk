@@ -210,6 +210,8 @@ class Message(Base):
     source_message_id: Mapped[str] = mapped_column(String(255))
     sender_display_name: Mapped[str | None] = mapped_column(String(255))
     sender_email: Mapped[str | None] = mapped_column(String(255), index=True)
+    source_channel: Mapped[str | None] = mapped_column(String(50))
+    source_confidence: Mapped[Decimal] = mapped_column(Numeric(4, 3), default=Decimal("1.000"))
     recipient_emails: Mapped[str | None] = mapped_column(Text)
     cc_emails: Mapped[str | None] = mapped_column(Text)
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

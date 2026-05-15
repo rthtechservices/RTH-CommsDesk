@@ -115,6 +115,13 @@ python -m pytest -q
 - Write audit rows for every lifecycle step (prepared, approved, confirm_started, executed, failed, cancelled).
 - Keep destructive actions behind an explicit confirmation token and visible warnings even when mock providers are used.
 
+## Connector expansion lessons
+
+- Keep non-Gmail connectors normalized into the same source/thread/message pipeline so attention scoring, review packages, and execution prep remain connector-agnostic.
+- For notification webhooks, store summary/snippet fidelity with explicit source confidence instead of treating payloads as full messages.
+- Connector sync state should be tracked per source/account even for webhook-like sources so failures and recency remain auditable.
+- UI should always display message source and confidence to avoid over-trusting low-fidelity notification summaries.
+
 ## UI lessons
 
 - A raw list of scores and reasons is technically useful but not user-friendly.

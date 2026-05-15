@@ -70,6 +70,7 @@ from app.services.execution_service import (
     prepare_execution_for_draft,
     prepare_execution_for_review_package,
 )
+from app.services.external_connectors_service import sync_outlook_messages, sync_teams_messages
 from app.services.gmail_sync_service import get_sync_state, sync_gmail_messages
 from app.services.gmail_sync_service import (
     deserialize_addresses,
@@ -213,6 +214,24 @@ def web_backfill_gmail(db: Session = Depends(get_db)):
         sync_gmail_backfill(db)
     except (FileNotFoundError, RuntimeError):
         return RedirectResponse(url="/?sync_error=configuration", status_code=303)
+    except Exception:
+        return RedirectResponse(url="/?sync_error=failed", status_code=303)
+    return RedirectResponse(url="/", status_code=303)
+
+
+@web_router.post("/sync/outlook")
+def web_sync_outlook(db: Session = Depends(get_db)):
+    try:
+        sync_outlook_messages(db)
+    except Exception:
+        return RedirectResponse(url="/?sync_error=failed", status_code=303)
+    return RedirectResponse(url="/", status_code=303)
+
+
+@web_router.post("/sync/teams")
+def web_sync_teams(db: Session = Depends(get_db)):
+    try:
+        sync_teams_messages(db)
     except Exception:
         return RedirectResponse(url="/?sync_error=failed", status_code=303)
     return RedirectResponse(url="/", status_code=303)

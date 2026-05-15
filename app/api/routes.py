@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, Form, HTTPException
+from fastapi import APIRouter, Depends, Form, Header, HTTPException
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.database import get_db
 from app.models.entities import (
     AttentionItem,
@@ -40,6 +41,11 @@ from app.services.execution_service import (
     list_execution_records,
     prepare_execution_for_draft,
     prepare_execution_for_review_package,
+)
+from app.services.external_connectors_service import (
+    ingest_notification_summary,
+    sync_outlook_messages,
+    sync_teams_messages,
 )
 from app.services.voice_learning_service import (
     run_sent_mail_learning,
@@ -83,6 +89,37 @@ def backfill_gmail(db: Session = Depends(get_db)) -> dict:
         ) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return result.as_dict()
+
+
+@api_router.post("/sync/outlook")
+def sync_outlook(db: Session = Depends(get_db)) -> dict:
+    try:
+        result = sync_outlook_messages(db)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return result.as_dict()
+
+
+@api_router.post("/sync/teams")
+def sync_teams(db: Session = Depends(get_db)) -> dict:
+    try:
+        result = sync_teams_messages(db)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return result.as_dict()
+
+
+@api_router.post("/notifications/webhook")
+def notification_webhook(
+    payload: dict,
+    x_webhook_secret: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+) -> dict:
+    expected_secret = get_settings().notification_webhook_secret
+    if expected_secret and x_webhook_secret != expected_secret:
+        raise HTTPException(status_code=401, detail="Invalid webhook secret")
+    result = ingest_notification_summary(db, payload)
     return result.as_dict()
 
 

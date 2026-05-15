@@ -249,6 +249,8 @@ class GmailConnector(BaseConnector):
             has_attachments=self._has_attachments(payload),
             is_unread="UNREAD" in data.get("labelIds", []),
             headers=preserved_headers,
+            source_channel="email",
+            source_confidence=1.0,
         )
 
     @staticmethod

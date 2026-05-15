@@ -41,3 +41,15 @@ This phase should not distract from the Gmail-first assistant workflow. Add addi
 - Notification-source ingestion works through mocked/local requests.
 - UI clearly identifies source and confidence level.
 - No connector bypasses the proposed-action and approved-execution architecture.
+
+## Completion notes (2026-05-15)
+
+- Added connector adapters:
+  - `app/connectors/outlook/client.py`
+  - `app/connectors/teams/client.py`
+  - `app/connectors/notifications/webhook.py`
+- Added `source_channel` and `source_confidence` metadata on `messages` with Alembic migration `0011_connector_source_confidence`.
+- Added sync orchestration in `app/services/external_connectors_service.py` and wired API/web routes for Outlook, Teams, and notification webhook ingestion.
+- Added UI source filter options and source-confidence display on dashboard/message detail pages.
+- Added mocked tests for Outlook ingestion, Teams ingestion, and notification webhook duplicate-safe behavior.
+- Validation result: `python -m pytest -q` passed (71 tests).

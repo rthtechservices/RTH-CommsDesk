@@ -1,8 +1,3 @@
-from app.connectors.base import BaseConnector
+from app.connectors.teams.client import TeamsConnector
 
-
-class TeamsConnector(BaseConnector):
-    source_type = "teams"
-
-    def fetch_recent_messages(self, limit: int = 100, since=None):
-        return []
+__all__ = ["TeamsConnector"]

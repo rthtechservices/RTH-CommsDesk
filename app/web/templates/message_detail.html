@@ -256,6 +256,14 @@
                 </span>
               </div>
               <div>
+                <span class="label">Source</span>
+                <span>
+                  {{ message.source_type }}
+                  {% if message.source_channel %}| channel {{ message.source_channel }}{% endif %}
+                  {% if message.source_confidence is not none %}| {{ "%.0f"|format((message.source_confidence or 0) * 100) }}% confidence{% endif %}
+                </span>
+              </div>
+              <div>
                 <span class="label">To</span>
                 <span>{% if recipient_emails %}{{ recipient_emails|join(", ") }}{% else %}Not stored{% endif %}</span>
               </div>

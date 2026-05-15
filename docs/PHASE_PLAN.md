@@ -239,6 +239,8 @@ Safety boundary:
 - Do not scrape private platforms or bypass platform restrictions.
 - Do not reply through notification-only sources.
 
+Status: completed.
+
 ## Phase 12 — Deployment, authentication, and production hardening
 
 Primary outcome: make the app safe to run beyond local development.

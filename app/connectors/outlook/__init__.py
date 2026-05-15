@@ -1,8 +1,3 @@
-from app.connectors.base import BaseConnector
+from app.connectors.outlook.client import OutlookConnector
 
-
-class OutlookConnector(BaseConnector):
-    source_type = "outlook"
-
-    def fetch_recent_messages(self, limit: int = 100, since=None):
-        return []
+__all__ = ["OutlookConnector"]
