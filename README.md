@@ -35,6 +35,7 @@ Each LLM session should complete one phase only, update the documentation, and s
 - Sent-mail learning can infer VIP candidates and salutation/tone guidance, with explicit approve/reject/edit controls on the Voice Calibration page.
 - Bulk triage mode supports paginated queue processing, local automation candidate generation, and reversible bulk actions.
 - Local calendar availability recommendations can prepare reminder/scheduling proposals with conflict reasoning for review packages.
+- Approved outbound execution flows now support prepare/approve/confirm lifecycle with audit logs and mock provider execution.
 
 ## Safety rules
 - Never commit secrets, OAuth tokens, or private message data.
@@ -127,4 +128,4 @@ Do not delete or commit `client_secret.json`, `gmail_token.json`, `.env`, or any
 
 The next implementation phase is:
 
-Phase 10 — Approved outbound execution.
+Phase 11 — Microsoft 365 and additional communication connectors.

@@ -73,7 +73,7 @@ Known rough edges:
 - The system does not yet learn enough from Reviewed/Important/Noise feedback to move large queues quickly.
 - Historical Gmail backfill and bulk triage pagination are implemented; additional heuristics and approval flows still need tuning for very large (>7,000) inbox cleanup.
 - Calendar availability recommendations are now implemented with provider-neutral logic and mock/read-only provider paths, but external calendar writes are still not implemented.
-- Approved outbound send/calendar execution is not yet implemented.
+- Approved outbound execution is now implemented through explicit prepare/approve/confirm flows with audit records; mock provider remains the default local runtime.
 - Unsubscribe, archive, label, and delete automations are not yet implemented.
 
 ## Operating model

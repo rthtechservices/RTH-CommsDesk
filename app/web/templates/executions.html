@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Executions | RTH CommsDesk</title>
+    <style>
+      :root {
+        --bg: #f6f7f9;
+        --surface: #ffffff;
+        --line: #d9dee6;
+        --text: #17202a;
+        --muted: #607080;
+        --brand: #246b5a;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: Arial, Helvetica, sans-serif;
+      }
+      a { color: var(--brand); font-weight: 700; text-decoration: none; }
+      .wrap { width: min(980px, calc(100% - 32px)); margin: 0 auto; padding: 20px 0 40px; }
+      .panel { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 14px; }
+      .muted { color: var(--muted); }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { border-top: 1px solid var(--line); padding: 8px 6px; text-align: left; vertical-align: top; }
+      th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <a href="/">Back to dashboard</a>
+      <h1>Execution Queue</h1>
+      <p class="muted">Outbound actions execute only after explicit approve + confirm steps.</p>
+      <section class="panel">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Action</th>
+              <th>Status</th>
+              <th>Source</th>
+              <th>Provider</th>
+              <th>Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for record in records %}
+            <tr>
+              <td><a href="/executions/{{ record.id }}">#{{ record.id }}</a></td>
+              <td>{{ record.action_type.value.replace("_", " ").title() }}</td>
+              <td>{{ record.status.value.replace("_", " ").title() }}</td>
+              <td>
+                {% if record.review_package_id %}Review package {{ record.review_package_id }}{% endif %}
+                {% if record.draft_id %}Draft {{ record.draft_id }}{% endif %}
+              </td>
+              <td>{{ record.provider_name }}</td>
+              <td>{{ record.created_at.strftime("%Y-%m-%d %H:%M") if record.created_at else "" }}</td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="6" class="muted">No execution records yet.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </body>
+</html>

@@ -45,19 +45,16 @@ Current MVP features:
 - Use Bulk Triage mode for queue pagination beyond the top dashboard slice.
 - Generate and review local automation candidates for mark_noise, unsubscribe_review, archive_candidate, and delete_candidate.
 - Apply bulk actions and undo recent bulk actions where practical.
+- Prepare, approve, and confirm outbound execution records for draft creation, reply send, calendar creation, and label/archive actions.
+- View execution audit trails with payload/result history.
 
 ## What it does not do today
 
 RTH CommsDesk does not currently:
 
-- Send emails.
-- Reply to emails.
-- Archive emails.
-- Delete emails.
+- Execute any outbound action without explicit approve + confirm steps.
 - Read Outlook, Teams, SMS, or other message channels.
-- Create external Gmail drafts.
-- Create calendar events or reminders externally.
-- Execute proposed archive, delete, unsubscribe, label, or calendar actions externally.
+- Run non-mock production outbound provider calls by default in local development.
 - Use paid or cloud AI credentials as a requirement for local draft generation.
 - Store full email bodies by default.
 
@@ -102,6 +99,17 @@ The Bulk Triage page lets you process large backlogs with:
 - bulk status and relationship actions
 - local automation candidate review with reason and confidence
 - undo for recent bulk actions where practical
+
+### Executions
+
+The Executions page tracks outbound action records. Each record requires:
+
+1. prepare (from a draft or review package)
+2. approve
+3. final confirm
+4. execute
+
+Execution records include payload preview, provider result, status history, and audit events.
 
 ### Review Packages
 
@@ -241,6 +249,14 @@ Open Voice Calibration from the dashboard header and click **Refresh inferences 
 ### Bulk candidate refresh
 
 Open Bulk Triage and click **Refresh automation candidates** to regenerate local noise/unsubscribe/archive/delete recommendations from stored message patterns and backlog-age signals.
+
+### Prepare execution from draft
+
+From Draft Review, click **Prepare external Gmail draft execution**. Then open the execution record, approve it, and confirm execution from the final confirmation screen.
+
+### Prepare execution from review package
+
+From Review Package detail, click **Prepare execution from this review package**. The execution payload is generated from the package action type and any calendar proposal data.
 
 ### Reset contact normal
 

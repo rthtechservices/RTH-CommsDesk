@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Execution Detail | RTH CommsDesk</title>
+    <style>
+      :root {
+        --bg: #f6f7f9;
+        --surface: #ffffff;
+        --line: #d9dee6;
+        --text: #17202a;
+        --muted: #607080;
+        --brand: #246b5a;
+        --warn-bg: #fff7ed;
+        --warn-line: #e4b47f;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: Arial, Helvetica, sans-serif;
+      }
+      a { color: var(--brand); font-weight: 700; text-decoration: none; }
+      .wrap { width: min(980px, calc(100% - 32px)); margin: 0 auto; padding: 20px 0 40px; }
+      .panel, .warning { border-radius: 8px; padding: 14px; margin-bottom: 12px; }
+      .panel { border: 1px solid var(--line); background: var(--surface); }
+      .warning { border: 1px solid var(--warn-line); background: var(--warn-bg); font-weight: 700; }
+      .muted { color: var(--muted); }
+      .facts { display: grid; gap: 8px; }
+      .facts div { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+      .facts div:first-child { border-top: 0; padding-top: 0; }
+      pre { border: 1px solid var(--line); border-radius: 8px; background: #fbfcfd; padding: 12px; white-space: pre-wrap; overflow: auto; }
+      button, input {
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        font: inherit;
+      }
+      button {
+        min-height: 34px;
+        background: var(--surface);
+        font-weight: 700;
+        padding: 7px 10px;
+        cursor: pointer;
+      }
+      button.primary {
+        border-color: var(--brand);
+        background: var(--brand);
+        color: #fff;
+      }
+      input { min-height: 34px; width: 100%; padding: 7px; }
+      .row { display: flex; flex-wrap: wrap; gap: 8px; }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <a href="/executions">Back to executions</a>
+      {% if record %}
+      <h1>Execution #{{ record.id }}</h1>
+      <p class="warning">Final confirmation is required before execution. Refreshing or re-opening this page does not execute anything.</p>
+      {% if record.action_type.value == "delete_unsubscribe" %}
+      <p class="warning">Destructive execution: delete/unsubscribe requires explicit confirmation token.</p>
+      {% endif %}
+      <section class="panel">
+        <div class="facts">
+          <div><strong>Action</strong><span>{{ record.action_type.value.replace("_", " ").title() }}</span></div>
+          <div><strong>Status</strong><span>{{ record.status.value.replace("_", " ").title() }}</span></div>
+          <div><strong>Review package</strong><span>{{ record.review_package_id or "-" }}</span></div>
+          <div><strong>Draft</strong><span>{{ record.draft_id or "-" }}</span></div>
+          <div><strong>Provider</strong><span>{{ record.provider_name }}</span></div>
+          <div><strong>Error</strong><span>{{ record.error_text or "-" }}</span></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Final confirmation payload</h2>
+        <pre>{{ record.payload_json }}</pre>
+      </section>
+
+      {% if record.result_json %}
+      <section class="panel">
+        <h2>Provider result</h2>
+        <pre>{{ record.result_json }}</pre>
+      </section>
+      {% endif %}
+
+      <section class="panel">
+        <h2>Execution controls</h2>
+        <div class="row">
+          <form method="post" action="/executions/{{ record.id }}/approve">
+            <button type="submit">Approve</button>
+          </form>
+          <form method="post" action="/executions/{{ record.id }}/cancel">
+            <button type="submit">Cancel</button>
+          </form>
+        </div>
+        <form method="post" action="/executions/{{ record.id }}/confirm" style="margin-top: 10px">
+          {% if record.action_type.value == "delete_unsubscribe" %}
+          <label class="muted">Enter CONFIRM_DESTRUCTIVE for delete/unsubscribe:</label>
+          <input name="destructive_confirm_token" />
+          {% endif %}
+          <button class="primary" type="submit">Confirm and execute</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>Audit trail</h2>
+        <ul>
+          {% for entry in audit %}
+          <li>
+            <strong>{{ entry.event_type }}</strong>
+            {% if entry.actor %} by {{ entry.actor }}{% endif %}
+            {% if entry.created_at %} at {{ entry.created_at.strftime("%Y-%m-%d %H:%M") }}{% endif %}
+            {% if entry.details %}<div class="muted">{{ entry.details }}</div>{% endif %}
+          </li>
+          {% else %}
+          <li class="muted">No audit entries yet.</li>
+          {% endfor %}
+        </ul>
+      </section>
+      {% else %}
+      <div class="panel">Execution record not found.</div>
+      {% endif %}
+    </main>
+  </body>
+</html>

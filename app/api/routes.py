@@ -6,6 +6,7 @@ from app.core.database import get_db
 from app.models.entities import (
     AttentionItem,
     AttentionStatus,
+    ExecutionRecord,
     Contact,
     InferenceStatus,
     Message,
@@ -30,6 +31,15 @@ from app.services.gmail_sync_service import (
     get_sync_state,
     sync_gmail_backfill,
     sync_gmail_messages,
+)
+from app.services.execution_service import (
+    approve_execution,
+    audit_entries_for_execution,
+    cancel_execution,
+    confirm_execution,
+    list_execution_records,
+    prepare_execution_for_draft,
+    prepare_execution_for_review_package,
 )
 from app.services.voice_learning_service import (
     run_sent_mail_learning,
@@ -511,6 +521,91 @@ def undo_bulk_triage_action(action_log_id: int, db: Session = Depends(get_db)) -
     return {"action_log_id": log.id, "is_undone": log.is_undone}
 
 
+@api_router.post("/executions/drafts/{draft_id}/prepare")
+def prepare_draft_execution(draft_id: int, actor: str = Form("local-user"), db: Session = Depends(get_db)) -> dict:
+    try:
+        prepared = prepare_execution_for_draft(db, draft_id, actor=actor)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return _execution_dict(prepared.record, already_exists=prepared.already_exists)
+
+
+@api_router.post("/executions/review-packages/{package_id}/prepare")
+def prepare_package_execution(
+    package_id: int, actor: str = Form("local-user"), db: Session = Depends(get_db)
+) -> dict:
+    try:
+        prepared = prepare_execution_for_review_package(db, package_id, actor=actor)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _execution_dict(prepared.record, already_exists=prepared.already_exists)
+
+
+@api_router.post("/executions/{execution_id}/approve")
+def approve_execution_endpoint(
+    execution_id: int, actor: str = Form("local-user"), db: Session = Depends(get_db)
+) -> dict:
+    try:
+        record = approve_execution(db, execution_id, actor=actor)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _execution_dict(record)
+
+
+@api_router.post("/executions/{execution_id}/confirm")
+def confirm_execution_endpoint(
+    execution_id: int,
+    actor: str = Form("local-user"),
+    destructive_confirm_token: str | None = Form(None),
+    db: Session = Depends(get_db),
+) -> dict:
+    try:
+        record = confirm_execution(
+            db,
+            execution_id,
+            actor=actor,
+            destructive_confirm_token=destructive_confirm_token,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _execution_dict(record)
+
+
+@api_router.post("/executions/{execution_id}/cancel")
+def cancel_execution_endpoint(
+    execution_id: int, actor: str = Form("local-user"), db: Session = Depends(get_db)
+) -> dict:
+    try:
+        record = cancel_execution(db, execution_id, actor=actor)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _execution_dict(record)
+
+
+@api_router.get("/executions")
+def get_executions(db: Session = Depends(get_db)) -> list[dict]:
+    return [_execution_dict(record) for record in list_execution_records(db)]
+
+
+@api_router.get("/executions/{execution_id}")
+def get_execution(execution_id: int, db: Session = Depends(get_db)) -> dict:
+    record = db.get(ExecutionRecord, execution_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Execution record not found")
+    data = _execution_dict(record)
+    data["audit"] = [
+        {
+            "id": entry.id,
+            "event_type": entry.event_type,
+            "actor": entry.actor,
+            "details": entry.details,
+            "created_at": entry.created_at.isoformat() if entry.created_at else None,
+        }
+        for entry in audit_entries_for_execution(db, execution_id)
+    ]
+    return data
+
+
 @api_router.get("/vip-contacts")
 def vip_contacts(db: Session = Depends(get_db)) -> list[dict]:
     contacts = (
@@ -576,4 +671,25 @@ def _review_package_dict(package: ProposedActionReviewPackage) -> dict:
             if calendar_proposal
             else None
         ),
+    }
+
+
+def _execution_dict(record: ExecutionRecord, *, already_exists: bool = False) -> dict:
+    return {
+        "id": record.id,
+        "review_package_id": record.review_package_id,
+        "draft_id": record.draft_id,
+        "calendar_proposal_id": record.calendar_proposal_id,
+        "action_type": record.action_type.value,
+        "status": record.status.value,
+        "created_by": record.created_by,
+        "approved_by": record.approved_by,
+        "confirmed_by": record.confirmed_by,
+        "provider_name": record.provider_name,
+        "payload_json": record.payload_json,
+        "result_json": record.result_json,
+        "error_text": record.error_text,
+        "created_at": record.created_at.isoformat() if record.created_at else None,
+        "executed_at": record.executed_at.isoformat() if record.executed_at else None,
+        "already_exists": already_exists,
     }

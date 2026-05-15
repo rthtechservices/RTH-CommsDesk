@@ -133,6 +133,9 @@
         </div>
         <h2>Suggested Reply</h2>
         <pre>{{ draft.draft_text }}</pre>
+        <form method="post" action="/drafts/{{ draft.id }}/prepare-execution">
+          <button type="submit">Prepare external Gmail draft execution</button>
+        </form>
       </section>
       {% else %}
       <div class="empty">Draft not found.</div>

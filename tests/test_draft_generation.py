@@ -122,8 +122,7 @@ def test_web_generate_draft_redirects_to_local_review_page(db_session):
     assert review_response.status_code == 200
     assert "Review-only local suggestion" in review_response.text
     assert "was not created in Gmail" in review_response.text
-    assert "Send email" not in review_response.text
-    assert 'type="submit"' not in review_response.text
+    assert "Prepare external Gmail draft execution" in review_response.text
     assert db_session.query(DraftReply).count() == 1
 
 

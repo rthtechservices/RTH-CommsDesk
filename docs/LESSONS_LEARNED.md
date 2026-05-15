@@ -107,6 +107,14 @@ python -m pytest -q
 - Keep calendar integrations read-only in scheduling-recommendation phase; no external event creation should occur yet.
 - Include suggested alternative windows when conflicts are detected so clarification drafts are concrete and actionable.
 
+## Approved execution lessons
+
+- Execution should be a staged workflow (prepare -> approve -> confirm -> execute) rather than a single-click action.
+- Keep execution idempotent with unique source/action records so re-clicks and refreshes do not duplicate sends.
+- Store the exact outbound payload and provider result on execution records for auditability and postmortems.
+- Write audit rows for every lifecycle step (prepared, approved, confirm_started, executed, failed, cancelled).
+- Keep destructive actions behind an explicit confirmation token and visible warnings even when mock providers are used.
+
 ## UI lessons
 
 - A raw list of scores and reasons is technically useful but not user-friendly.

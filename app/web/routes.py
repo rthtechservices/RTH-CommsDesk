@@ -13,6 +13,7 @@ from app.models.entities import (
     BulkTriageActionLog,
     Contact,
     DraftReply,
+    ExecutionRecord,
     InferenceStatus,
     Message,
     MessageClassification,
@@ -59,6 +60,15 @@ from app.services.feedback_service import (
     apply_message_correction,
     classification_tags,
     friendly_classification_label,
+)
+from app.services.execution_service import (
+    approve_execution,
+    audit_entries_for_execution,
+    cancel_execution,
+    confirm_execution,
+    list_execution_records,
+    prepare_execution_for_draft,
+    prepare_execution_for_review_package,
 )
 from app.services.gmail_sync_service import get_sync_state, sync_gmail_messages
 from app.services.gmail_sync_service import (
@@ -702,6 +712,24 @@ def draft_detail(draft_id: int, request: Request, db: Session = Depends(get_db))
     )
 
 
+@web_router.post("/drafts/{draft_id}/prepare-execution")
+def web_prepare_draft_execution(draft_id: int, db: Session = Depends(get_db)):
+    try:
+        prepared = prepare_execution_for_draft(db, draft_id, actor="local-user")
+    except ValueError:
+        return RedirectResponse(url="/drafts", status_code=303)
+    return RedirectResponse(url=f"/executions/{prepared.record.id}", status_code=303)
+
+
+@web_router.post("/review-packages/{package_id}/prepare-execution")
+def web_prepare_package_execution(package_id: int, db: Session = Depends(get_db)):
+    try:
+        prepared = prepare_execution_for_review_package(db, package_id, actor="local-user")
+    except ValueError:
+        return RedirectResponse(url="/review-packages", status_code=303)
+    return RedirectResponse(url=f"/executions/{prepared.record.id}", status_code=303)
+
+
 @web_router.get("/review-packages")
 def review_packages_index(request: Request, db: Session = Depends(get_db)):
     packages = (
@@ -747,3 +775,63 @@ def web_update_review_package_status(
         return RedirectResponse(url=f"/review-packages/{package.id}", status_code=303)
     except ValueError:
         return RedirectResponse(url="/review-packages", status_code=303)
+
+
+@web_router.get("/executions")
+def executions_index(request: Request, db: Session = Depends(get_db)):
+    records = list_execution_records(db)
+    return templates.TemplateResponse(
+        request,
+        "executions.html",
+        {"records": records},
+    )
+
+
+@web_router.get("/executions/{execution_id}")
+def execution_detail(execution_id: int, request: Request, db: Session = Depends(get_db)):
+    record = db.get(ExecutionRecord, execution_id)
+    return templates.TemplateResponse(
+        request,
+        "execution_detail.html",
+        {
+            "record": record,
+            "audit": audit_entries_for_execution(db, execution_id) if record else [],
+        },
+        status_code=200 if record else 404,
+    )
+
+
+@web_router.post("/executions/{execution_id}/approve")
+def web_approve_execution(execution_id: int, db: Session = Depends(get_db)):
+    try:
+        approve_execution(db, execution_id, actor="local-user")
+    except ValueError:
+        pass
+    return RedirectResponse(url=f"/executions/{execution_id}", status_code=303)
+
+
+@web_router.post("/executions/{execution_id}/confirm")
+def web_confirm_execution(
+    execution_id: int,
+    destructive_confirm_token: str | None = Form(None),
+    db: Session = Depends(get_db),
+):
+    try:
+        confirm_execution(
+            db,
+            execution_id,
+            actor="local-user",
+            destructive_confirm_token=destructive_confirm_token,
+        )
+    except ValueError:
+        pass
+    return RedirectResponse(url=f"/executions/{execution_id}", status_code=303)
+
+
+@web_router.post("/executions/{execution_id}/cancel")
+def web_cancel_execution(execution_id: int, db: Session = Depends(get_db)):
+    try:
+        cancel_execution(db, execution_id, actor="local-user")
+    except ValueError:
+        pass
+    return RedirectResponse(url=f"/executions/{execution_id}", status_code=303)

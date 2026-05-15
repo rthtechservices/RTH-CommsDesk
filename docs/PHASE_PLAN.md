@@ -218,6 +218,8 @@ Out of scope:
 
 - Fully autonomous unsupervised sending/deleting.
 
+Status: completed.
+
 ## Phase 11 — Microsoft 365 and additional communication connectors
 
 Primary outcome: expand sources after Gmail intelligence is useful.

@@ -252,6 +252,9 @@
           </label>
           <button class="primary" type="submit">Save local status</button>
         </form>
+        <form method="post" action="/review-packages/{{ package.id }}/prepare-execution" style="margin-top: 10px">
+          <button type="submit">Prepare execution from this review package</button>
+        </form>
       </section>
       {% else %}
       <div class="empty">Review package not found.</div>

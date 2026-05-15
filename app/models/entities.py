@@ -81,6 +81,23 @@ class CandidateStatus(StrEnum):
     UNDONE = "undone"
 
 
+class ExecutionStatus(StrEnum):
+    PENDING_REVIEW = "pending_review"
+    APPROVED = "approved"
+    EXECUTING = "executing"
+    EXECUTED = "executed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class ExecutionActionType(StrEnum):
+    CREATE_EXTERNAL_GMAIL_DRAFT = "create_external_gmail_draft"
+    SEND_GMAIL_REPLY = "send_gmail_reply"
+    CREATE_CALENDAR_EVENT = "create_calendar_event"
+    APPLY_GMAIL_LABEL_ARCHIVE = "apply_gmail_label_archive"
+    DELETE_UNSUBSCRIBE = "delete_unsubscribe"
+
+
 class Contact(Base):
     __tablename__ = "contacts"
 
@@ -506,6 +523,60 @@ class CalendarActionProposal(Base):
     review_package: Mapped[ProposedActionReviewPackage] = relationship(
         back_populates="calendar_proposals"
     )
+
+
+class ExecutionRecord(Base):
+    __tablename__ = "execution_records"
+    __table_args__ = (
+        UniqueConstraint("review_package_id", "action_type", name="uq_execution_review_action"),
+        UniqueConstraint("draft_id", "action_type", name="uq_execution_draft_action"),
+        Index("ix_execution_records_status_created", "status", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    review_package_id: Mapped[int | None] = mapped_column(
+        ForeignKey("proposed_action_review_packages.id"), index=True
+    )
+    draft_id: Mapped[int | None] = mapped_column(ForeignKey("draft_replies.id"), index=True)
+    calendar_proposal_id: Mapped[int | None] = mapped_column(
+        ForeignKey("calendar_action_proposals.id"), index=True
+    )
+    action_type: Mapped[ExecutionActionType] = mapped_column(Enum(ExecutionActionType))
+    status: Mapped[ExecutionStatus] = mapped_column(
+        Enum(ExecutionStatus), default=ExecutionStatus.PENDING_REVIEW
+    )
+    created_by: Mapped[str | None] = mapped_column(String(255))
+    approved_by: Mapped[str | None] = mapped_column(String(255))
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    confirmed_by: Mapped[str | None] = mapped_column(String(255))
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    executed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    provider_name: Mapped[str] = mapped_column(String(100), default="mock")
+    payload_json: Mapped[str] = mapped_column(Text)
+    result_json: Mapped[str | None] = mapped_column(Text)
+    error_text: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+    review_package: Mapped[ProposedActionReviewPackage | None] = relationship()
+    draft: Mapped[DraftReply | None] = relationship()
+    calendar_proposal: Mapped[CalendarActionProposal | None] = relationship()
+
+
+class ExecutionAuditLog(Base):
+    __tablename__ = "execution_audit_logs"
+    __table_args__ = (Index("ix_execution_audit_record_created", "execution_record_id", "created_at"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    execution_record_id: Mapped[int] = mapped_column(ForeignKey("execution_records.id"), index=True)
+    event_type: Mapped[str] = mapped_column(String(100))
+    actor: Mapped[str | None] = mapped_column(String(255))
+    details: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    execution_record: Mapped[ExecutionRecord] = relationship()
 
 
 class UserFeedback(Base):
