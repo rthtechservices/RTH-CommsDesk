@@ -27,7 +27,9 @@ Current MVP features:
 - Mark a message as important.
 - Mark a message as requiring a reply.
 - Correct a message with structured labels such as important, needs reply, client work, job alert, newsletter, receipt, system notice, marketing, noise, or ignore.
-- Generate a draft reply placeholder.
+- Generate a local review-only draft suggestion from a message detail page.
+- Choose a voice profile for draft suggestions: client, friend, partner, vendor, or short acknowledgement.
+- Review local draft suggestions from the Drafts page.
 
 ## What it does not do today
 
@@ -38,7 +40,8 @@ RTH CommsDesk does not currently:
 - Archive emails.
 - Delete emails.
 - Read Outlook, Teams, SMS, or other message channels.
-- Generate polished AI replies.
+- Create external Gmail drafts.
+- Use paid or cloud AI credentials as a requirement for local draft generation.
 - Store full email bodies by default.
 
 ## Dashboard sections
@@ -54,6 +57,10 @@ VIP Contacts are senders the user has marked as important. Future messages from 
 ### Contacts
 
 The Contacts page is linked from the dashboard header. Use it to edit contact profiles, aliases, relationship type, importance tier, preferred channel, notes, and normal/VIP/noise status.
+
+### Drafts
+
+The Drafts page lists local draft suggestions. Drafts are stored only in the local CommsDesk database and are not sent or created in Gmail.
 
 ### Recent Unread Human Messages
 
@@ -109,6 +116,22 @@ Records that the app classified a message incorrectly. Choose a structured label
 ### Mark important
 
 Boosts the current message so it stays visible in the Attention Queue.
+
+### Generate local draft
+
+Creates a local draft suggestion from the message detail page. Choose a voice profile before generating:
+
+- Client: direct, competent, and clear about next steps.
+- Friend: warmer and more casual.
+- Partner: warm, direct, and less corporate.
+- Vendor: brief and transactional.
+- Short acknowledgement: very brief confirmation of receipt.
+
+Generated drafts are suggestions only. The app does not send the draft, reply to Gmail, create a Gmail draft, archive, or delete anything.
+
+### Review drafts
+
+Open the Drafts page from the dashboard header or open a generated draft directly after creating it. The review page shows the source message, selected voice profile, local status, and suggested reply text.
 
 ### Reset contact normal
 

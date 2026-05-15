@@ -12,7 +12,7 @@ from app.models.entities import (
 )
 from app.services.attention_service import build_attention_queue
 from app.services.contact_service import mark_contact_noise, mark_contact_vip, reset_contact_status
-from app.services.draft_service import generate_draft_placeholder
+from app.services.draft_service import create_draft_reply
 from app.services.feedback_service import apply_message_correction
 from app.services.gmail_sync_service import get_sync_state, sync_gmail_messages
 
@@ -174,12 +174,22 @@ def correct_classification(
 
 
 @api_router.post("/messages/{message_id}/generate-draft")
-def generate_draft(message_id: int, db: Session = Depends(get_db)) -> dict:
+def generate_draft(
+    message_id: int,
+    voice_profile_id: int | None = Form(None),
+    db: Session = Depends(get_db),
+) -> dict:
     message = db.get(Message, message_id)
     if not message:
         raise HTTPException(status_code=404, detail="Message not found")
-    draft = generate_draft_placeholder(db, message)
-    return {"draft_id": draft.id, "status": draft.status}
+    draft = create_draft_reply(db, message, voice_profile_id=voice_profile_id)
+    return {
+        "draft_id": draft.id,
+        "status": draft.status,
+        "message_id": draft.message_id,
+        "voice_profile_id": draft.voice_profile_id,
+        "review_only": True,
+    }
 
 
 @api_router.get("/vip-contacts")

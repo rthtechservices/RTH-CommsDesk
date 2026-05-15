@@ -40,6 +40,16 @@ VOICE_SEEDS = [
         "apology_style": "short and practical",
         "signoff_style": "clear action request",
     },
+    {
+        "name": "Short Acknowledgement",
+        "audience_type": "short_acknowledgement",
+        "tone_description": "very brief, polite, confirms receipt only",
+        "formality_level": 3,
+        "humor_level": 0,
+        "apology_style": "avoid apology unless needed",
+        "signoff_style": "short thanks",
+        "max_length_preference": 80,
+    },
 ]
 
 

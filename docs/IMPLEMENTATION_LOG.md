@@ -31,6 +31,58 @@ Record completed work here at the end of every phase. Newest entries should be a
 - 
 ```
 
+## 2026-05-15 — Phase 04: Safe Draft Reply Generation and Voice Profiles
+
+### Summary
+- Replaced the placeholder draft generator with a provider-neutral draft service and deterministic mock provider.
+- Added local review-only draft generation from message detail pages with voice profile selection.
+- Seeded the required short acknowledgement voice profile alongside client, friend, partner, and vendor profiles.
+- Built compact draft context from message subject, sender/contact, relationship, contact importance/status, classification, attention score/reason, recommended action, and correction/profile feedback summaries.
+- Added local draft list and draft review pages that clearly state drafts are suggestions only, not sent, and not created in Gmail.
+- Added focused tests for draft creation, voice-profile-specific mock output, context construction, and the web draft review flow.
+
+### Files changed
+- `app/models/entities.py`
+- `app/services/draft_service.py`
+- `app/services/voice_seed.py`
+- `app/api/routes.py`
+- `app/web/routes.py`
+- `app/web/templates/dashboard.html`
+- `app/web/templates/message_detail.html`
+- `app/web/templates/drafts.html`
+- `app/web/templates/draft_review.html`
+- `tests/test_draft_generation.py`
+- `README.md`
+- `docs/PROJECT_TRACKING.md`
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/HELP.md`
+- `docs/phases/PHASE_04_DRAFTS_AND_VOICE.md`
+
+### Tests run
+- `python -m pytest -q` — passed, 37 tests.
+
+### Smoke tests
+- App startup: `python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8014` started successfully and `GET /` returned HTTP 200.
+- Dashboard: dashboard route rendered during startup smoke.
+- Key workflow: automated web test generated a local draft from a message detail route, redirected to the draft review page, and confirmed there are no send controls.
+
+### Documentation updated
+- `README.md`
+- `docs/PROJECT_TRACKING.md`
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/HELP.md`
+- `docs/phases/PHASE_04_DRAFTS_AND_VOICE.md`
+
+### Known issues
+- Draft generation is intentionally deterministic/mock-only for local development; no production AI provider is wired in this phase.
+- Drafts are stored as local suggestions only. Editing, approval workflows, and external draft creation remain future work.
+
+### Recommended next actions
+- Human review and smoke-test Phase 04 with real local message examples.
+- After review, proceed to Phase 05: Microsoft 365 connectors: Outlook and Teams.
+
 ## 2026-05-15 — Phase 03: Contact Intelligence and Relationship-Aware Triage
 
 ### Summary

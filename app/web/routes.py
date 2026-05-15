@@ -9,6 +9,7 @@ from app.models.entities import (
     AttentionItem,
     AttentionStatus,
     Contact,
+    DraftReply,
     Message,
     MessageClassification,
     UserFeedback,
@@ -28,7 +29,12 @@ from app.services.contact_service import (
     reset_contact_status,
     update_contact_profile,
 )
-from app.services.draft_service import generate_draft_placeholder
+from app.services.draft_service import (
+    available_voice_profiles,
+    create_draft_reply,
+    recent_drafts_for_message,
+    suggested_voice_profile_id,
+)
 from app.services.feedback_service import (
     CORRECTION_LABELS,
     apply_message_correction,
@@ -143,6 +149,9 @@ def message_detail(message_id: int, request: Request, db: Session = Depends(get_
                 .limit(5)
                 .all()
             )
+        draft_replies = recent_drafts_for_message(db, message_id)
+        voice_profiles = available_voice_profiles(db)
+        suggested_profile_id = suggested_voice_profile_id(db, message)
     else:
         status_code = 404
     return templates.TemplateResponse(
@@ -157,6 +166,9 @@ def message_detail(message_id: int, request: Request, db: Session = Depends(get_
             "contact_feedback": contact_feedback if message else [],
             "contact_status": contact_status(contact),
             "feedback": feedback,
+            "draft_replies": draft_replies if message else [],
+            "voice_profiles": voice_profiles if message else [],
+            "suggested_profile_id": suggested_profile_id if message else None,
             "correction_labels": CORRECTION_LABELS,
             "friendly_label": friendly_classification_label(classification),
             "classification_tags": classification_tags(classification),
@@ -377,10 +389,40 @@ def web_correct_classification(
 
 
 @web_router.post("/messages/{message_id}/generate-draft")
-def web_generate_draft(message_id: int, request: Request, db: Session = Depends(get_db)):
+def web_generate_draft(
+    message_id: int,
+    request: Request,
+    voice_profile_id: int | None = Form(None),
+    db: Session = Depends(get_db),
+):
     message = db.get(Message, message_id)
     if message:
-        generate_draft_placeholder(db, message)
+        draft = create_draft_reply(db, message, voice_profile_id=voice_profile_id)
+        return RedirectResponse(
+            url=request.url_for("draft_detail", draft_id=draft.id), status_code=303
+        )
     return RedirectResponse(
         url=request.url_for("message_detail", message_id=message_id), status_code=303
+    )
+
+
+@web_router.get("/drafts")
+def drafts_index(request: Request, db: Session = Depends(get_db)):
+    drafts = (
+        db.query(DraftReply)
+        .order_by(DraftReply.created_at.desc(), DraftReply.id.desc())
+        .limit(100)
+        .all()
+    )
+    return templates.TemplateResponse(request, "drafts.html", {"drafts": drafts})
+
+
+@web_router.get("/drafts/{draft_id}")
+def draft_detail(draft_id: int, request: Request, db: Session = Depends(get_db)):
+    draft = db.get(DraftReply, draft_id)
+    return templates.TemplateResponse(
+        request,
+        "draft_review.html",
+        {"draft": draft},
+        status_code=200 if draft else 404,
     )

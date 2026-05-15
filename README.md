@@ -22,13 +22,14 @@ Each LLM session should complete one phase only, update the documentation, and s
 - Gmail-only connector (read-only)
 - Metadata/snippet storage by default
 - Deterministic classification and attention scoring
-- Draft-only reply placeholders (no auto-send)
+- Local review-only draft suggestions with voice profiles (no auto-send)
 - Local SQLite for development
 
 ## Known MVP limitations
 - Outlook/Teams/SMS/WhatsApp/Messenger connectors are stubbed only.
 - AI classifier is provider-neutral but runs with deterministic logic/mock fallback by default.
 - Gmail sync is read-only and duplicate-safe, but still limited to recent inbox messages from the configured Gmail account.
+- Draft generation uses a deterministic mock/local provider by default; no paid AI credentials are required for local development.
 
 ## Safety rules
 - Never commit secrets, OAuth tokens, or private message data.
@@ -121,4 +122,4 @@ Do not delete or commit `client_secret.json`, `gmail_token.json`, `.env`, or any
 
 The next implementation phase is:
 
-Phase 03 — Contact intelligence and relationship-aware triage.
+Phase 05 — Microsoft 365 connectors: Outlook and Teams.

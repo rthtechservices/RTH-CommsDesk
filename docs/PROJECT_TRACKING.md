@@ -10,7 +10,7 @@ The app must remain privacy-first and auditable. It should store only the data n
 
 ## Current baseline
 
-The current MVP is Gmail-only and read-only. It can ingest Gmail metadata/snippets, persist sync high-water metadata, avoid duplicate local sync side effects, classify messages with deterministic rules, score attention items, show a basic dashboard, and allow simple corrections such as VIP, noise, requires reply, reviewed, and draft placeholder.
+The current MVP is Gmail-only and read-only. It can ingest Gmail metadata/snippets, persist sync high-water metadata, avoid duplicate local sync side effects, classify messages with deterministic rules, score attention items, show a basic dashboard, allow simple corrections such as VIP, noise, requires reply, and reviewed, and generate local review-only draft suggestions with deterministic mock voice profiles.
 
 Known rough edges:
 
@@ -19,7 +19,7 @@ Known rough edges:
 - Corrections do not yet form a strong structured learning loop.
 - Full-body storage is intentionally disabled by default.
 - Outlook, Teams, SMS, WhatsApp, Messenger, and Facebook Messenger are not implemented.
-- AI-generated replies are not implemented.
+- Production AI-generated replies are not implemented; local deterministic draft suggestions are available for review only.
 
 ## Operating model
 

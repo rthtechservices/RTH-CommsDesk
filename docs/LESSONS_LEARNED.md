@@ -58,6 +58,14 @@ python -m pytest -q
 - Store contact profile changes as feedback/history records so future tuning can distinguish message classification corrections from contact relationship corrections.
 - Relationship-aware scoring should include explicit negative weights for newsletter and system contacts, not only positive boosts for close relationships.
 
+## Draft generation lessons
+
+- Keep draft generation provider-neutral by passing a compact context object into a provider interface; routes should not know whether the provider is mock, local, or cloud.
+- Draft context should use metadata, subject, classification, attention reason, contact profile, and feedback summaries. Do not pass full message bodies by default.
+- Feedback summaries used for draft context should summarize labels and corrected values, not raw free-text feedback that may contain private content.
+- Local mock draft generation is a required fallback so the app remains usable without paid AI credentials.
+- Review pages must keep the safety boundary visible: local suggestions only, not sent, and not created in Gmail.
+
 ## UI lessons
 
 - A raw list of scores and reasons is technically useful but not user-friendly.

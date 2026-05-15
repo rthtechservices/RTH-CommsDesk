@@ -226,6 +226,8 @@ class VoiceProfile(Base):
     banned_phrases: Mapped[str | None] = mapped_column(Text)
     max_length_preference: Mapped[int | None] = mapped_column(Integer)
 
+    drafts: Mapped[list[DraftReply]] = relationship(back_populates="voice_profile")
+
 
 class DraftReply(Base):
     __tablename__ = "draft_replies"
@@ -240,6 +242,10 @@ class DraftReply(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow
     )
+
+    thread: Mapped[MessageThread] = relationship()
+    message: Mapped[Message | None] = relationship()
+    voice_profile: Mapped[VoiceProfile | None] = relationship(back_populates="drafts")
 
 
 class UserFeedback(Base):

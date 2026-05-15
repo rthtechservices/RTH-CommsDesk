@@ -6,18 +6,18 @@ Generate review-only draft suggestions that fit the message context and the user
 
 ## Required implementation
 
-- Implement provider-neutral draft generation service.
-- Add a mock provider for tests and local development.
-- Use voice profiles for different audiences:
+- [x] Implement provider-neutral draft generation service.
+- [x] Add a mock provider for tests and local development.
+- [x] Use voice profiles for different audiences:
   - client
   - friend
   - partner
   - vendor
   - short acknowledgement
-- Include message classification, contact relationship, and correction history in draft context.
-- Store generated drafts locally with status and source message.
-- Add a user-facing draft review page.
-- Add tests for draft creation using a mock provider.
+- [x] Include message classification, contact relationship, and correction history in draft context.
+- [x] Store generated drafts locally with status and source message.
+- [x] Add a user-facing draft review page.
+- [x] Add tests for draft creation using a mock provider.
 
 ## Safety boundary
 
@@ -35,7 +35,24 @@ Generate review-only draft suggestions that fit the message context and the user
 
 ## Acceptance criteria
 
-- `pytest -q` passes.
-- Draft generation works with a mock provider.
-- Drafts are clearly marked as review-only.
-- No auto-send or external mailbox modification exists.
+- [x] `pytest -q` passes.
+- [x] Draft generation works with a mock provider.
+- [x] Drafts are clearly marked as review-only.
+- [x] No auto-send or external mailbox modification exists.
+
+## Completion notes — 2026-05-15
+
+- Added `DraftContext`, `DraftProvider`, and `MockDraftProvider` in `app/services/draft_service.py`.
+- Draft context includes subject, sender/contact identity, relationship, importance tier, VIP/noise/normal state, classification summary, attention score/reason, recommended action, and summarized correction/profile feedback.
+- Added local draft generation from message detail pages with a selectable voice profile.
+- Added local `/drafts` and `/drafts/{draft_id}` review pages. These pages explicitly say drafts are suggestions only, not sent, and not created in Gmail.
+- Seeded the missing `Short Acknowledgement` voice profile.
+- Added tests in `tests/test_draft_generation.py` for mock-provider draft creation, all required voice styles, draft context construction, and the web review flow.
+- Validation: `python -m pytest -q` passed with 37 tests.
+- Startup smoke: `python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8014` started and served `GET /` with HTTP 200.
+
+## Remaining boundaries
+
+- No Gmail send, reply, archive, delete, or external Gmail draft creation was added.
+- No Outlook, Teams, SMS, WhatsApp, Messenger, or notification connector work was added.
+- Draft generation remains deterministic/mock-only for this phase so local development does not require paid AI credentials.

@@ -331,10 +331,41 @@
                 <button class="danger" type="submit">Mark sender as noise</button>
               </form>
               {% endif %}
-              <form method="post" action="/messages/{{ message.id }}/generate-draft">
-                <button type="submit">Generate draft placeholder</button>
+              <form method="post" action="/messages/{{ message.id }}/generate-draft" class="actions">
+                <label>
+                  <span class="label">Voice profile</span>
+                  <select name="voice_profile_id">
+                    {% for profile in voice_profiles %}
+                    <option value="{{ profile.id }}" {% if profile.id == suggested_profile_id %}selected{% endif %}>
+                      {{ profile.name }}
+                    </option>
+                    {% else %}
+                    <option value="">Local mock voice</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <button type="submit">Generate local draft</button>
               </form>
+              <div class="muted">Drafts are suggestions only. Nothing is sent or created in Gmail.</div>
             </div>
+          </section>
+
+          <section class="panel">
+            <h2>Local Drafts</h2>
+            <ul class="history">
+              {% for draft in draft_replies %}
+              <li>
+                <strong><a href="/drafts/{{ draft.id }}">Draft {{ draft.id }}</a></strong>
+                <div class="muted">
+                  {{ draft.status.value if draft.status.value is defined else draft.status }}
+                  {% if draft.voice_profile %} | {{ draft.voice_profile.name }}{% endif %}
+                  {% if draft.created_at %} | {{ draft.created_at.strftime("%Y-%m-%d %H:%M") }}{% endif %}
+                </div>
+              </li>
+              {% else %}
+              <li class="muted">No local draft suggestions generated for this message.</li>
+              {% endfor %}
+            </ul>
           </section>
 
           <section class="panel">
