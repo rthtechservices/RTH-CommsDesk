@@ -35,6 +35,7 @@ def mark_contact_vip(db: Session, contact_id: int) -> Contact:
     if not contact:
         raise ValueError("Contact not found")
     contact.is_vip = True
+    contact.is_noise = False
     contact.importance_tier = max(contact.importance_tier, 4)
     recalculate_attention_for_contact(db, contact)
     db.commit()
@@ -52,8 +53,22 @@ def mark_contact_noise(db: Session, sender_email: str) -> Contact:
         db.add(contact)
         db.flush()
     contact.is_noise = True
+    contact.is_vip = False
     contact.importance_tier = 0
     recalculate_attention_for_contact(db, contact, dismiss_noise_items=True)
+    db.commit()
+    db.refresh(contact)
+    return contact
+
+
+def reset_contact_status(db: Session, contact_id: int) -> Contact:
+    contact = db.get(Contact, contact_id)
+    if not contact:
+        raise ValueError("Contact not found")
+    contact.is_vip = False
+    contact.is_noise = False
+    contact.importance_tier = max(contact.importance_tier, 1)
+    recalculate_attention_for_contact(db, contact)
     db.commit()
     db.refresh(contact)
     return contact

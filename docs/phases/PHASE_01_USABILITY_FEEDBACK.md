@@ -18,10 +18,10 @@ Make the existing Gmail MVP easier to use and more teachable. The app should cle
 
 ### 1. Dashboard usability
 
-- Replace raw bullet lists with a clean page layout.
-- Use lightweight CSS only; do not add a heavy frontend framework.
-- Make Attention Queue the main section.
-- Display useful columns or card fields:
+- [x] Replace raw bullet lists with a clean page layout.
+- [x] Use lightweight CSS only; do not add a heavy frontend framework.
+- [x] Make Attention Queue the main section.
+- [x] Display useful columns or card fields:
   - Subject
   - Sender
   - Score
@@ -30,37 +30,37 @@ Make the existing Gmail MVP easier to use and more teachable. The app should cle
   - Short reason
   - Received date if available
   - Primary actions
-- Make high-priority items visually prominent.
-- Mute likely newsletters/noise.
-- Keep row actions minimal. Prefer Details plus one or two primary actions.
-- Add clear empty states.
+- [x] Make high-priority items visually prominent.
+- [x] Mute likely newsletters/noise.
+- [x] Keep row actions minimal. Prefer Details plus one or two primary actions.
+- [x] Add clear empty states.
 
 ### 2. Message detail usability
 
 The detail page should show:
 
-- Subject
-- Sender name and email
-- Received date
-- Snippet
-- Body stored mode
-- Classification flags/tags
-- Attention score if available
-- Contact status: VIP, noise, or normal
+- [x] Subject
+- [x] Sender name and email
+- [x] Received date
+- [x] Snippet
+- [x] Body stored mode
+- [x] Classification flags/tags
+- [x] Attention score if available
+- [x] Contact status: VIP, noise, or normal
 
 Group actions clearly:
 
-- Mark important
-- Mark needs reply
-- Mark reviewed
-- Mark contact VIP
-- Mark sender as noise
-- Correct classification
-- Generate draft placeholder
+- [x] Mark important
+- [x] Mark needs reply
+- [x] Mark reviewed
+- [x] Mark contact VIP
+- [x] Mark sender as noise
+- [x] Correct classification
+- [x] Generate draft placeholder
 
 ### 3. Structured corrections
 
-Add or enhance feedback storage so corrections can capture:
+- [x] Add or enhance feedback storage so corrections can capture:
 
 - message_id
 - contact_id if available
@@ -88,51 +88,55 @@ Suggested correction labels:
 - noise
 - ignore
 
-Use dropdowns or buttons rather than relying on free text only.
+- [x] Use dropdowns or buttons rather than relying on free text only.
 
 ### 4. Corrections must affect current message immediately
 
 When the user corrects a message:
 
-- Persist structured feedback.
-- Update the message classification fields where appropriate.
-- Recalculate the attention score.
-- Update the reason and recommended action.
-- Important should boost the item.
-- Needs reply should set `requires_reply` and recommended action to `Reply`.
-- Newsletter/noise/ignore should lower or dismiss the item.
-- Job alert should be low priority unless the sender/contact is VIP or the user marks it important.
-- Receipt/system notice should generally stay lower priority unless important or requires reply.
+- [x] Persist structured feedback.
+- [x] Update the message classification fields where appropriate.
+- [x] Recalculate the attention score.
+- [x] Update the reason and recommended action.
+- [x] Important should boost the item.
+- [x] Needs reply should set `requires_reply` and recommended action to `Reply`.
+- [x] Newsletter/noise/ignore should lower or dismiss the item.
+- [x] Job alert should be low priority unless the sender/contact is VIP or the user marks it important.
+- [x] Receipt/system notice should generally stay lower priority unless important or requires reply.
 
 ### 5. Improve deterministic classification examples
 
 Add or improve rules so:
 
-- LinkedIn/Google-style job alerts are not treated as client work by default.
-- Newsletters with unsubscribe/list headers are low priority unless VIP or corrected important.
-- Renewal reminders, insurance, invoices, taxes, bills, expiry dates, due dates, and payment deadlines get an importance boost.
-- ICBC-style insurance renewal reminders can become high priority when marked important or when sender is VIP.
+- [x] LinkedIn/Google-style job alerts are not treated as client work by default.
+- [x] Newsletters with unsubscribe/list headers are low priority unless VIP or corrected important.
+- [x] Renewal reminders, insurance, invoices, taxes, bills, expiry dates, due dates, and payment deadlines get an importance boost.
+- [x] ICBC-style insurance renewal reminders can become high priority when marked important or when sender is VIP.
 
 ### 6. Contact status actions
 
-- VIP should recalculate existing sender messages upward.
-- Noise should recalculate or dismiss existing sender messages downward.
-- Add a normal/reset contact status action if straightforward.
+- [x] VIP should recalculate existing sender messages upward.
+- [x] Noise should recalculate or dismiss existing sender messages downward.
+- [x] Add a normal/reset contact status action if straightforward.
 
 ### 7. Tests
 
 Add or update tests for:
 
-- Correcting a message as important increases score.
-- Correcting a message as needs reply sets `requires_reply` and recommended action.
-- Correcting a message as newsletter/noise lowers or dismisses it.
-- Job alert classification is not client work by default.
-- Insurance/renewal reminders receive a priority boost.
-- VIP recalculation works.
-- Noise recalculation works.
-- Dashboard route loads.
-- Message detail route loads.
-- Structured feedback persists.
+- [x] Correcting a message as important increases score.
+- [x] Correcting a message as needs reply sets `requires_reply` and recommended action.
+- [x] Correcting a message as newsletter/noise lowers or dismisses it.
+- [x] Job alert classification is not client work by default.
+- [x] Insurance/renewal reminders receive a priority boost.
+- [x] VIP recalculation works.
+- [x] Noise recalculation works.
+- [x] Dashboard route loads.
+- [x] Message detail route loads.
+- [x] Structured feedback persists.
+
+## Completion notes
+
+Completed on 2026-05-15. Structured corrections are implemented through `app/services/feedback_service.py` and shared by web/API routes. `alembic/versions/0002_structured_feedback.py` adds the feedback fields. Tests pass with 25 tests and 2 existing FastAPI `on_event` deprecation warnings.
 
 ## Out of scope
 

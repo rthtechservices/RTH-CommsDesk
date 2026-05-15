@@ -11,8 +11,9 @@ from app.models.entities import (
     MessageClassification,
 )
 from app.services.attention_service import build_attention_queue
-from app.services.contact_service import mark_contact_noise, mark_contact_vip
+from app.services.contact_service import mark_contact_noise, mark_contact_vip, reset_contact_status
 from app.services.draft_service import generate_draft_placeholder
+from app.services.feedback_service import apply_message_correction
 from app.services.gmail_sync_service import sync_gmail_messages
 
 api_router = APIRouter()
@@ -77,6 +78,15 @@ def set_vip(contact_id: int, db: Session = Depends(get_db)) -> dict:
     return {"contact_id": contact.id, "is_vip": contact.is_vip}
 
 
+@api_router.post("/contacts/{contact_id}/normal")
+def set_contact_normal(contact_id: int, db: Session = Depends(get_db)) -> dict:
+    try:
+        contact = reset_contact_status(db, contact_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {"contact_id": contact.id, "is_vip": contact.is_vip, "is_noise": contact.is_noise}
+
+
 @api_router.post("/contacts/noise")
 def set_noise(sender_email: str = Form(...), db: Session = Depends(get_db)) -> dict:
     try:
@@ -98,27 +108,44 @@ def mark_reviewed(attention_id: int, db: Session = Depends(get_db)) -> dict:
 
 @api_router.post("/messages/{message_id}/requires-reply")
 def force_requires_reply(message_id: int, db: Session = Depends(get_db)) -> dict:
-    c = db.query(MessageClassification).filter_by(message_id=message_id).first()
-    if not c:
-        raise HTTPException(status_code=404, detail="Classification not found")
-    c.requires_reply = True
-    c.classification_reason = "User marked requires reply"
-    db.commit()
-    return {"message_id": message_id, "requires_reply": True}
+    try:
+        result = apply_message_correction(db, message_id, corrected_label="needs_reply")
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {
+        "message_id": message_id,
+        "requires_reply": result.classification.requires_reply,
+        "attention_score": result.attention_item.attention_score,
+        "recommended_action": result.attention_item.recommended_action,
+    }
 
 
 @api_router.post("/messages/{message_id}/correct-classification")
 def correct_classification(
     message_id: int,
-    reason: str = Form(...),
+    corrected_label: str = Form(...),
+    corrected_importance: int | None = Form(None),
+    notes: str | None = Form(None),
     db: Session = Depends(get_db),
 ) -> dict:
-    c = db.query(MessageClassification).filter_by(message_id=message_id).first()
-    if not c:
-        raise HTTPException(status_code=404, detail="Classification not found")
-    c.classification_reason = f"Corrected: {reason}"
-    db.commit()
-    return {"message_id": message_id, "reason": c.classification_reason}
+    try:
+        result = apply_message_correction(
+            db,
+            message_id=message_id,
+            corrected_label=corrected_label,
+            corrected_importance=corrected_importance,
+            notes=notes,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {
+        "message_id": message_id,
+        "corrected_label": result.feedback.corrected_label,
+        "reason": result.classification.classification_reason,
+        "attention_score": result.attention_item.attention_score,
+        "recommended_action": result.attention_item.recommended_action,
+        "status": result.attention_item.status,
+    }
 
 
 @api_router.post("/messages/{message_id}/generate-draft")

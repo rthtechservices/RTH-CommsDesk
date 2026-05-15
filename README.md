@@ -105,4 +105,4 @@ pytest -q
 
 The next implementation phase is:
 
-`docs/phases/PHASE_01_USABILITY_FEEDBACK.md`
+`docs/phases/PHASE_02_GMAIL_SYNC_RELIABILITY.md`

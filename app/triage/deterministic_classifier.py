@@ -10,6 +10,31 @@ RECEIPT_KEYWORDS = {"receipt", "invoice", "payment", "order confirmation", "tran
 SYSTEM_KEYWORDS = {"noreply", "do-not-reply", "notification", "system", "alert"}
 CLIENT_KEYWORDS = {"proposal", "contract", "client", "deliverable", "scope", "milestone"}
 URGENCY_KEYWORDS = {"urgent", "asap", "today", "tomorrow", "deadline", "immediately"}
+JOB_ALERT_KEYWORDS = {
+    "job alert",
+    "jobs alert",
+    "recommended jobs",
+    "new jobs",
+    "jobs matching",
+    "hiring",
+    "linkedin job",
+}
+IMPORTANT_REMINDER_KEYWORDS = {
+    "renewal",
+    "renew",
+    "insurance",
+    "icbc",
+    "invoice",
+    "tax",
+    "taxes",
+    "bill",
+    "due date",
+    "payment deadline",
+    "payment due",
+    "expiry",
+    "expires",
+    "expiring",
+}
 QUESTION_PATTERNS = [
     r"\?",
     r"can you",
@@ -72,33 +97,68 @@ def classify_message(payload: MessagePayload) -> ClassificationResult:
     auto_generated = bool(auto_submitted_header and auto_submitted_header != "no")
     reply_to_suspicious = "noreply" in reply_to_header or "no-reply" in reply_to_header
 
-    is_newsletter = list_unsub or precedence_bulk or _contains_any(combined, NEWSLETTER_KEYWORDS)
-    is_marketing = _contains_any(combined, MARKETING_KEYWORDS) or is_newsletter or precedence_bulk
+    is_job_alert = _contains_any(combined, JOB_ALERT_KEYWORDS) or "linkedin" in _domain(
+        payload.sender_email
+    )
+    has_important_reminder = _contains_any(combined, IMPORTANT_REMINDER_KEYWORDS)
+
+    is_newsletter = (
+        list_unsub
+        or precedence_bulk
+        or is_job_alert
+        or _contains_any(combined, NEWSLETTER_KEYWORDS)
+    )
+    is_marketing = (
+        _contains_any(combined, MARKETING_KEYWORDS)
+        or is_newsletter
+        or precedence_bulk
+        or is_job_alert
+    )
     is_receipt = _contains_any(combined, RECEIPT_KEYWORDS)
     is_system_notification = (
         _contains_any(combined, SYSTEM_KEYWORDS)
         or "noreply" in (payload.sender_email or "").lower()
         or auto_generated
         or reply_to_suspicious
+        or is_job_alert
+    )
+    has_client_keywords = _contains_any(combined, CLIENT_KEYWORDS)
+    business_domain = (
+        bool(_domain(payload.sender_email))
+        and _domain(payload.sender_email) not in HUMAN_FREEMAIL_DOMAINS
     )
     is_client_work = (
-        _contains_any(combined, CLIENT_KEYWORDS)
-        or _domain(payload.sender_email) not in HUMAN_FREEMAIL_DOMAINS
+        has_client_keywords and not is_job_alert and not is_newsletter and not is_marketing
+    ) or (
+        business_domain
+        and not is_job_alert
+        and not is_newsletter
+        and not is_marketing
+        and not is_receipt
+        and not is_system_notification
     )
     is_group_noise = is_marketing or is_newsletter or is_system_notification
-    is_human_personal = not is_group_noise and not is_receipt
+    is_human_personal = not is_group_noise and not is_receipt and not is_client_work
 
     urgency_level = 0
     if _contains_any(combined, URGENCY_KEYWORDS):
         urgency_level = 2
     if "deadline" in combined or "urgent" in combined:
         urgency_level = 3
+    if has_important_reminder:
+        urgency_level = max(urgency_level, 2)
+    if any(token in combined for token in ("payment deadline", "payment due", "due date")):
+        urgency_level = max(urgency_level, 3)
 
     requires_reply = any(re.search(pattern, combined) for pattern in QUESTION_PATTERNS)
-    if is_marketing or is_newsletter:
+    if is_marketing or is_newsletter or is_job_alert:
         requires_reply = False
 
     reason_parts = []
+    if is_job_alert:
+        reason_parts.append("job alert signals")
+    if has_important_reminder:
+        reason_parts.append("important reminder keywords")
     if is_newsletter:
         reason_parts.append("newsletter-like signals")
     if list_unsub:

@@ -37,3 +37,30 @@ def test_client_work_detection():
         )
     )
     assert result.is_client_work is True
+
+
+def test_job_alert_is_not_client_work_by_default():
+    result = classify_message(
+        MessagePayload(
+            sender_email="jobs-noreply@linkedin.com",
+            subject="Job alert: client success roles",
+            snippet="New jobs matching your profile are hiring today.",
+            headers={"List-Unsubscribe": "<mailto:unsubscribe@linkedin.com>"},
+        )
+    )
+    assert result.is_client_work is False
+    assert result.is_newsletter is True
+    assert result.requires_reply is False
+    assert "job alert signals" in result.classification_reason
+
+
+def test_insurance_renewal_reminder_gets_priority_boost():
+    result = classify_message(
+        MessagePayload(
+            sender_email="noreply@icbc.example",
+            subject="Insurance renewal reminder",
+            snippet="Your policy renewal is coming up and payment is due soon.",
+        )
+    )
+    assert result.urgency_level >= 2
+    assert "important reminder keywords" in result.classification_reason

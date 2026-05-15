@@ -5,6 +5,7 @@ Document durable project knowledge here. Keep entries concise and actionable.
 ## Local Python environment
 
 - Use a project virtual environment. Installing into the user-level Python site-packages can create dependency conflicts with other Google/Gemini tooling.
+- If the local `.venv` was created with a Python version that is no longer installed, recreate or repair it before testing. Stale compiled wheels, especially `pydantic-core`, may need a force reinstall after changing interpreters.
 - Prefer these commands from the repo root:
 
 ```powershell
@@ -34,8 +35,14 @@ python -m pytest -q
 
 - List-Unsubscribe and marketing headers are useful but not sufficient by themselves.
 - Job alerts can look like work/client messages because they contain company names, job titles, and business words.
+- Non-free sender domains alone should not be treated as client work when the message has automated, newsletter, job alert, receipt, or system-notice signals.
 - Renewal reminders, insurance, bills, due dates, expiry dates, payment deadlines, and tax notices are often personally important even when they are automated.
 - Importance should be a blend of message content, sender/contact history, explicit user corrections, and relationship context.
+
+## Feedback loop lessons
+
+- Structured corrections should be the single path for UI and API changes so the app stores feedback, updates classification, and recalculates attention consistently.
+- Noise and ignore corrections should dismiss the current item, while newsletter and job-alert corrections should lower priority without changing external Gmail state.
 
 ## UI lessons
 

@@ -46,6 +46,12 @@ def calculate_attention_score(
         score -= 25
     if classification.is_newsletter:
         score -= 20
+    if classification.is_receipt and classification.urgency_level < 2:
+        score -= 10
+    if classification.is_system_notification and classification.urgency_level < 2:
+        score -= 8
+    if classification.is_group_noise and classification.urgency_level == 0:
+        score -= 10
     if contact and contact.is_noise:
         score -= 35
 
@@ -69,8 +75,18 @@ def upsert_attention_item(
 
     item.attention_score = score
     item.reason = classification.classification_reason
-    item.recommended_action = "Reply" if classification.requires_reply else "Review"
+    item.recommended_action = _recommended_action(classification)
     return item
+
+
+def _recommended_action(classification: MessageClassification) -> str:
+    if classification.requires_reply:
+        return "Reply"
+    if classification.urgency_level >= 2:
+        return "Review soon"
+    if classification.is_newsletter or classification.is_marketing or classification.is_group_noise:
+        return "Skim or ignore"
+    return "Review"
 
 
 def build_attention_queue(db: Session, include_reviewed: bool = False) -> list[AttentionItem]:

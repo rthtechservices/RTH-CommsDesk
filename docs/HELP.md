@@ -12,11 +12,14 @@ Current MVP features:
 - Store message metadata and snippets by default.
 - Classify messages using local deterministic rules.
 - Assign an attention score.
-- Show a dashboard with attention items, VIP contacts, unread human-like messages, and suspected noise.
+- Show a readable dashboard with attention items, scores, labels, reasons, VIP contacts, unread human-like messages, and suspected noise.
 - Mark attention items as reviewed.
 - Mark a sender as noise.
 - Mark a contact as VIP.
+- Reset a contact back to normal.
+- Mark a message as important.
 - Mark a message as requiring a reply.
+- Correct a message with structured labels such as important, needs reply, client work, job alert, newsletter, receipt, system notice, marketing, noise, or ignore.
 - Generate a draft reply placeholder.
 
 ## What it does not do today
@@ -77,7 +80,15 @@ Marks the message as needing a reply.
 
 ### Correct classification
 
-Records that the app classified a message incorrectly. This feature will become more structured in Phase 01.
+Records that the app classified a message incorrectly. Choose a structured label and optional importance level. The app updates the current message classification and attention score immediately.
+
+### Mark important
+
+Boosts the current message so it stays visible in the Attention Queue.
+
+### Reset contact normal
+
+Removes VIP or noise status from a contact and recalculates existing messages from that sender.
 
 ## Local setup summary
 
