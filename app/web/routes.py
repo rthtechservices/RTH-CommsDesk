@@ -21,6 +21,7 @@ from app.services.feedback_service import (
     classification_tags,
     friendly_classification_label,
 )
+from app.services.gmail_sync_service import get_sync_state, sync_gmail_messages
 
 web_router = APIRouter()
 templates = Jinja2Templates(directory="app/web/templates")
@@ -68,6 +69,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         .limit(20)
         .all()
     )
+    sync_state = get_sync_state(db)
     return templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -77,8 +79,21 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "vip_contacts": vip_contacts,
             "unread_human": unread_human,
             "suspected_noise": suspected_noise,
+            "sync_state": sync_state,
+            "sync_error": request.query_params.get("sync_error"),
         },
     )
+
+
+@web_router.post("/sync/gmail")
+def web_sync_gmail(resync: bool = Form(False), db: Session = Depends(get_db)):
+    try:
+        sync_gmail_messages(db, force_resync=resync)
+    except (FileNotFoundError, RuntimeError):
+        return RedirectResponse(url="/?sync_error=configuration", status_code=303)
+    except Exception:
+        return RedirectResponse(url="/?sync_error=failed", status_code=303)
+    return RedirectResponse(url="/", status_code=303)
 
 
 @web_router.get("/messages/{message_id}")

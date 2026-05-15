@@ -31,6 +31,58 @@ Record completed work here at the end of every phase. Newest entries should be a
 - 
 ```
 
+## 2026-05-15 — Phase 02: Durable Gmail Sync and Local Data Reliability
+
+### Summary
+- Added persistent per-account Gmail sync state with high-water metadata and latest sync diagnostics.
+- Made normal sync incremental with a small high-water overlap and added a safe recent resync path.
+- Kept repeat sync idempotent by updating existing message metadata, skipping duplicate inserts, and adding database-level duplicate protection for attention items.
+- Recalculated thread unread count, latest-message timestamp, normalized subject, and max attention score after touched sync threads.
+- Replaced startup `create_all()` behavior with Alembic-managed migration startup and kept explicit migration/reset commands documented.
+- Added dashboard/API visibility for fetched, inserted, duplicate-skipped, thread-updated, and last-error sync results.
+
+### Files changed
+- `app/services/gmail_sync_service.py`
+- `app/models/entities.py`
+- `app/api/routes.py`
+- `app/web/routes.py`
+- `app/web/templates/dashboard.html`
+- `app/core/database.py`
+- `app/main.py`
+- `alembic/env.py`
+- `alembic/versions/0003_sync_state_reliability.py`
+- `tests/test_sync_and_recalc.py`
+- `tests/test_app_bootstrap.py`
+- `README.md`
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/HELP.md`
+- `docs/phases/PHASE_02_GMAIL_SYNC_RELIABILITY.md`
+
+### Tests run
+- `python -m pytest -q` — passed, 29 tests.
+- `.\.venv\Scripts\python.exe -m pytest -q` — could not run because the repo `.venv` Python executable is invalid on this OS platform.
+
+### Smoke tests
+- App startup: `python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8012` returned dashboard HTTP 200.
+- Dashboard: startup smoke confirmed the dashboard route renders after Alembic startup migration.
+- Key workflow: tests cover incremental watermark reuse, duplicate message/attention protection, thread metadata updates, and Alembic bootstrap to current head.
+
+### Documentation updated
+- `README.md`
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/HELP.md`
+- `docs/phases/PHASE_02_GMAIL_SYNC_RELIABILITY.md`
+
+### Known issues
+- The local `.venv` still appears stale or invalid; system Python 3.14 was used for validation.
+- Gmail sync remains recent-inbox only and read-only.
+
+### Recommended next actions
+- Human review and smoke-test Phase 02 with the real Gmail account.
+- After review, proceed to Phase 03: Contact intelligence and relationship-aware triage.
+
 ## 2026-05-15 — Phase 01: Usability and structured feedback loop
 
 ### Summary

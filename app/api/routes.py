@@ -14,15 +14,15 @@ from app.services.attention_service import build_attention_queue
 from app.services.contact_service import mark_contact_noise, mark_contact_vip, reset_contact_status
 from app.services.draft_service import generate_draft_placeholder
 from app.services.feedback_service import apply_message_correction
-from app.services.gmail_sync_service import sync_gmail_messages
+from app.services.gmail_sync_service import get_sync_state, sync_gmail_messages
 
 api_router = APIRouter()
 
 
 @api_router.post("/sync/gmail")
-def sync_gmail(db: Session = Depends(get_db)) -> dict:
+def sync_gmail(resync: bool = Form(False), db: Session = Depends(get_db)) -> dict:
     try:
-        result = sync_gmail_messages(db)
+        result = sync_gmail_messages(db, force_resync=resync)
     except FileNotFoundError as exc:
         raise HTTPException(
             status_code=400,
@@ -33,7 +33,32 @@ def sync_gmail(db: Session = Depends(get_db)) -> dict:
         ) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return {"synced": result}
+    return result.as_dict()
+
+
+@api_router.get("/sync/gmail/status")
+def gmail_sync_status(db: Session = Depends(get_db)) -> dict:
+    state = get_sync_state(db)
+    if not state:
+        return {"configured": True, "last_sync": None}
+    return {
+        "configured": True,
+        "source_type": state.source_type,
+        "account_identifier": state.account_identifier,
+        "high_water_received_at": (
+            state.high_water_received_at.isoformat() if state.high_water_received_at else None
+        ),
+        "last_started_at": state.last_started_at.isoformat() if state.last_started_at else None,
+        "last_finished_at": state.last_finished_at.isoformat() if state.last_finished_at else None,
+        "last_successful_sync_at": (
+            state.last_successful_sync_at.isoformat() if state.last_successful_sync_at else None
+        ),
+        "last_fetched_count": state.last_fetched_count,
+        "last_inserted_count": state.last_inserted_count,
+        "last_skipped_duplicate_count": state.last_skipped_duplicate_count,
+        "last_updated_thread_count": state.last_updated_thread_count,
+        "last_error": state.last_error,
+    }
 
 
 @api_router.get("/attention")

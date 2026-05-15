@@ -9,6 +9,9 @@ RTH CommsDesk helps review Gmail messages by showing likely important items in a
 Current MVP features:
 
 - Sync recent Gmail inbox messages in read-only mode.
+- Keep Gmail sync metadata locally so repeat syncs are incremental.
+- Skip duplicate Gmail messages and duplicate attention items on repeat sync.
+- Show the latest sync counts: fetched, inserted, duplicates skipped, and threads updated.
 - Store message metadata and snippets by default.
 - Classify messages using local deterministic rules.
 - Assign an attention score.
@@ -57,6 +60,19 @@ This section shows messages likely to be newsletters, job alerts, marketing, sys
 ### Sync Gmail
 
 Pulls recent Gmail inbox messages. The app requires a local Google OAuth client secrets file before the first sync.
+
+The dashboard shows what happened during the latest sync:
+
+- Fetched: messages returned by Gmail.
+- Inserted: new local messages created.
+- Duplicates skipped: Gmail messages already stored locally.
+- Threads updated: local thread metadata recalculated after the sync.
+
+Normal sync uses the last successful Gmail high-water mark. This keeps future syncs incremental while still overlapping slightly to avoid missing same-time messages.
+
+### Resync recent
+
+Runs a safe manual resync of the recent Gmail window without using the high-water mark. Existing messages are updated and counted as duplicates rather than inserted again.
 
 ### View
 
@@ -117,3 +133,18 @@ Expected local-only files:
 - local SQLite database file
 
 Do not commit these files.
+
+## Local database reset
+
+The local SQLite database is `commsdesk.db` by default. It can contain private message metadata, snippets, classifications, and feedback.
+
+To reset disposable local data:
+
+```powershell
+# Stop the local uvicorn server first.
+Remove-Item .\commsdesk.db -ErrorAction SilentlyContinue
+python -m alembic upgrade head
+python -m uvicorn app.main:app --reload
+```
+
+Startup also runs Alembic migrations, but `python -m alembic upgrade head` is the explicit setup/reset command. Do not delete or share OAuth files unless you intentionally want to re-authorize Gmail.

@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, inspect, text
 
 from app.core.database import get_db
 from app.main import app
@@ -53,7 +54,7 @@ def test_message_detail_route_loads(db_session):
 
 
 def test_sync_endpoint_returns_clear_oauth_error(monkeypatch):
-    def _raise_missing_credentials(_db):
+    def _raise_missing_credentials(*_args, **_kwargs):
         raise FileNotFoundError("missing client secret")
 
     monkeypatch.setattr("app.api.routes.sync_gmail_messages", _raise_missing_credentials)
@@ -61,3 +62,28 @@ def test_sync_endpoint_returns_clear_oauth_error(monkeypatch):
         response = client.post("/api/sync/gmail")
     assert response.status_code == 400
     assert "client secrets file is missing" in response.json()["detail"].lower()
+
+
+def test_alembic_bootstrap_creates_current_local_schema(tmp_path, monkeypatch):
+    from app.core import database
+
+    db_file = tmp_path / "bootstrap.db"
+    database_url = f"sqlite:///{db_file.as_posix()}"
+
+    class TmpSettings:
+        pass
+
+    TmpSettings.database_url = database_url
+
+    monkeypatch.setattr(database, "get_settings", lambda: TmpSettings())
+
+    database.run_migrations()
+
+    engine = create_engine(database_url, future=True)
+    inspector = inspect(engine)
+    assert "source_sync_states" in inspector.get_table_names()
+    assert "messages" in inspector.get_table_names()
+
+    with engine.connect() as connection:
+        version = connection.execute(text("select version_num from alembic_version")).scalar_one()
+    assert version == "0003_sync_state_reliability"

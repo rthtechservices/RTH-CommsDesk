@@ -9,6 +9,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
@@ -88,6 +89,31 @@ class SourceAccount(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
+class SourceSyncState(Base):
+    __tablename__ = "source_sync_states"
+    __table_args__ = (
+        UniqueConstraint("source_type", "account_identifier", name="uq_sync_state_source_account"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source_type: Mapped[str] = mapped_column(String(50))
+    account_identifier: Mapped[str] = mapped_column(String(255))
+    high_water_received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    high_water_message_id: Mapped[str | None] = mapped_column(String(255))
+    last_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_successful_sync_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_fetched_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_inserted_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_skipped_duplicate_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_updated_thread_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+
 class MessageThread(Base):
     __tablename__ = "message_threads"
     __table_args__ = (UniqueConstraint("source_type", "source_thread_id", name="uq_thread_source"),)
@@ -157,6 +183,9 @@ class MessageClassification(Base):
 
 class AttentionItem(Base):
     __tablename__ = "attention_items"
+    __table_args__ = (
+        Index("uq_attention_items_thread_message", "thread_id", "message_id", unique=True),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     contact_id: Mapped[int | None] = mapped_column(ForeignKey("contacts.id"))

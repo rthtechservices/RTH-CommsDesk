@@ -20,9 +20,9 @@ python -m pytest -q
 
 ## SQLite and Alembic
 
-- The app currently calls `init_db()` on startup. That can create tables before Alembic is run.
-- If `python -m alembic upgrade head` fails with `table contacts already exists` on a disposable local database, delete the local SQLite DB and rerun migrations.
-- A future phase should decide whether local startup should use Alembic, `init_db()`, or a clearly separated dev-only bootstrap path.
+- Startup now runs Alembic migrations instead of SQLAlchemy `create_all()`. Keep schema changes in Alembic migrations and use `python -m alembic upgrade head` as the explicit setup/reset command.
+- Tests can still use `Base.metadata.create_all()` against disposable in-memory SQLite, but app startup should not use it for the real local database.
+- If local SQLite migration behavior is confusing, stop the app, delete only the disposable `commsdesk.db`, rerun `python -m alembic upgrade head`, and restart. Do not delete OAuth files unless Gmail reauthorization is intended.
 
 ## Gmail OAuth
 
@@ -30,6 +30,13 @@ python -m pytest -q
 - Default expected file path is `client_secret.json` in the repo root unless `GMAIL_CLIENT_SECRETS_FILE` is set.
 - The token file is local-only and should never be committed.
 - The app uses Gmail read-only scope.
+
+## Gmail sync reliability
+
+- Persist Gmail sync state per source/account. The high-water mark should be used for normal sync, with a small overlap so same-time messages are not missed.
+- Manual resync should ignore the high-water mark but remain duplicate-safe by checking source message ids before insert.
+- Existing duplicate messages may still need local metadata updates, especially unread state, snippet, subject, attachment flag, and thread counts.
+- Attention items need database-level duplicate protection in addition to service-level upsert logic.
 
 ## Classification lessons
 

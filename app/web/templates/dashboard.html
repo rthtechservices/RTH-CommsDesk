@@ -197,6 +197,32 @@
         color: var(--muted);
         padding: 18px;
       }
+      .sync-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+      .sync-status {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 18px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+        padding: 12px 14px;
+      }
+      .sync-stat {
+        min-width: 108px;
+      }
+      .sync-stat strong {
+        display: block;
+      }
+      .sync-error {
+        color: var(--warn);
+        font-weight: 700;
+      }
       @media (max-width: 860px) {
         .grid,
         .item {
@@ -218,13 +244,59 @@
           <h1>RTH CommsDesk</h1>
           <div class="muted">Gmail attention queue</div>
         </div>
-        <form method="post" action="/api/sync/gmail">
-          <button class="primary" type="submit">Sync Gmail</button>
-        </form>
+        <div class="sync-actions">
+          <form method="post" action="/sync/gmail">
+            <button class="primary" type="submit">Sync Gmail</button>
+          </form>
+          <form method="post" action="/sync/gmail">
+            <input type="hidden" name="resync" value="true" />
+            <button type="submit">Resync recent</button>
+          </form>
+        </div>
       </div>
     </header>
 
     <main class="wrap">
+      <section class="sync-status">
+        {% if sync_state %}
+        <div class="sync-stat">
+          <strong>{{ sync_state.last_fetched_count }}</strong>
+          <span class="muted">Fetched</span>
+        </div>
+        <div class="sync-stat">
+          <strong>{{ sync_state.last_inserted_count }}</strong>
+          <span class="muted">Inserted</span>
+        </div>
+        <div class="sync-stat">
+          <strong>{{ sync_state.last_skipped_duplicate_count }}</strong>
+          <span class="muted">Duplicates skipped</span>
+        </div>
+        <div class="sync-stat">
+          <strong>{{ sync_state.last_updated_thread_count }}</strong>
+          <span class="muted">Threads updated</span>
+        </div>
+        <div class="sync-stat">
+          <strong>
+            {% if sync_state.last_successful_sync_at %}
+            {{ sync_state.last_successful_sync_at.strftime("%Y-%m-%d %H:%M") }}
+            {% else %}
+            Never
+            {% endif %}
+          </strong>
+          <span class="muted">Last successful sync</span>
+        </div>
+        {% if sync_state.last_error %}
+        <div class="sync-error">Last sync error: {{ sync_state.last_error }}</div>
+        {% endif %}
+        {% else %}
+        <div class="muted">No Gmail sync has completed yet.</div>
+        {% endif %}
+        {% if sync_error %}
+        <div class="sync-error">
+          Sync did not complete. Check Gmail OAuth setup and local configuration.
+        </div>
+        {% endif %}
+      </section>
       <div class="grid">
         <section>
           <h2>Attention Queue</h2>

@@ -26,9 +26,9 @@ Each LLM session should complete one phase only, update the documentation, and s
 - Local SQLite for development
 
 ## Known MVP limitations
-- Incremental `since` sync is supported in service calls but is not yet persisted as a cross-run watermark.
 - Outlook/Teams/SMS/WhatsApp/Messenger connectors are stubbed only.
 - AI classifier is provider-neutral but runs with deterministic logic/mock fallback by default.
+- Gmail sync is read-only and duplicate-safe, but still limited to recent inbox messages from the configured Gmail account.
 
 ## Safety rules
 - Never commit secrets, OAuth tokens, or private message data.
@@ -52,6 +52,7 @@ Each LLM session should complete one phase only, update the documentation, and s
    ```bash
    alembic upgrade head
    ```
+   Startup also runs Alembic migrations, but running this explicitly keeps local setup predictable.
 5. Start API and dashboard:
    ```bash
    uvicorn app.main:app --reload
@@ -69,6 +70,21 @@ Each LLM session should complete one phase only, update the documentation, and s
 ```bash
 pytest -q
 ```
+
+## Local database lifecycle
+
+Local development uses SQLite at `commsdesk.db` by default. The app no longer creates tables directly with SQLAlchemy `create_all()` during startup. Startup runs Alembic migrations to the current head, and `alembic upgrade head` is the explicit setup command.
+
+To reset disposable local data safely:
+
+```powershell
+# Stop the local uvicorn server first.
+Remove-Item .\commsdesk.db -ErrorAction SilentlyContinue
+python -m alembic upgrade head
+python -m uvicorn app.main:app --reload
+```
+
+Do not delete or commit `client_secret.json`, `gmail_token.json`, `.env`, or any exported/private message data as part of a database reset.
 
 ## Privacy defaults
 - Store message metadata and snippets by default.
@@ -105,4 +121,4 @@ pytest -q
 
 The next implementation phase is:
 
-`docs/phases/PHASE_02_GMAIL_SYNC_RELIABILITY.md`
+Phase 03 — Contact intelligence and relationship-aware triage.
