@@ -17,6 +17,9 @@ class Settings(BaseSettings):
 
     ai_provider: str = "mock"
     openai_api_key: str | None = None
+    calendar_provider: str = "mock"
+    google_calendar_read_enabled: bool = False
+    outlook_calendar_read_enabled: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

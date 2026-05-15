@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.models.entities import (
     AttentionItem,
+    CalendarActionProposal,
     Contact,
     ConversationSummary,
     Message,
@@ -20,6 +21,12 @@ from app.models.entities import (
     ReviewPackageStatus,
     UserFeedback,
     utcnow,
+)
+from app.services.calendar_availability_service import (
+    CalendarAvailabilityProvider,
+    CalendarRecommendation,
+    build_calendar_recommendation,
+    get_default_calendar_provider,
 )
 from app.services.contact_service import contact_status, find_contact_by_sender_email
 from app.services.feedback_service import friendly_classification_label, summarize_classification
@@ -168,12 +175,26 @@ def analyze_message(
     message: Message,
     *,
     provider: AIAnalysisProvider | None = None,
+    calendar_provider: CalendarAvailabilityProvider | None = None,
 ) -> AnalysisPersistenceResult:
     analysis_provider = provider or MockAIAnalysisProvider()
     context = build_analysis_context(db, message)
     result = analysis_provider.analyze(context)
-    summary = _upsert_conversation_summary(db, message.thread_id, result, analysis_provider.name)
-    package = _upsert_review_package(db, message, summary, result, analysis_provider.name)
+    calendar_provider = calendar_provider or get_default_calendar_provider()
+    calendar_recommendation = build_calendar_recommendation(
+        _calendar_source_text(context),
+        detected_due_date=result.detected_due_date,
+        provider=calendar_provider,
+    )
+    merged_result = _merge_calendar_recommendation(context, result, calendar_recommendation)
+    summary = _upsert_conversation_summary(db, message.thread_id, merged_result, analysis_provider.name)
+    package = _upsert_review_package(db, message, summary, merged_result, analysis_provider.name)
+    _upsert_calendar_action_proposal(
+        db,
+        package,
+        recommendation=calendar_recommendation,
+        provider_name=calendar_provider.name,
+    )
     _update_attention_recommendation(db, message, package)
     db.commit()
     db.refresh(summary)
@@ -345,6 +366,104 @@ def _upsert_review_package(
     package.updated_at = utcnow()
     db.flush()
     return package
+
+
+def _upsert_calendar_action_proposal(
+    db: Session,
+    package: ProposedActionReviewPackage,
+    *,
+    recommendation: CalendarRecommendation | None,
+    provider_name: str,
+) -> CalendarActionProposal | None:
+    existing = (
+        db.query(CalendarActionProposal)
+        .filter(CalendarActionProposal.review_package_id == package.id)
+        .order_by(CalendarActionProposal.updated_at.desc(), CalendarActionProposal.id.desc())
+        .first()
+    )
+    if not recommendation:
+        if existing:
+            db.delete(existing)
+        return None
+    proposal = existing or CalendarActionProposal(review_package_id=package.id, action_kind="")
+    if existing is None:
+        db.add(proposal)
+    proposal.action_kind = recommendation.action_kind
+    proposal.proposed_start_at = recommendation.proposed_start_at
+    proposal.proposed_end_at = recommendation.proposed_end_at
+    proposal.reminder_at = recommendation.reminder_at
+    proposal.availability_reasoning = recommendation.availability_reasoning
+    proposal.conflict_summary = recommendation.conflict_summary
+    proposal.available_windows = (
+        "\n".join(f"{start.isoformat()}|{end.isoformat()}" for start, end in recommendation.available_windows)
+        if recommendation.available_windows
+        else None
+    )
+    proposal.provider_name = provider_name
+    proposal.updated_at = utcnow()
+    db.flush()
+    return proposal
+
+
+def _merge_calendar_recommendation(
+    context: AIAnalysisContext,
+    result: AIAnalysisResult,
+    recommendation: CalendarRecommendation | None,
+) -> AIAnalysisResult:
+    if not recommendation:
+        return result
+    summary = result.summary
+    if recommendation.action_kind == "create_reminder" and result.detected_due_date:
+        summary = f"{summary} Reminder candidate prepared for due date {result.detected_due_date}."
+    elif recommendation.proposed_start_at:
+        summary = (
+            f"{summary} Scheduling proposal detected for "
+            f"{recommendation.proposed_start_at.strftime('%Y-%m-%d %H:%M')}."
+        )
+    explanation = result.explanation
+    if recommendation.availability_reasoning:
+        explanation = f"{explanation} Availability: {recommendation.availability_reasoning}"
+    if recommendation.conflict_summary:
+        explanation = f"{explanation} Conflict: {recommendation.conflict_summary}"
+    draft_response = result.draft_response
+    if recommendation.action_kind == "offer_availability" and recommendation.proposed_start_at:
+        draft_response = (
+            f"Hi {context.contact_name or 'there'},\n\n"
+            f"I can do {recommendation.proposed_start_at.strftime('%A at %I:%M %p')}. "
+            "If that works for you, I can confirm it.\n\n"
+            "Thanks"
+        )
+    elif recommendation.action_kind == "ask_for_time_clarification":
+        alternatives = _format_windows(recommendation.available_windows)
+        draft_response = (
+            f"Hi {context.contact_name or 'there'},\n\n"
+            "I may have a conflict at the proposed time. Could you confirm a time that works, "
+            f"or choose one of these windows: {alternatives}?\n\n"
+            "Thanks"
+        )
+    return AIAnalysisResult(
+        summary=summary,
+        action_type=recommendation.action_type,
+        explanation=explanation,
+        confidence=Decimal(str(max(float(result.confidence), recommendation.confidence))),
+        draft_response=draft_response,
+        detected_due_date=result.detected_due_date,
+    )
+
+
+def _format_windows(windows: tuple[tuple[datetime, datetime], ...]) -> str:
+    if not windows:
+        return "next available time"
+    return "; ".join(
+        f"{start.strftime('%a %b %d %I:%M %p')} - {end.strftime('%I:%M %p')}"
+        for start, end in windows[:2]
+    )
+
+
+def _calendar_source_text(context: AIAnalysisContext) -> str:
+    parts = [context.subject, context.selected_message_text]
+    parts.extend(message.text for message in context.conversation_messages)
+    return " ".join(part for part in parts if part)
 
 
 def _update_attention_recommendation(

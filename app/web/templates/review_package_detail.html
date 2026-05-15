@@ -185,6 +185,52 @@
       </section>
       {% endif %}
 
+      {% if package.calendar_proposals %}
+      {% set proposal = package.calendar_proposals[0] %}
+      <section class="panel">
+        <h2>Calendar Availability Proposal</h2>
+        <div class="facts">
+          <div>
+            <span class="label">Action kind</span>
+            <span>{{ proposal.action_kind.replace("_", " ").title() }}</span>
+          </div>
+          <div>
+            <span class="label">Reasoning</span>
+            <span>{{ proposal.availability_reasoning or "No availability reasoning recorded." }}</span>
+          </div>
+          <div>
+            <span class="label">Conflict summary</span>
+            <span>{{ proposal.conflict_summary or "No conflict detected." }}</span>
+          </div>
+          <div>
+            <span class="label">Proposed time</span>
+            <span>
+              {% if proposal.proposed_start_at %}
+              {{ proposal.proposed_start_at.strftime("%Y-%m-%d %H:%M") }}
+              {% if proposal.proposed_end_at %} to {{ proposal.proposed_end_at.strftime("%Y-%m-%d %H:%M") }}{% endif %}
+              {% else %}
+              Not set
+              {% endif %}
+            </span>
+          </div>
+          <div>
+            <span class="label">Reminder time</span>
+            <span>
+              {% if proposal.reminder_at %}
+              {{ proposal.reminder_at.strftime("%Y-%m-%d %H:%M") }}
+              {% else %}
+              Not set
+              {% endif %}
+            </span>
+          </div>
+          <div>
+            <span class="label">Provider</span>
+            <span>{{ proposal.provider_name }}</span>
+          </div>
+        </div>
+      </section>
+      {% endif %}
+
       <section class="panel">
         <h2>Local Review Status</h2>
         <form method="post" action="/review-packages/{{ package.id }}/status" class="actions">

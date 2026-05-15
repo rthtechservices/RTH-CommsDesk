@@ -6,20 +6,20 @@ Make RTH CommsDesk able to reason about scheduling requests and reminder-worthy 
 
 ## Required implementation
 
-- Add provider-neutral calendar availability service.
-- Add mock calendar provider for tests and local development.
-- Add Google Calendar read-only availability integration if OAuth scope/configuration is available.
-- Add Outlook Calendar read-only availability integration if Microsoft auth exists or is introduced.
-- Detect proposed meeting dates/times from conversation summaries or message bodies.
-- Detect due dates and reminder-worthy dates, such as registration renewal due dates.
-- Prepare local proposed calendar actions:
+- [x] Add provider-neutral calendar availability service.
+- [x] Add mock calendar provider for tests and local development.
+- [x] Add Google Calendar read-only availability integration if OAuth scope/configuration is available.
+- [x] Add Outlook Calendar read-only availability integration if Microsoft auth exists or is introduced.
+- [x] Detect proposed meeting dates/times from conversation summaries or message bodies.
+- [x] Detect due dates and reminder-worthy dates, such as registration renewal due dates.
+- [x] Prepare local proposed calendar actions:
   - create_reminder
   - create_meeting
   - offer_availability
   - ask_for_time_clarification
-- Show availability reasoning in review packages.
-- Show conflicts and available windows in a user-friendly way.
-- Add tests with mocked calendar data for availability, conflict detection, due-date reminders, and meeting proposal handling.
+- [x] Show availability reasoning in review packages.
+- [x] Show conflicts and available windows in a user-friendly way.
+- [x] Add tests with mocked calendar data for availability, conflict detection, due-date reminders, and meeting proposal handling.
 
 ## Product behavior examples
 
@@ -49,15 +49,37 @@ Expected result:
 
 ## Documentation updates required
 
-- `docs/IMPLEMENTATION_LOG.md`
-- `docs/LESSONS_LEARNED.md`
-- `docs/HELP.md`
-- This phase file with completion notes
+- [x] `docs/IMPLEMENTATION_LOG.md`
+- [x] `docs/LESSONS_LEARNED.md`
+- [x] `docs/HELP.md`
+- [x] This phase file with completion notes
 
 ## Acceptance criteria
 
-- `pytest -q` passes.
-- Mock calendar availability tests pass.
-- Review packages can show proposed calendar/reminder actions.
-- The app can explain why a time is available or conflicted.
-- No external calendar writes occur in this phase.
+- [x] `pytest -q` passes.
+- [x] Mock calendar availability tests pass.
+- [x] Review packages can show proposed calendar/reminder actions.
+- [x] The app can explain why a time is available or conflicted.
+- [x] No external calendar writes occur in this phase.
+
+## Completion notes
+
+Status: completed on 2026-05-15.
+
+Implemented:
+
+- Added provider-neutral `calendar_availability_service` with mock provider and read-only Google/Outlook provider shapes.
+- Added local `calendar_action_proposals` persistence linked to review packages.
+- Integrated calendar recommendation logic into analysis flow for due-date reminders and schedule proposals.
+- Added availability/conflict reasoning and proposal timing to review package UI/API output.
+- Added tests for reminder recommendation, availability offer flow, and conflict clarification flow.
+
+Validation:
+
+- `python -m ruff check .` — passed.
+- `python -m pytest -q` — passed, 62 tests.
+
+Safety boundary confirmed:
+
+- No external calendar events/reminders are created in this phase.
+- Calendar recommendations remain local review artifacts only.

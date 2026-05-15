@@ -31,6 +31,53 @@ Record completed work here at the end of every phase. Newest entries should be a
 - 
 ```
 
+## 2026-05-15 — Phase 09: Calendar Availability and Scheduling Recommendations
+
+### Summary
+- Added a provider-neutral calendar availability service with mock, Google-read-only, and Outlook-read-only provider shapes.
+- Added local calendar action proposals tied to review packages with availability reasoning, conflicts, suggested windows, and reminder/meeting timing.
+- Integrated calendar recommendation logic into conversation analysis for due-date reminders and scheduling requests.
+- Added review package UI/API visibility for calendar proposal details and availability explanation.
+- Added tests for reminder inference, free-slot offer-availability recommendations, and conflict-driven clarification recommendations.
+
+### Files changed
+- `app/models/entities.py`
+- `alembic/versions/0009_calendar_action_proposals.py`
+- `app/services/calendar_availability_service.py`
+- `app/services/analysis_service.py`
+- `app/api/routes.py`
+- `app/web/templates/review_package_detail.html`
+- `app/core/config.py`
+- `tests/test_calendar_availability.py`
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/HELP.md`
+- `docs/phases/PHASE_09_CALENDAR_AVAILABILITY.md`
+- `docs/PHASE_STATUS.md`
+
+### Tests run
+- `python -m ruff check .` — passed.
+- `python -m pytest -q` — passed, 62 tests.
+
+### Smoke tests
+- App startup: not run manually in this phase.
+- Dashboard: covered by route tests.
+- Key workflow: automated tests cover due-date reminder proposals, availability-offer responses, and conflict-aware clarification drafts.
+
+### Documentation updated
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/HELP.md`
+- `docs/phases/PHASE_09_CALENDAR_AVAILABILITY.md`
+- `docs/PHASE_STATUS.md`
+
+### Known issues
+- Google/Outlook calendar providers are read-only shape integrations; live credential-backed availability checks still require environment-specific setup.
+- Meeting date/time extraction remains deterministic and can be improved for more complex natural-language scheduling requests.
+
+### Recommended next actions
+- Proceed to Phase 10: Approved outbound execution.
+
 ## 2026-05-15 — Phase 08: Bulk Triage and Noise Automation
 
 ### Summary

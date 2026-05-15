@@ -535,6 +535,7 @@ def unread_human(db: Session = Depends(get_db)) -> list[dict]:
 
 
 def _review_package_dict(package: ProposedActionReviewPackage) -> dict:
+    calendar_proposal = package.calendar_proposals[0] if package.calendar_proposals else None
     return {
         "id": package.id,
         "thread_id": package.thread_id,
@@ -549,4 +550,30 @@ def _review_package_dict(package: ProposedActionReviewPackage) -> dict:
         "status": package.status.value,
         "review_only": True,
         "external_action_created": False,
+        "calendar_proposal": (
+            {
+                "action_kind": calendar_proposal.action_kind,
+                "proposed_start_at": (
+                    calendar_proposal.proposed_start_at.isoformat()
+                    if calendar_proposal.proposed_start_at
+                    else None
+                ),
+                "proposed_end_at": (
+                    calendar_proposal.proposed_end_at.isoformat()
+                    if calendar_proposal.proposed_end_at
+                    else None
+                ),
+                "reminder_at": (
+                    calendar_proposal.reminder_at.isoformat()
+                    if calendar_proposal.reminder_at
+                    else None
+                ),
+                "availability_reasoning": calendar_proposal.availability_reasoning,
+                "conflict_summary": calendar_proposal.conflict_summary,
+                "available_windows": calendar_proposal.available_windows,
+                "provider_name": calendar_proposal.provider_name,
+            }
+            if calendar_proposal
+            else None
+        ),
     }

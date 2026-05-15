@@ -99,6 +99,14 @@ python -m pytest -q
 - Log bulk actions with reversible snapshots so "undo where practical" is explicit and auditable.
 - Keep destructive recommendations (archive/delete/unsubscribe) in pending local candidate state until explicit user approval and execution flow exists.
 
+## Calendar availability lessons
+
+- Keep calendar availability provider-neutral. Use the mock provider for deterministic local tests and development defaults.
+- Store calendar recommendations as local proposal records linked to review packages so reasoning/conflicts remain auditable.
+- Separate action kind (create_reminder, create_meeting, offer_availability, ask_for_time_clarification) from high-level package action type where needed.
+- Keep calendar integrations read-only in scheduling-recommendation phase; no external event creation should occur yet.
+- Include suggested alternative windows when conflicts are detected so clarification drafts are concrete and actionable.
+
 ## UI lessons
 
 - A raw list of scores and reasons is technically useful but not user-friendly.

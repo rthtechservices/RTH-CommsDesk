@@ -475,6 +475,37 @@ class ProposedActionReviewPackage(Base):
     thread: Mapped[MessageThread] = relationship()
     message: Mapped[Message] = relationship()
     conversation_summary: Mapped[ConversationSummary | None] = relationship()
+    calendar_proposals: Mapped[list[CalendarActionProposal]] = relationship(
+        back_populates="review_package", cascade="all, delete-orphan"
+    )
+
+
+class CalendarActionProposal(Base):
+    __tablename__ = "calendar_action_proposals"
+    __table_args__ = (
+        Index("ix_calendar_action_proposals_package", "review_package_id", "updated_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    review_package_id: Mapped[int] = mapped_column(
+        ForeignKey("proposed_action_review_packages.id"), index=True
+    )
+    action_kind: Mapped[str] = mapped_column(String(100))
+    proposed_start_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    proposed_end_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reminder_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    availability_reasoning: Mapped[str | None] = mapped_column(Text)
+    conflict_summary: Mapped[str | None] = mapped_column(Text)
+    available_windows: Mapped[str | None] = mapped_column(Text)
+    provider_name: Mapped[str] = mapped_column(String(100), default="mock")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+    review_package: Mapped[ProposedActionReviewPackage] = relationship(
+        back_populates="calendar_proposals"
+    )
 
 
 class UserFeedback(Base):

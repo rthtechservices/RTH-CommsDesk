@@ -39,6 +39,7 @@ Current MVP features:
 - Analyze a stored Gmail conversation with the local mock AI analysis provider.
 - Store and view local conversation summaries.
 - Store and view proposed action review packages with a recommendation, explanation, confidence score, optional draft response, and local review status.
+- Generate local calendar availability recommendations for scheduling requests and due-date reminders.
 - Locally approve, reject, edit, or snooze a review package without changing Gmail or any calendar.
 - Filter the attention queue by active/unreviewed, needs reply, important, noise, reviewed, date range, sender/contact, and source.
 - Use Bulk Triage mode for queue pagination beyond the top dashboard slice.
@@ -114,6 +115,13 @@ The Review Packages page lists local AI analysis recommendations. Each package s
 - local status: pending, approved, rejected, edited, or snoozed
 
 Review packages are local only. Approving a package does not send email, create a Gmail draft, archive, delete, unsubscribe, label a message, or create a calendar event.
+
+When a scheduling request or due date is detected, review package detail pages can also show:
+
+- proposed calendar action kind
+- availability/conflict reasoning
+- proposed meeting/reminder timing
+- suggested alternate windows when conflicts exist
 
 ### Recent Unread Human Messages
 

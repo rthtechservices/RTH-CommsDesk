@@ -196,6 +196,8 @@ Out of scope:
 
 - Creating or sending calendar events externally.
 
+Status: completed.
+
 ## Phase 10 — Approved outbound execution
 
 Primary outcome: execute communication actions only after explicit approval.
