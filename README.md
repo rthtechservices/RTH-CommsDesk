@@ -2,6 +2,22 @@
 
 RTH CommsDesk is a privacy-first personal communications triage system.
 
+## Project tracking and LLM handoff
+
+This repository is managed through phased LLM-assisted development.
+
+Before assigning work to Codex, Copilot, or another LLM session, have the session read:
+
+1. `docs/LLM_SESSION_GUIDE.md`
+2. `docs/PROJECT_TRACKING.md`
+3. `docs/PHASE_PLAN.md`
+4. The assigned phase file under `docs/phases/`
+5. `docs/IMPLEMENTATION_LOG.md`
+6. `docs/LESSONS_LEARNED.md`
+7. `docs/HELP.md`
+
+Each LLM session should complete one phase only, update the documentation, and stop for human review.
+
 ## MVP scope
 - Gmail-only connector (read-only)
 - Metadata/snippet storage by default
@@ -81,13 +97,12 @@ pytest -q
   /web
 /alembic
 /tests
+/docs
+  /phases
 ```
 
-## Phase 2 TODO
-- Outlook/Microsoft Graph connector
-- Teams connector
-- Android notification bridge for SMS/WhatsApp/Messenger
-- Vector store for approved reply examples
-- AI-generated draft replies
-- Azure SQL deployment
-- Dashboard authentication
+## Current next phase
+
+The next implementation phase is:
+
+`docs/phases/PHASE_01_USABILITY_FEEDBACK.md`
