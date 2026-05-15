@@ -18,6 +18,14 @@ class NormalizedMessage:
     has_attachments: bool
     is_unread: bool
     headers: dict[str, str] | None = None
+    recipient_emails: list[str] | None = None
+    cc_emails: list[str] | None = None
+
+
+@dataclass
+class MessagePage:
+    messages: list[NormalizedMessage]
+    next_page_token: str | None = None
 
 
 class BaseConnector:
