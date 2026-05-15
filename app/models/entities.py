@@ -64,6 +64,10 @@ class Contact(Base):
         DateTime(timezone=True), default=utcnow, onupdate=utcnow
     )
 
+    aliases: Mapped[list[ContactAlias]] = relationship(
+        back_populates="contact", cascade="all, delete-orphan"
+    )
+
 
 class ContactAlias(Base):
     __tablename__ = "contact_aliases"
@@ -72,11 +76,11 @@ class ContactAlias(Base):
     contact_id: Mapped[int] = mapped_column(ForeignKey("contacts.id"), index=True)
     source_system: Mapped[str] = mapped_column(String(50))
     source_identifier: Mapped[str | None] = mapped_column(String(255))
-    email: Mapped[str | None] = mapped_column(String(255))
+    email: Mapped[str | None] = mapped_column(String(255), index=True)
     phone: Mapped[str | None] = mapped_column(String(50))
     display_name: Mapped[str | None] = mapped_column(String(255))
 
-    contact: Mapped[Contact] = relationship()
+    contact: Mapped[Contact] = relationship(back_populates="aliases")
 
 
 class SourceAccount(Base):

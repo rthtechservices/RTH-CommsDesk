@@ -20,6 +20,10 @@ Current MVP features:
 - Mark a sender as noise.
 - Mark a contact as VIP.
 - Reset a contact back to normal.
+- Manage contact profiles from the Contacts page.
+- Add contact aliases so multiple sender addresses can map to one person or organization.
+- Set relationship type, importance tier, preferred channel, notes, and VIP/noise/normal status.
+- See contact relationship and importance context on message detail pages.
 - Mark a message as important.
 - Mark a message as requiring a reply.
 - Correct a message with structured labels such as important, needs reply, client work, job alert, newsletter, receipt, system notice, marketing, noise, or ignore.
@@ -46,6 +50,10 @@ The Attention Queue lists messages that the app thinks may need attention. Highe
 ### VIP Contacts
 
 VIP Contacts are senders the user has marked as important. Future messages from VIP senders should rank higher.
+
+### Contacts
+
+The Contacts page is linked from the dashboard header. Use it to edit contact profiles, aliases, relationship type, importance tier, preferred channel, notes, and normal/VIP/noise status.
 
 ### Recent Unread Human Messages
 
@@ -105,6 +113,25 @@ Boosts the current message so it stays visible in the Attention Queue.
 ### Reset contact normal
 
 Removes VIP or noise status from a contact and recalculates existing messages from that sender.
+
+### Edit contact
+
+Opens the contact profile. Saving relationship, importance, alias, VIP/noise, channel, or notes changes recalculates local attention scores for existing messages that match the contact primary email or aliases.
+
+Supported relationship types:
+
+- partner
+- close_friend
+- friend
+- family
+- client
+- prospect
+- vendor
+- newsletter
+- system
+- unknown
+
+Aliases should be entered as one email address per line. Full message bodies are not needed for alias matching.
 
 ## Local setup summary
 

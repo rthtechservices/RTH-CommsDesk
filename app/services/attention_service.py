@@ -73,6 +73,7 @@ def upsert_attention_item(
         )
         db.add(item)
 
+    item.contact_id = contact.id if contact else None
     item.attention_score = score
     item.reason = classification.classification_reason
     item.recommended_action = _recommended_action(classification)

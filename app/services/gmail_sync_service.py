@@ -12,7 +12,6 @@ from app.connectors.gmail.client import GmailConnector
 from app.core.config import get_settings
 from app.models.entities import (
     BodyStoredMode,
-    Contact,
     AttentionItem,
     Message,
     MessageThread,
@@ -20,6 +19,7 @@ from app.models.entities import (
 )
 from app.services.attention_service import upsert_attention_item
 from app.services.classification_service import classify_and_persist
+from app.services.contact_service import ensure_contact_for_sender
 
 SYNC_OVERLAP_SECONDS = 1
 
@@ -58,20 +58,6 @@ class SyncResult:
             "since": self.since.isoformat() if self.since else None,
             "resync": self.resync,
         }
-
-
-def _find_or_create_contact(
-    db: Session, sender_email: str | None, sender_name: str | None
-) -> Contact | None:
-    if not sender_email:
-        return None
-    contact = db.query(Contact).filter_by(primary_email=sender_email).first()
-    if contact:
-        return contact
-    contact = Contact(display_name=sender_name or sender_email, primary_email=sender_email)
-    db.add(contact)
-    db.flush()
-    return contact
 
 
 def _utc(value: datetime | None) -> datetime | None:
@@ -214,7 +200,7 @@ def sync_gmail_messages(
 
     try:
         for item in messages:
-            contact = _find_or_create_contact(db, item.sender_email, item.sender_display_name)
+            contact = ensure_contact_for_sender(db, item.sender_email, item.sender_display_name)
 
             thread = (
                 db.query(MessageThread)

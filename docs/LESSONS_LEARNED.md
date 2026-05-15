@@ -51,6 +51,13 @@ python -m pytest -q
 - Structured corrections should be the single path for UI and API changes so the app stores feedback, updates classification, and recalculates attention consistently.
 - Noise and ignore corrections should dismiss the current item, while newsletter and job-alert corrections should lower priority without changing external Gmail state.
 
+## Contact intelligence lessons
+
+- Resolve contacts through both primary email and aliases before creating a new contact during sync; otherwise one person can become multiple local profiles.
+- Contact profile updates should recalculate attention for messages matched by either `message_threads.contact_id` or any normalized sender email on the profile.
+- Store contact profile changes as feedback/history records so future tuning can distinguish message classification corrections from contact relationship corrections.
+- Relationship-aware scoring should include explicit negative weights for newsletter and system contacts, not only positive boosts for close relationships.
+
 ## UI lessons
 
 - A raw list of scores and reasons is technically useful but not user-friendly.

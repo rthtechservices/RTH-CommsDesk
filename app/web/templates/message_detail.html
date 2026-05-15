@@ -123,6 +123,7 @@
         gap: 8px;
       }
       button,
+      .button,
       select,
       input,
       textarea {
@@ -134,6 +135,15 @@
         min-height: 36px;
         background: var(--surface);
         cursor: pointer;
+        font-weight: 700;
+        padding: 7px 11px;
+      }
+      .button {
+        display: inline-flex;
+        align-items: center;
+        min-height: 36px;
+        background: var(--surface);
+        color: var(--text);
         font-weight: 700;
         padding: 7px 11px;
       }
@@ -215,7 +225,25 @@
               <div>
                 <span class="label">Contact status</span>
                 <span>
-                  {% if contact and contact.is_vip %}VIP{% elif contact and contact.is_noise %}Noise{% else %}Normal{% endif %}
+                  {% if contact %}<a href="/contacts/{{ contact.id }}">{{ contact_status.title() }}</a>{% else %}Unknown{% endif %}
+                </span>
+              </div>
+              <div>
+                <span class="label">Relationship</span>
+                <span>{{ contact.relationship_type.replace("_", " ").title() if contact and contact.relationship_type else "Unknown" }}</span>
+              </div>
+              <div>
+                <span class="label">Importance tier</span>
+                <span>{{ contact.importance_tier if contact else "Unknown" }}</span>
+              </div>
+              <div>
+                <span class="label">Preferred channel</span>
+                <span>{{ contact.preferred_channel or "Not set" if contact else "Unknown" }}</span>
+              </div>
+              <div>
+                <span class="label">Aliases</span>
+                <span>
+                  {% if contact_aliases %}{{ contact_aliases|join(", ") }}{% else %}None{% endif %}
                 </span>
               </div>
             </div>
@@ -295,6 +323,7 @@
               <form method="post" action="/contacts/{{ contact.id }}/normal">
                 <button type="submit">Reset contact normal</button>
               </form>
+              <a class="button" href="/contacts/{{ contact.id }}">Edit contact</a>
               {% endif %}
               {% if message.sender_email %}
               <form method="post" action="/contacts/noise">
@@ -309,7 +338,7 @@
           </section>
 
           <section class="panel">
-            <h2>Feedback History</h2>
+            <h2>Message Feedback</h2>
             <ul class="history">
               {% for item in feedback %}
               <li>
@@ -319,6 +348,21 @@
               </li>
               {% else %}
               <li class="muted">No corrections recorded for this message.</li>
+              {% endfor %}
+            </ul>
+          </section>
+
+          <section class="panel">
+            <h2>Contact History</h2>
+            <ul class="history">
+              {% for item in contact_feedback %}
+              <li>
+                <strong>{{ item.feedback_type.replace("_", " ").title() }}</strong>
+                <div class="muted">{{ item.created_at.strftime("%Y-%m-%d %H:%M") if item.created_at else "" }}</div>
+                <div>{{ item.corrected_value or item.feedback_text or "Profile feedback recorded." }}</div>
+              </li>
+              {% else %}
+              <li class="muted">No contact profile changes recorded.</li>
               {% endfor %}
             </ul>
           </section>

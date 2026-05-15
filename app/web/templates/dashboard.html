@@ -242,7 +242,7 @@
       <div class="wrap topbar">
         <div>
           <h1>RTH CommsDesk</h1>
-          <div class="muted">Gmail attention queue</div>
+          <div class="muted">Gmail attention queue | <a href="/contacts">Contacts</a></div>
         </div>
         <div class="sync-actions">
           <form method="post" action="/sync/gmail">
@@ -354,7 +354,7 @@
             <ul class="mini-list">
               {% for c in vip_contacts %}
               <li>
-                <strong>{{ c.display_name or c.primary_email or "Unknown" }}</strong>
+                <strong><a href="/contacts/{{ c.id }}">{{ c.display_name or c.primary_email or "Unknown" }}</a></strong>
                 <div class="muted">{{ c.primary_email or "" }}</div>
               </li>
               {% else %}

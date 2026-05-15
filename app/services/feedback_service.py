@@ -13,6 +13,7 @@ from app.models.entities import (
     UserFeedback,
 )
 from app.services.attention_service import upsert_attention_item
+from app.services.contact_service import find_contact_by_sender_email
 
 
 CORRECTION_LABELS = [
@@ -174,7 +175,7 @@ def _resolve_contact(db: Session, message: Message) -> Contact | None:
     if message.thread and message.thread.contact_id:
         return db.get(Contact, message.thread.contact_id)
     if message.sender_email:
-        return db.query(Contact).filter_by(primary_email=message.sender_email).first()
+        return find_contact_by_sender_email(db, message.sender_email)
     return None
 
 

@@ -31,6 +31,58 @@ Record completed work here at the end of every phase. Newest entries should be a
 - 
 ```
 
+## 2026-05-15 — Phase 03: Contact Intelligence and Relationship-Aware Triage
+
+### Summary
+- Added alias-aware contact resolution so Gmail sync and message corrections can match sender aliases to an existing contact profile instead of creating duplicate contacts.
+- Expanded relationship-aware scoring for partner, close_friend, friend, family, client, prospect, vendor, newsletter, system, and unknown relationship types.
+- Added contact profile create/edit flows with display name, primary email, aliases, relationship type, importance tier, preferred channel, notes, and normal/VIP/noise status.
+- Added dashboard access to contact management, contact edit links from message detail pages, and contact importance context on message detail pages.
+- Recalculate existing message attention scores when contact aliases, relationship, importance tier, preferred channel, notes, or VIP/noise status change.
+- Persist contact profile creation/update history in `user_feedback` and show contact history on contact and message detail pages.
+
+### Files changed
+- `app/models/entities.py`
+- `app/services/contact_service.py`
+- `app/services/attention_service.py`
+- `app/services/gmail_sync_service.py`
+- `app/services/feedback_service.py`
+- `app/web/routes.py`
+- `app/web/templates/dashboard.html`
+- `app/web/templates/message_detail.html`
+- `app/web/templates/contacts.html`
+- `app/web/templates/contact_detail.html`
+- `alembic/versions/0004_contact_alias_index.py`
+- `tests/test_app_bootstrap.py`
+- `tests/test_contact_intelligence.py`
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/HELP.md`
+- `docs/phases/PHASE_03_CONTACT_INTELLIGENCE.md`
+
+### Tests run
+- `python -m pytest -q` — passed, 33 tests.
+
+### Smoke tests
+- App startup: `python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8013` started successfully.
+- Dashboard: `GET http://127.0.0.1:8013/` returned HTTP 200.
+- Contact management: `GET http://127.0.0.1:8013/contacts` returned HTTP 200.
+- Key workflow: automated tests cover relationship-aware scoring, alias matching during Gmail sync, contact profile edit recalculation, contact history persistence, and contact management page rendering.
+
+### Documentation updated
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/HELP.md`
+- `docs/phases/PHASE_03_CONTACT_INTELLIGENCE.md`
+
+### Known issues
+- Contact preferred channel is profile metadata only; it does not add Outlook, Teams, SMS, WhatsApp, Messenger, or notification ingestion.
+- Contact alias editing can reassign an existing alias to the edited contact when the user explicitly saves that alias on the profile.
+
+### Recommended next actions
+- Human review and smoke-test Phase 03 with real contact examples.
+- After review, proceed to Phase 04: Safe draft reply generation and voice profiles.
+
 ## 2026-05-15 — Phase 02: Durable Gmail Sync and Local Data Reliability
 
 ### Summary
