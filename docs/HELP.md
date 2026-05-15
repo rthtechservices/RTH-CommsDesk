@@ -41,6 +41,9 @@ Current MVP features:
 - Store and view proposed action review packages with a recommendation, explanation, confidence score, optional draft response, and local review status.
 - Locally approve, reject, edit, or snooze a review package without changing Gmail or any calendar.
 - Filter the attention queue by active/unreviewed, needs reply, important, noise, reviewed, date range, sender/contact, and source.
+- Use Bulk Triage mode for queue pagination beyond the top dashboard slice.
+- Generate and review local automation candidates for mark_noise, unsubscribe_review, archive_candidate, and delete_candidate.
+- Apply bulk actions and undo recent bulk actions where practical.
 
 ## What it does not do today
 
@@ -88,6 +91,16 @@ The Voice Calibration page lets you refresh Sent-mail learning inferences and re
 - excerpted evidence used for inference
 
 Guidance only affects draft tone after you approve it.
+
+### Bulk Triage
+
+The Bulk Triage page lets you process large backlogs with:
+
+- queue controls for unreviewed, needs reply, important, proposed actions, noise candidates, unsubscribe candidates, and reviewed
+- pagination beyond the first dashboard slice
+- bulk status and relationship actions
+- local automation candidate review with reason and confidence
+- undo for recent bulk actions where practical
 
 ### Review Packages
 
@@ -216,6 +229,10 @@ Open the Drafts page from the dashboard header or open a generated draft directl
 ### Voice calibration refresh
 
 Open Voice Calibration from the dashboard header and click **Refresh inferences from Sent Mail**. Then approve/reject/edit inferred VIP and tone guidance so only approved guidance affects draft generation.
+
+### Bulk candidate refresh
+
+Open Bulk Triage and click **Refresh automation candidates** to regenerate local noise/unsubscribe/archive/delete recommendations from stored message patterns and backlog-age signals.
 
 ### Reset contact normal
 

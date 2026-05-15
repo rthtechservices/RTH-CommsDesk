@@ -74,6 +74,13 @@ class InferenceStatus(StrEnum):
     REJECTED = "rejected"
 
 
+class CandidateStatus(StrEnum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    UNDONE = "undone"
+
+
 class Contact(Base):
     __tablename__ = "contacts"
 
@@ -382,6 +389,58 @@ class VoiceGuidance(Base):
     )
 
     contact: Mapped[Contact | None] = relationship()
+
+
+class AutomationCandidate(Base):
+    __tablename__ = "automation_candidates"
+    __table_args__ = (
+        UniqueConstraint("message_id", "candidate_type", name="uq_automation_candidate_message_type"),
+        Index("ix_automation_candidate_type_status", "candidate_type", "status"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    message_id: Mapped[int] = mapped_column(ForeignKey("messages.id"), index=True)
+    thread_id: Mapped[int] = mapped_column(ForeignKey("message_threads.id"), index=True)
+    contact_id: Mapped[int | None] = mapped_column(ForeignKey("contacts.id"), index=True)
+    candidate_type: Mapped[ProposedActionType] = mapped_column(Enum(ProposedActionType))
+    reason: Mapped[str] = mapped_column(Text)
+    confidence: Mapped[Decimal] = mapped_column(Numeric(5, 4), default=Decimal("0.0"))
+    status: Mapped[CandidateStatus] = mapped_column(Enum(CandidateStatus), default=CandidateStatus.PENDING)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+    message: Mapped[Message] = relationship()
+    thread: Mapped[MessageThread] = relationship()
+    contact: Mapped[Contact | None] = relationship()
+
+
+class BulkTriageActionLog(Base):
+    __tablename__ = "bulk_triage_action_logs"
+    __table_args__ = (Index("ix_bulk_triage_action_logs_created", "created_at"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    action_type: Mapped[str] = mapped_column(String(100))
+    queue_filter: Mapped[str | None] = mapped_column(String(100))
+    item_count: Mapped[int] = mapped_column(Integer, default=0)
+    is_undone: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class BulkTriageActionLogItem(Base):
+    __tablename__ = "bulk_triage_action_log_items"
+    __table_args__ = (Index("ix_bulk_action_log_item_log_entity", "action_log_id", "entity_type"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    action_log_id: Mapped[int] = mapped_column(ForeignKey("bulk_triage_action_logs.id"), index=True)
+    entity_type: Mapped[str] = mapped_column(String(50))
+    entity_id: Mapped[int] = mapped_column(Integer)
+    previous_value: Mapped[str | None] = mapped_column(Text)
+    new_value: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    action_log: Mapped[BulkTriageActionLog] = relationship()
 
 
 class ProposedActionReviewPackage(Base):

@@ -28,6 +28,12 @@ def test_voice_calibration_route_loads():
     assert response.status_code == 200
 
 
+def test_bulk_triage_route_loads():
+    with TestClient(app) as client:
+        response = client.get("/bulk-triage")
+    assert response.status_code == 200
+
+
 def test_message_detail_route_loads(db_session):
     thread = MessageThread(source_type="gmail", source_thread_id="route-t1", unread_count=1)
     db_session.add(thread)

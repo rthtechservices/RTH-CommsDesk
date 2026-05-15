@@ -8,9 +8,9 @@ This phase should introduce bulk triage, queue progression, noise detection, uns
 
 ## Required implementation
 
-- Add a backlog/bulk triage mode.
-- Support pagination and progress tracking across large Gmail history.
-- Add queue controls for:
+- [x] Add a backlog/bulk triage mode.
+- [x] Support pagination and progress tracking across large Gmail history.
+- [x] Add queue controls for:
   - unreviewed
   - needs reply
   - important
@@ -18,21 +18,21 @@ This phase should introduce bulk triage, queue progression, noise detection, uns
   - noise candidates
   - unsubscribe candidates
   - reviewed
-- Ensure reviewed/noise/ignored items leave the default active queue.
-- Add bulk actions with clear confirmation and undo where practical:
+- [x] Ensure reviewed/noise/ignored items leave the default active queue.
+- [x] Add bulk actions with clear confirmation and undo where practical:
   - mark reviewed
   - mark noise
   - mark important
   - assign contact relationship
   - approve no-response-needed recommendation locally
-- Detect repeated low-value senders and newsletter patterns.
-- Detect likely unsubscribe links in stored/sanitized message bodies.
-- Generate unsubscribe_review candidates when evidence supports it.
-- Detect never-opened, never-replied, or low-engagement sender patterns where Gmail data supports it.
-- Generate archive_candidate and delete_candidate records with reasons and confidence.
-- Add an automation candidate dashboard that shows what the app recommends and why.
-- Require explicit approval before any destructive or external action is executed.
-- Add tests for bulk pagination, queue progression, candidate generation, and bulk status updates.
+- [x] Detect repeated low-value senders and newsletter patterns.
+- [x] Detect likely unsubscribe links in stored/sanitized message bodies.
+- [x] Generate unsubscribe_review candidates when evidence supports it.
+- [x] Detect never-opened, never-replied, or low-engagement sender patterns where Gmail data supports it.
+- [x] Generate archive_candidate and delete_candidate records with reasons and confidence.
+- [x] Add an automation candidate dashboard that shows what the app recommends and why.
+- [x] Require explicit approval before any destructive or external action is executed.
+- [x] Add tests for bulk pagination, queue progression, candidate generation, and bulk status updates.
 
 ## Product behavior examples
 
@@ -61,17 +61,39 @@ Expected result:
 
 ## Documentation updates required
 
-- `docs/IMPLEMENTATION_LOG.md`
-- `docs/LESSONS_LEARNED.md`
-- `docs/HELP.md`
-- This phase file with completion notes
+- [x] `docs/IMPLEMENTATION_LOG.md`
+- [x] `docs/LESSONS_LEARNED.md`
+- [x] `docs/HELP.md`
+- [x] This phase file with completion notes
 
 ## Acceptance criteria
 
-- `pytest -q` passes.
-- Backlog mode can progress beyond the first 100 messages.
-- Bulk status updates work and are tested.
-- Automation candidates are visible with reasons and confidence.
-- Reviewed/noise items do not keep resurfacing in the default active queue.
-- Unsubscribe candidates can be detected from mocked message bodies.
-- No external destructive action is executed without a later approved execution phase.
+- [x] `pytest -q` passes.
+- [x] Backlog mode can progress beyond the first 100 messages.
+- [x] Bulk status updates work and are tested.
+- [x] Automation candidates are visible with reasons and confidence.
+- [x] Reviewed/noise items do not keep resurfacing in the default active queue.
+- [x] Unsubscribe candidates can be detected from mocked message bodies.
+- [x] No external destructive action is executed without a later approved execution phase.
+
+## Completion notes
+
+Status: completed on 2026-05-15.
+
+Implemented:
+
+- Added bulk triage persistence models for automation candidates and bulk action logs/undo snapshots.
+- Added `bulk_triage_service` for paginated backlog retrieval, deterministic candidate generation, bulk action application, and undo.
+- Added dashboard bulk-triage link and a dedicated `/bulk-triage` UI with queue controls, pagination, progress stats, candidate panel, and action log undo.
+- Added API endpoints for candidate refresh/listing, backlog page retrieval, bulk action apply, and bulk undo.
+- Added tests for >100-item pagination, candidate generation heuristics, bulk status update + undo, and no-response-needed bulk approvals.
+
+Validation:
+
+- `python -m ruff check .` — passed.
+- `python -m pytest -q` — passed, 59 tests.
+
+Safety boundary confirmed:
+
+- No external archive/delete/unsubscribe/send behavior was added.
+- All destructive behavior remains local recommendation or local-status workflow only.

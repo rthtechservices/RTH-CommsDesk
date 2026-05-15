@@ -91,6 +91,14 @@ python -m pytest -q
 - Approved contact-level voice guidance should override generic voice-profile defaults. Relationship-level guidance should be fallback only.
 - Draft generators should honor learned "avoid corporate filler" notes to remove stock phrasing when more natural contact-specific style exists.
 
+## Bulk triage and automation candidate lessons
+
+- Bulk backlog views should paginate from a queryable attention queue, not from a fixed top-N dashboard slice.
+- Generate automation candidates with explicit reason/confidence text and keep execution local until later approved-execution phases.
+- Keep candidate generation idempotent with per-message candidate-type upserts to avoid duplicate suggestion noise.
+- Log bulk actions with reversible snapshots so "undo where practical" is explicit and auditable.
+- Keep destructive recommendations (archive/delete/unsubscribe) in pending local candidate state until explicit user approval and execution flow exists.
+
 ## UI lessons
 
 - A raw list of scores and reasons is technically useful but not user-friendly.

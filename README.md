@@ -33,6 +33,7 @@ Each LLM session should complete one phase only, update the documentation, and s
 - Draft generation and AI analysis use deterministic mock/local providers by default; no paid AI credentials are required for local development.
 - Local conversation summaries and proposed action review packages are stored for review only. They do not modify Gmail or calendars.
 - Sent-mail learning can infer VIP candidates and salutation/tone guidance, with explicit approve/reject/edit controls on the Voice Calibration page.
+- Bulk triage mode supports paginated queue processing, local automation candidate generation, and reversible bulk actions.
 
 ## Safety rules
 - Never commit secrets, OAuth tokens, or private message data.
@@ -125,4 +126,4 @@ Do not delete or commit `client_secret.json`, `gmail_token.json`, `.env`, or any
 
 The next implementation phase is:
 
-Phase 08 — Bulk triage and noise automation.
+Phase 09 — Calendar availability and scheduling recommendations.

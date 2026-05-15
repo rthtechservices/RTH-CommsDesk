@@ -10,6 +10,7 @@ from app.core.database import get_db
 from app.models.entities import (
     AttentionItem,
     AttentionStatus,
+    BulkTriageActionLog,
     Contact,
     DraftReply,
     InferenceStatus,
@@ -24,6 +25,13 @@ from app.services.analysis_service import (
     analyze_message,
     recent_review_packages_for_message,
     update_review_package_status,
+)
+from app.services.bulk_triage_service import (
+    apply_bulk_action,
+    automation_candidates_for_dashboard,
+    get_bulk_backlog_page,
+    refresh_automation_candidates,
+    undo_bulk_action,
 )
 from app.services.conversation_service import conversation_timeline
 from app.services.contact_service import (
@@ -153,6 +161,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         .limit(10)
         .all()
     )
+    automation_candidates = automation_candidates_for_dashboard(db, limit=12)
     return templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -172,6 +181,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "filter_date_start": request.query_params.get("date_start", ""),
             "filter_date_end": request.query_params.get("date_end", ""),
             "review_packages": review_packages,
+            "automation_candidates": automation_candidates,
         },
     )
 
@@ -553,6 +563,84 @@ def voice_calibration(request: Request, db: Session = Depends(get_db)):
             "learning_run": request.query_params.get("learning_run"),
         },
     )
+
+
+@web_router.get("/bulk-triage")
+def bulk_triage_dashboard(request: Request, db: Session = Depends(get_db)):
+    def _as_int(raw: str | None, default: int) -> int:
+        try:
+            return int(raw or default)
+        except (TypeError, ValueError):
+            return default
+
+    queue_filter = request.query_params.get("queue_filter", "unreviewed")
+    page = _as_int(request.query_params.get("page"), 1)
+    page_size = _as_int(request.query_params.get("page_size"), 100)
+    backlog = get_bulk_backlog_page(
+        db,
+        page=page,
+        page_size=page_size,
+        queue_filter=queue_filter,
+    )
+    candidate_rows = automation_candidates_for_dashboard(db)
+    action_logs = (
+        db.query(BulkTriageActionLog)
+        .order_by(BulkTriageActionLog.created_at.desc(), BulkTriageActionLog.id.desc())
+        .limit(20)
+        .all()
+    )
+    return templates.TemplateResponse(
+        request,
+        "bulk_triage.html",
+        {
+            "backlog": backlog,
+            "queue_filter": queue_filter,
+            "page_size": page_size,
+            "candidate_rows": candidate_rows,
+            "action_logs": action_logs,
+            "bulk_error": request.query_params.get("bulk_error"),
+            "candidate_refresh": request.query_params.get("candidate_refresh"),
+        },
+    )
+
+
+@web_router.post("/bulk-triage/generate-candidates")
+def web_generate_automation_candidates(db: Session = Depends(get_db)):
+    refresh_automation_candidates(db)
+    return RedirectResponse(url="/bulk-triage?candidate_refresh=ok", status_code=303)
+
+
+@web_router.post("/bulk-triage/apply")
+def web_apply_bulk_action(
+    attention_ids: list[int] = Form([]),
+    action_type: str = Form(...),
+    queue_filter: str = Form("unreviewed"),
+    relationship_type: str | None = Form(None),
+    db: Session = Depends(get_db),
+):
+    try:
+        apply_bulk_action(
+            db,
+            attention_ids=attention_ids,
+            action_type=action_type,
+            queue_filter=queue_filter,
+            relationship_type=relationship_type,
+        )
+    except ValueError:
+        return RedirectResponse(
+            url=f"/bulk-triage?queue_filter={queue_filter}&bulk_error=invalid_action",
+            status_code=303,
+        )
+    return RedirectResponse(url=f"/bulk-triage?queue_filter={queue_filter}", status_code=303)
+
+
+@web_router.post("/bulk-triage/undo/{action_log_id}")
+def web_undo_bulk_action(action_log_id: int, db: Session = Depends(get_db)):
+    try:
+        undo_bulk_action(db, action_log_id)
+    except ValueError:
+        return RedirectResponse(url="/bulk-triage?bulk_error=undo_failed", status_code=303)
+    return RedirectResponse(url="/bulk-triage", status_code=303)
 
 
 @web_router.post("/voice-calibration/run-learning")

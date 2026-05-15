@@ -264,7 +264,7 @@
         <div>
           <h1>RTH CommsDesk</h1>
           <div class="muted">
-            Gmail attention queue | <a href="/contacts">Contacts</a> | <a href="/drafts">Drafts</a> | <a href="/review-packages">Review packages</a> | <a href="/voice-calibration">Voice calibration</a>
+            Gmail attention queue | <a href="/contacts">Contacts</a> | <a href="/drafts">Drafts</a> | <a href="/review-packages">Review packages</a> | <a href="/voice-calibration">Voice calibration</a> | <a href="/bulk-triage">Bulk triage</a>
           </div>
         </div>
         <div class="sync-actions">
@@ -437,6 +437,24 @@
               </li>
               {% else %}
               <li class="muted">No local review packages yet.</li>
+              {% endfor %}
+            </ul>
+          </section>
+
+          <section class="panel">
+            <h2>Automation Candidates</h2>
+            <ul class="mini-list">
+              {% for candidate in automation_candidates %}
+              <li>
+                <strong>{{ candidate.candidate_type.value.replace("_", " ").title() }}</strong>
+                <div class="muted">
+                  {{ "%.0f"|format((candidate.confidence or 0) * 100) }}% confidence
+                  {% if candidate.message and candidate.message.sender_email %} | {{ candidate.message.sender_email }}{% endif %}
+                </div>
+                <div>{{ candidate.reason }}</div>
+              </li>
+              {% else %}
+              <li class="muted">No pending automation candidates yet.</li>
               {% endfor %}
             </ul>
           </section>

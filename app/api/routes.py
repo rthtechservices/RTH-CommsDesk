@@ -15,6 +15,13 @@ from app.models.entities import (
 )
 from app.services.attention_service import build_attention_queue
 from app.services.analysis_service import analyze_message, update_review_package_status
+from app.services.bulk_triage_service import (
+    apply_bulk_action,
+    automation_candidates_for_dashboard,
+    get_bulk_backlog_page,
+    refresh_automation_candidates,
+    undo_bulk_action,
+)
 from app.services.contact_service import mark_contact_noise, mark_contact_vip, reset_contact_status
 from app.services.draft_service import create_draft_reply
 from app.services.feedback_service import apply_message_correction
@@ -407,6 +414,101 @@ def set_voice_guidance_status(
         "salutation_style": guidance.salutation_style,
         "preferred_name": guidance.preferred_name,
     }
+
+
+@api_router.post("/bulk-triage/candidates/refresh")
+def refresh_bulk_candidates(db: Session = Depends(get_db)) -> dict:
+    changed = refresh_automation_candidates(db)
+    return {"updated_candidate_count": changed}
+
+
+@api_router.get("/bulk-triage/candidates")
+def get_bulk_candidates(limit: int = 200, db: Session = Depends(get_db)) -> list[dict]:
+    candidates = automation_candidates_for_dashboard(db, limit=limit)
+    return [
+        {
+            "id": candidate.id,
+            "candidate_type": candidate.candidate_type.value,
+            "status": candidate.status.value,
+            "reason": candidate.reason,
+            "confidence": float(candidate.confidence),
+            "message_id": candidate.message_id,
+            "thread_id": candidate.thread_id,
+            "contact_id": candidate.contact_id,
+        }
+        for candidate in candidates
+    ]
+
+
+@api_router.get("/bulk-triage/backlog")
+def get_bulk_backlog(
+    queue_filter: str = "unreviewed",
+    page: int = 1,
+    page_size: int = 100,
+    db: Session = Depends(get_db),
+) -> dict:
+    backlog = get_bulk_backlog_page(
+        db,
+        queue_filter=queue_filter,
+        page=page,
+        page_size=page_size,
+    )
+    return {
+        "queue_filter": queue_filter,
+        "page": backlog.page,
+        "page_size": backlog.page_size,
+        "total_count": backlog.total_count,
+        "reviewed_count": backlog.reviewed_count,
+        "dismissed_count": backlog.dismissed_count,
+        "items": [
+            {
+                "attention_id": item.id,
+                "message_id": item.message_id,
+                "thread_id": item.thread_id,
+                "score": item.attention_score,
+                "status": item.status.value,
+                "reason": item.reason,
+                "sender_email": item.message.sender_email if item.message else None,
+                "subject": item.message.subject if item.message else None,
+            }
+            for item in backlog.items
+        ],
+    }
+
+
+@api_router.post("/bulk-triage/actions/apply")
+def apply_bulk_triage_action(
+    action_type: str = Form(...),
+    attention_ids: list[int] = Form([]),
+    queue_filter: str = Form("unreviewed"),
+    relationship_type: str | None = Form(None),
+    db: Session = Depends(get_db),
+) -> dict:
+    try:
+        action_log = apply_bulk_action(
+            db,
+            attention_ids=attention_ids,
+            action_type=action_type,
+            queue_filter=queue_filter,
+            relationship_type=relationship_type,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {
+        "action_log_id": action_log.id,
+        "action_type": action_log.action_type,
+        "item_count": action_log.item_count,
+        "is_undone": action_log.is_undone,
+    }
+
+
+@api_router.post("/bulk-triage/actions/{action_log_id}/undo")
+def undo_bulk_triage_action(action_log_id: int, db: Session = Depends(get_db)) -> dict:
+    try:
+        log = undo_bulk_action(db, action_log_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"action_log_id": log.id, "is_undone": log.is_undone}
 
 
 @api_router.get("/vip-contacts")

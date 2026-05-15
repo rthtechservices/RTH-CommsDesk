@@ -31,6 +31,54 @@ Record completed work here at the end of every phase. Newest entries should be a
 - 
 ```
 
+## 2026-05-15 — Phase 08: Bulk Triage and Noise Automation
+
+### Summary
+- Added bulk triage mode with queue-specific pagination that can move beyond the first 100 attention items.
+- Added local automation candidate generation for mark-noise, unsubscribe review, archive candidate, and delete candidate recommendations.
+- Added queue controls for unreviewed, needs reply, important, proposed actions, noise candidates, unsubscribe candidates, and reviewed views.
+- Added bulk actions for reviewed/noise/important, contact-relationship assignment, and local approval of no-response-needed review packages.
+- Added undo support for logged bulk actions where practical through bulk action logs.
+
+### Files changed
+- `app/models/entities.py`
+- `alembic/versions/0008_bulk_triage_candidates.py`
+- `app/services/bulk_triage_service.py`
+- `app/api/routes.py`
+- `app/web/routes.py`
+- `app/web/templates/dashboard.html`
+- `app/web/templates/bulk_triage.html`
+- `tests/test_bulk_triage.py`
+- `tests/test_app_bootstrap.py`
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/HELP.md`
+- `docs/phases/PHASE_08_PRODUCTION_HARDENING.md`
+- `docs/PHASE_STATUS.md`
+
+### Tests run
+- `python -m ruff check .` — passed.
+- `python -m pytest -q` — passed, 59 tests.
+
+### Smoke tests
+- App startup: not run manually in this phase.
+- Dashboard: covered by route tests.
+- Key workflow: automated tests cover backlog pagination, candidate generation, bulk status updates, and undo behavior.
+
+### Documentation updated
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/HELP.md`
+- `docs/phases/PHASE_08_PRODUCTION_HARDENING.md`
+- `docs/PHASE_STATUS.md`
+
+### Known issues
+- Bulk undo currently restores tracked state transitions but does not attempt to rewind all derived scoring side effects.
+- Candidate generation is deterministic and local; heuristic tuning can be expanded with more engagement history signals.
+
+### Recommended next actions
+- Proceed to Phase 09: Calendar availability and scheduling recommendations.
+
 ## 2026-05-15 — Phase 07: Sent-Mail Learning, VIP Inference, and Voice Calibration
 
 ### Summary

@@ -176,6 +176,8 @@ Out of scope:
 
 - Performing actual delete/archive/unsubscribe against Gmail unless split into an approved execution subphase.
 
+Status: completed.
+
 ## Phase 09 — Calendar availability and scheduling recommendations
 
 Primary outcome: recommend scheduling actions with real availability context.

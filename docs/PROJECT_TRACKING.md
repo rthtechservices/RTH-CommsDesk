@@ -71,7 +71,7 @@ Known rough edges:
 - Full conversation/thread content is fetched manually on selected Gmail conversations, but automatic summarization is not yet implemented.
 - Sent-mail learning and calibration inference are now available, but the guidance quality still depends on explicit review/approval and ongoing inference tuning.
 - The system does not yet learn enough from Reviewed/Important/Noise feedback to move large queues quickly.
-- Historical Gmail backfill can page beyond the first 100 messages, but bulk triage for 7,000+ historical emails is not yet implemented.
+- Historical Gmail backfill and bulk triage pagination are implemented; additional heuristics and approval flows still need tuning for very large (>7,000) inbox cleanup.
 - Outlook Calendar/Gmail Calendar availability checks are not yet implemented.
 - Approved outbound send/calendar execution is not yet implemented.
 - Unsubscribe, archive, label, and delete automations are not yet implemented.
