@@ -264,7 +264,7 @@
         <div>
           <h1>RTH CommsDesk</h1>
           <div class="muted">
-            Gmail attention queue | <a href="/contacts">Contacts</a> | <a href="/drafts">Drafts</a>
+            Gmail attention queue | <a href="/contacts">Contacts</a> | <a href="/drafts">Drafts</a> | <a href="/review-packages">Review packages</a>
           </div>
         </div>
         <div class="sync-actions">
@@ -423,6 +423,24 @@
         </section>
 
         <aside>
+          <section class="panel">
+            <h2>Review Packages</h2>
+            <ul class="mini-list">
+              {% for package in review_packages %}
+              <li>
+                <strong><a href="/review-packages/{{ package.id }}">{{ package.action_type.value.replace("_", " ").title() }}</a></strong>
+                <div class="muted">
+                  {{ package.status.value if package.status.value is defined else package.status }}
+                  | {{ "%.0f"|format((package.confidence or 0) * 100) }}% confidence
+                  {% if package.message and package.message.sender_email %} | {{ package.message.sender_email }}{% endif %}
+                </div>
+              </li>
+              {% else %}
+              <li class="muted">No local review packages yet.</li>
+              {% endfor %}
+            </ul>
+          </section>
+
           <section class="panel">
             <h2>VIP Contacts</h2>
             <ul class="mini-list">

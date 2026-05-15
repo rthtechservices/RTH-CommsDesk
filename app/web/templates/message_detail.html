@@ -403,6 +403,9 @@
                 <button type="submit">Fetch full conversation</button>
               </form>
               {% endif %}
+              <form method="post" action="/messages/{{ message.id }}/analyze">
+                <button class="primary" type="submit">Analyze conversation</button>
+              </form>
               {% if contact %}
               <form method="post" action="/contacts/{{ contact.id }}/vip">
                 <button type="submit">Mark contact VIP</button>
@@ -435,6 +438,26 @@
               </form>
               <div class="muted">Drafts are suggestions only. Nothing is sent or created in Gmail.</div>
             </div>
+          </section>
+
+          <section class="panel">
+            <h2>Review Packages</h2>
+            <ul class="history">
+              {% for package in review_packages %}
+              <li>
+                <strong><a href="/review-packages/{{ package.id }}">{{ package.action_type.value.replace("_", " ").title() }}</a></strong>
+                <div class="muted">
+                  {{ package.status.value if package.status.value is defined else package.status }}
+                  | {{ "%.0f"|format((package.confidence or 0) * 100) }}% confidence
+                  {% if package.updated_at %} | {{ package.updated_at.strftime("%Y-%m-%d %H:%M") }}{% endif %}
+                </div>
+                <div>{{ package.explanation }}</div>
+              </li>
+              {% else %}
+              <li class="muted">No local review package generated for this message.</li>
+              {% endfor %}
+            </ul>
+            <div class="muted" style="margin-top: 10px">Review packages are local recommendations only and do not modify Gmail, calendar, archive, delete, labels, or unsubscribe settings.</div>
           </section>
 
           <section class="panel">

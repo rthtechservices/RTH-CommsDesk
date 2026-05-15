@@ -31,6 +31,60 @@ Record completed work here at the end of every phase. Newest entries should be a
 - 
 ```
 
+## 2026-05-15 — Phase 06: AI Summarization and Proposed Action Intelligence
+
+### Summary
+- Added a provider-neutral AI analysis service with a deterministic mock provider for local development and tests.
+- Added local conversation summaries and proposed action review packages linked to source messages and threads.
+- Added proposed action recommendations for no response, reply, clarification, newsletter/noise, unsubscribe review, calendar-reminder candidates, and fallback review.
+- Improved local draft generation context so it can use full stored thread context, conversation summary, proposed action type, relationship, importance, and correction history.
+- Added review-package UI and API routes showing summary, recommendation, explanation, confidence, optional draft response, and local approve/reject/edit/snooze status.
+- Kept all recommendations local; no email send, Gmail draft creation, archive/delete/label/unsubscribe, or calendar-write behavior was added.
+
+### Files changed
+- `app/models/entities.py`
+- `app/services/analysis_service.py`
+- `app/services/draft_service.py`
+- `app/api/routes.py`
+- `app/web/routes.py`
+- `app/web/templates/dashboard.html`
+- `app/web/templates/message_detail.html`
+- `app/web/templates/review_packages.html`
+- `app/web/templates/review_package_detail.html`
+- `alembic/versions/0006_ai_review_packages.py`
+- `tests/test_ai_analysis.py`
+- `tests/test_app_bootstrap.py`
+- `README.md`
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/HELP.md`
+- `docs/phases/PHASE_06_NOTIFICATION_SOURCES.md`
+- `README.md`
+
+### Tests run
+- `python -m pytest -q` — passed, 50 tests.
+
+### Smoke tests
+- App startup: `python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8036` started successfully and `GET /` returned HTTP 200.
+- Dashboard: startup smoke confirmed the dashboard renders with the new review-package panel.
+- Key workflow: automated tests cover dinner cancellation acknowledgement, ICBC renewal reminder candidate, newsletter/unsubscribe review, client request draft specificity, vague clarification, draft context enrichment, and local-only review package status updates.
+
+### Documentation updated
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/HELP.md`
+- `docs/phases/PHASE_06_NOTIFICATION_SOURCES.md`
+
+### Known issues
+- The analysis provider is deterministic/mock-only for local development; no production AI provider is configured yet.
+- Analysis uses the locally stored conversation context. Gmail full conversation fetch remains manual unless the user has already stored full thread content.
+- Review package approval/rejection/edit/snooze is local status only and does not execute external actions.
+- Sent-mail style learning and voice calibration remain Phase 07 scope.
+
+### Recommended next actions
+- Human review and smoke-test Phase 06 with real Gmail threads, especially the dinner-cancellation and ICBC renewal scenarios.
+- After review, proceed to Phase 07: Sent-mail learning, VIP inference, and voice calibration.
+
 ## 2026-05-15 — Phase 05: Gmail Conversation Context and Full-Content Ingestion
 
 ### Summary

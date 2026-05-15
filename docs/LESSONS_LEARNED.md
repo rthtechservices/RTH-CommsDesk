@@ -75,6 +75,14 @@ python -m pytest -q
 - Historical Gmail backfill must persist `nextPageToken`; otherwise the dashboard keeps cycling through the same recent window.
 - Reviewed and dismissed/noise items should stay out of the default active queue so backlog triage can progress.
 
+## AI analysis and review package lessons
+
+- Keep AI analysis provider-neutral like draft generation. The default local path should remain deterministic/mock so tests and development do not require paid credentials.
+- Store the analysis output as local review packages with source thread/message links, summary, action type, explanation, confidence, and local status. Do not treat recommendations as external execution.
+- A no-response-needed recommendation should not create a draft by default. Draft creation can still be forced manually, but the generated text should make the override explicit.
+- Draft generation can use full locally stored thread context in Phase 06, but it should still keep user correction history summarized rather than copying raw feedback notes into prompts.
+- Reminder, archive, delete, unsubscribe, and calendar recommendations must remain candidates until a later approved-execution phase adds explicit external write behavior.
+
 ## UI lessons
 
 - A raw list of scores and reasons is technically useful but not user-friendly.

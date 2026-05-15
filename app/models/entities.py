@@ -46,6 +46,28 @@ class DraftStatus(StrEnum):
     REJECTED = "rejected"
 
 
+class ProposedActionType(StrEnum):
+    NO_RESPONSE_NEEDED = "no_response_needed"
+    REPLY = "reply"
+    SCHEDULE_MEETING = "schedule_meeting"
+    ASK_CLARIFYING_QUESTION = "ask_clarifying_question"
+    MARK_NOISE = "mark_noise"
+    UNSUBSCRIBE_REVIEW = "unsubscribe_review"
+    CREATE_CALENDAR_REMINDER = "create_calendar_reminder"
+    FOLLOW_UP_LATER = "follow_up_later"
+    ARCHIVE_CANDIDATE = "archive_candidate"
+    DELETE_CANDIDATE = "delete_candidate"
+    REVIEW_NEEDED = "review_needed"
+
+
+class ReviewPackageStatus(StrEnum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    EDITED = "edited"
+    SNOOZED = "snoozed"
+
+
 class Contact(Base):
     __tablename__ = "contacts"
 
@@ -195,6 +217,23 @@ class MessageClassification(Base):
     message: Mapped[Message] = relationship()
 
 
+class ConversationSummary(Base):
+    __tablename__ = "conversation_summaries"
+    __table_args__ = (UniqueConstraint("thread_id", name="uq_conversation_summaries_thread"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    thread_id: Mapped[int] = mapped_column(ForeignKey("message_threads.id"), index=True)
+    summary_text: Mapped[str] = mapped_column(Text)
+    detected_due_date: Mapped[str | None] = mapped_column(String(100))
+    provider_name: Mapped[str] = mapped_column(String(100), default="mock")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+    thread: Mapped[MessageThread] = relationship()
+
+
 class AttentionItem(Base):
     __tablename__ = "attention_items"
     __table_args__ = (
@@ -256,6 +295,40 @@ class DraftReply(Base):
     thread: Mapped[MessageThread] = relationship()
     message: Mapped[Message | None] = relationship()
     voice_profile: Mapped[VoiceProfile | None] = relationship(back_populates="drafts")
+
+
+class ProposedActionReviewPackage(Base):
+    __tablename__ = "proposed_action_review_packages"
+    __table_args__ = (
+        UniqueConstraint("message_id", name="uq_review_packages_message"),
+        Index("ix_review_packages_thread_created", "thread_id", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    thread_id: Mapped[int] = mapped_column(ForeignKey("message_threads.id"), index=True)
+    message_id: Mapped[int] = mapped_column(ForeignKey("messages.id"), index=True)
+    conversation_summary_id: Mapped[int | None] = mapped_column(
+        ForeignKey("conversation_summaries.id")
+    )
+    action_type: Mapped[ProposedActionType] = mapped_column(Enum(ProposedActionType))
+    explanation: Mapped[str] = mapped_column(Text)
+    confidence: Mapped[Decimal] = mapped_column(Numeric(5, 4), default=Decimal("0.0"))
+    draft_response: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[ReviewPackageStatus] = mapped_column(
+        Enum(ReviewPackageStatus), default=ReviewPackageStatus.PENDING
+    )
+    user_note: Mapped[str | None] = mapped_column(Text)
+    snoozed_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    provider_name: Mapped[str] = mapped_column(String(100), default="mock")
+    is_external_action: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+    thread: Mapped[MessageThread] = relationship()
+    message: Mapped[Message] = relationship()
+    conversation_summary: Mapped[ConversationSummary | None] = relationship()
 
 
 class UserFeedback(Base):

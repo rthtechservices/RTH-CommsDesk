@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.models.entities import (
@@ -13,8 +12,12 @@ from app.models.entities import (
     DraftStatus,
     Message,
     MessageClassification,
-    UserFeedback,
     VoiceProfile,
+)
+from app.services.analysis_service import (
+    conversation_context_messages,
+    feedback_summary,
+    latest_review_package_for_message,
 )
 from app.services.contact_service import contact_status, find_contact_by_sender_email
 from app.services.feedback_service import friendly_classification_label, summarize_classification
@@ -46,6 +49,11 @@ class DraftContext:
     attention_reason: str
     recommended_action: str
     feedback_summary: str
+    conversation_summary: str
+    proposed_action_type: str
+    proposed_action_explanation: str
+    review_package_draft_response: str
+    full_thread_context: str
 
 
 class DraftProvider(Protocol):
@@ -63,7 +71,30 @@ class MockDraftProvider:
         recipient = _recipient_name(context)
         subject_line = f"Re: {context.subject}" if context.subject else "Re: your note"
 
-        if audience == "friend":
+        if context.review_package_draft_response:
+            body = context.review_package_draft_response
+        elif context.proposed_action_type == "no_response_needed":
+            body = (
+                "No draft is recommended for this message because the local analysis says "
+                "no response is needed. Generate a reply only if you intentionally want to "
+                "override that recommendation."
+            )
+        elif context.proposed_action_type == "ask_clarifying_question":
+            body = (
+                f"Hi {recipient},\n\n"
+                "Can you send me a bit more detail on what you need from me here? Once I have "
+                "that, I can give you a clearer answer.\n\n"
+                "Thanks"
+            )
+        elif context.proposed_action_type == "reply":
+            detail = _specific_reply_detail(context)
+            body = (
+                f"Hi {recipient},\n\n"
+                f"Thanks for reaching out. I can help with {detail}. I will review the thread "
+                "context and come back with clear next steps.\n\n"
+                "Best"
+            )
+        elif audience == "friend":
             body = (
                 f"Hey {recipient},\n\n"
                 "Thanks for the note. I saw this and wanted to acknowledge it directly. "
@@ -135,6 +166,12 @@ def build_draft_context(db: Session, message: Message) -> DraftContext:
     contact = _resolve_contact(db, message)
     classification = db.query(MessageClassification).filter_by(message_id=message.id).first()
     attention = db.query(AttentionItem).filter_by(message_id=message.id).first()
+    review_package = latest_review_package_for_message(db, message.id)
+    conversation_summary = (
+        review_package.conversation_summary.summary_text
+        if review_package and review_package.conversation_summary
+        else ""
+    )
     return DraftContext(
         message_id=message.id,
         thread_id=message.thread_id,
@@ -152,7 +189,12 @@ def build_draft_context(db: Session, message: Message) -> DraftContext:
         attention_score=attention.attention_score if attention else None,
         attention_reason=(attention.reason or "") if attention else "",
         recommended_action=(attention.recommended_action or "") if attention else "",
-        feedback_summary=_feedback_summary(db, message, contact),
+        feedback_summary=feedback_summary(db, message, contact),
+        conversation_summary=conversation_summary,
+        proposed_action_type=(review_package.action_type.value if review_package else ""),
+        proposed_action_explanation=(review_package.explanation if review_package else ""),
+        review_package_draft_response=(review_package.draft_response if review_package else "") or "",
+        full_thread_context=_full_thread_context(db, message),
     )
 
 
@@ -238,31 +280,28 @@ def _normalize_audience(value: str | None) -> str | None:
     return normalized if normalized in SUPPORTED_DRAFT_AUDIENCES else None
 
 
-def _feedback_summary(db: Session, message: Message, contact: Contact | None) -> str:
-    filters = [UserFeedback.message_id == message.id]
-    if contact:
-        filters.append(UserFeedback.contact_id == contact.id)
-    rows = (
-        db.query(UserFeedback)
-        .filter(or_(*filters))
-        .order_by(UserFeedback.created_at.desc())
-        .limit(5)
-        .all()
-    )
-    if not rows:
-        return "No correction history recorded."
-
-    parts = []
-    for row in rows:
-        label = row.corrected_label or row.corrected_value or row.feedback_type
-        parts.append(f"{row.feedback_type}: {label}")
-    return "; ".join(parts)[:500]
-
-
 def _recipient_name(context: DraftContext) -> str:
     return (
         context.contact_name or context.sender_name or context.sender_email.split("@")[0] or "there"
     )
+
+
+def _full_thread_context(db: Session, message: Message) -> str:
+    parts = []
+    for item in conversation_context_messages(db, message.thread_id, message.id):
+        sender = item.sender_name or item.sender_email or "Unknown sender"
+        marker = "selected" if item.is_selected else "thread"
+        text = item.text[:800]
+        parts.append(f"[{marker}] {sender}: {text}")
+    return "\n".join(parts)[:3000]
+
+
+def _specific_reply_detail(context: DraftContext) -> str:
+    source = context.conversation_summary or context.full_thread_context or context.subject
+    source = " ".join(source.split())
+    if not source:
+        return "this"
+    return source[:180]
 
 
 def _fallback_voice_profile() -> VoiceProfile:

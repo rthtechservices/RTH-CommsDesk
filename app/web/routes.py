@@ -14,9 +14,16 @@ from app.models.entities import (
     DraftReply,
     Message,
     MessageClassification,
+    ProposedActionReviewPackage,
+    ReviewPackageStatus,
     UserFeedback,
 )
 from app.services.attention_service import build_attention_queue
+from app.services.analysis_service import (
+    analyze_message,
+    recent_review_packages_for_message,
+    update_review_package_status,
+)
 from app.services.conversation_service import conversation_timeline
 from app.services.contact_service import (
     CONTACT_STATUS_OPTIONS,
@@ -132,6 +139,12 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         .all()
     )
     sync_state = get_sync_state(db)
+    review_packages = (
+        db.query(ProposedActionReviewPackage)
+        .order_by(ProposedActionReviewPackage.updated_at.desc(), ProposedActionReviewPackage.id.desc())
+        .limit(10)
+        .all()
+    )
     return templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -150,6 +163,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "filter_source": request.query_params.get("source", ""),
             "filter_date_start": request.query_params.get("date_start", ""),
             "filter_date_end": request.query_params.get("date_end", ""),
+            "review_packages": review_packages,
         },
     )
 
@@ -210,6 +224,7 @@ def message_detail(message_id: int, request: Request, db: Session = Depends(get_
                 .all()
             )
         draft_replies = recent_drafts_for_message(db, message_id)
+        review_packages = recent_review_packages_for_message(db, message_id)
         voice_profiles = available_voice_profiles(db)
         suggested_profile_id = suggested_voice_profile_id(db, message)
         timeline = conversation_timeline(db, message.thread_id, message.id)
@@ -229,6 +244,7 @@ def message_detail(message_id: int, request: Request, db: Session = Depends(get_
             "contact_status": contact_status(contact),
             "feedback": feedback,
             "draft_replies": draft_replies if message else [],
+            "review_packages": review_packages if message else [],
             "voice_profiles": voice_profiles if message else [],
             "suggested_profile_id": suggested_profile_id if message else None,
             "timeline": timeline if message else [],
@@ -241,6 +257,20 @@ def message_detail(message_id: int, request: Request, db: Session = Depends(get_
             "classification_tags": classification_tags(classification),
         },
         status_code=status_code,
+    )
+
+
+@web_router.post("/messages/{message_id}/analyze")
+def web_analyze_message(message_id: int, request: Request, db: Session = Depends(get_db)):
+    message = db.get(Message, message_id)
+    if message:
+        result = analyze_message(db, message)
+        return RedirectResponse(
+            url=request.url_for("review_package_detail", package_id=result.review_package.id),
+            status_code=303,
+        )
+    return RedirectResponse(
+        url=request.url_for("message_detail", message_id=message_id), status_code=303
     )
 
 
@@ -512,3 +542,50 @@ def draft_detail(draft_id: int, request: Request, db: Session = Depends(get_db))
         {"draft": draft},
         status_code=200 if draft else 404,
     )
+
+
+@web_router.get("/review-packages")
+def review_packages_index(request: Request, db: Session = Depends(get_db)):
+    packages = (
+        db.query(ProposedActionReviewPackage)
+        .order_by(ProposedActionReviewPackage.updated_at.desc(), ProposedActionReviewPackage.id.desc())
+        .limit(100)
+        .all()
+    )
+    return templates.TemplateResponse(request, "review_packages.html", {"packages": packages})
+
+
+@web_router.get("/review-packages/{package_id}")
+def review_package_detail(package_id: int, request: Request, db: Session = Depends(get_db)):
+    package = db.get(ProposedActionReviewPackage, package_id)
+    return templates.TemplateResponse(
+        request,
+        "review_package_detail.html",
+        {
+            "package": package,
+            "status_options": list(ReviewPackageStatus),
+        },
+        status_code=200 if package else 404,
+    )
+
+
+@web_router.post("/review-packages/{package_id}/status")
+def web_update_review_package_status(
+    package_id: int,
+    status: str = Form(...),
+    user_note: str | None = Form(None),
+    draft_response: str | None = Form(None),
+    db: Session = Depends(get_db),
+):
+    try:
+        selected_status = ReviewPackageStatus(status)
+        package = update_review_package_status(
+            db,
+            package_id,
+            status=selected_status,
+            user_note=user_note,
+            draft_response=draft_response,
+        )
+        return RedirectResponse(url=f"/review-packages/{package.id}", status_code=303)
+    except ValueError:
+        return RedirectResponse(url="/review-packages", status_code=303)

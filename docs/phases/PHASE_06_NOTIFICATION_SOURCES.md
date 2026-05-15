@@ -111,3 +111,30 @@ Expected result:
 - The dinner-cancellation acknowledgement scenario recommends no_response_needed.
 - Draft generation uses conversation summary and action type.
 - Review packages are clearly local and do not modify external systems.
+
+## Completion notes
+
+Status: completed on 2026-05-15.
+
+Implemented:
+
+- Provider-neutral `AIAnalysisProvider` interface and deterministic `MockAIAnalysisProvider`.
+- Local `conversation_summaries` storage linked to message threads.
+- Local `proposed_action_review_packages` storage linked to source messages and threads.
+- Review package fields for action type, explanation, confidence, draft response, local status, provider name, and external-action flag.
+- Mock analysis behavior for dinner-cancellation acknowledgements, ICBC renewal due dates, marketing/newsletters, client requests, vague messages, and fallback review-needed cases.
+- Message detail action to analyze a conversation.
+- Review Packages list/detail UI with summary, recommendation, explanation, confidence, optional draft response, and local approve/reject/edit/snooze status.
+- Draft generation context now includes locally stored full thread context, conversation summary, proposed action type, contact relationship, importance score, and summarized correction history.
+
+Validation:
+
+- `python -m pytest -q` — passed, 50 tests.
+- `python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8036` — started successfully; dashboard returned HTTP 200.
+
+Safety boundary confirmed:
+
+- No email send behavior was added.
+- No external Gmail draft creation was added.
+- No archive, delete, label, unsubscribe, or calendar write behavior was added.
+- Calendar reminders and destructive mailbox operations are stored only as local candidates for future approved execution.

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Review Package | RTH CommsDesk</title>
+    <style>
+      :root {
+        --bg: #f6f7f9;
+        --surface: #ffffff;
+        --line: #d9dee6;
+        --text: #17202a;
+        --muted: #607080;
+        --brand: #246b5a;
+        --warn-bg: #fff7ed;
+        --warn-line: #e4b47f;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 15px;
+        line-height: 1.45;
+      }
+      a {
+        color: var(--brand);
+        font-weight: 700;
+        text-decoration: none;
+      }
+      .wrap {
+        width: min(980px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 22px 0 42px;
+      }
+      .panel,
+      .notice {
+        border-radius: 8px;
+        padding: 16px;
+      }
+      .panel {
+        border: 1px solid var(--line);
+        background: var(--surface);
+        margin-bottom: 16px;
+      }
+      .notice {
+        border: 1px solid var(--warn-line);
+        background: var(--warn-bg);
+        font-weight: 700;
+      }
+      .facts {
+        display: grid;
+        gap: 8px;
+      }
+      .facts div {
+        display: grid;
+        grid-template-columns: 180px minmax(0, 1fr);
+        gap: 12px;
+        border-top: 1px solid var(--line);
+        padding-top: 8px;
+      }
+      .facts div:first-child {
+        border-top: 0;
+        padding-top: 0;
+      }
+      .label,
+      .muted {
+        color: var(--muted);
+      }
+      .label {
+        font-weight: 700;
+      }
+      button,
+      select,
+      textarea {
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        font: inherit;
+      }
+      button {
+        min-height: 36px;
+        background: var(--surface);
+        cursor: pointer;
+        font-weight: 700;
+        padding: 7px 11px;
+      }
+      button.primary {
+        border-color: var(--brand);
+        background: var(--brand);
+        color: #ffffff;
+      }
+      select,
+      textarea {
+        width: 100%;
+        padding: 8px;
+      }
+      textarea {
+        min-height: 120px;
+        resize: vertical;
+      }
+      pre {
+        overflow: auto;
+        white-space: pre-wrap;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcfd;
+        padding: 14px;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+      .actions {
+        display: grid;
+        gap: 10px;
+      }
+      .empty {
+        border: 1px dashed var(--line);
+        border-radius: 8px;
+        background: #fbfcfd;
+        color: var(--muted);
+        padding: 18px;
+      }
+      @media (max-width: 700px) {
+        .facts div {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <a href="/review-packages">Back to review packages</a>
+      {% if package %}
+      <h1>Review Package</h1>
+      <p class="notice">Local recommendation only. Approving, rejecting, editing, or snoozing this package does not modify Gmail or any calendar.</p>
+
+      <section class="panel">
+        <div class="facts">
+          <div>
+            <span class="label">Communication summary</span>
+            <span>{{ package.conversation_summary.summary_text if package.conversation_summary else "No summary stored." }}</span>
+          </div>
+          <div>
+            <span class="label">Recommended action</span>
+            <span>{{ package.action_type.value.replace("_", " ").title() }}</span>
+          </div>
+          <div>
+            <span class="label">Explanation</span>
+            <span>{{ package.explanation }}</span>
+          </div>
+          <div>
+            <span class="label">Confidence</span>
+            <span>{{ "%.0f"|format((package.confidence or 0) * 100) }}%</span>
+          </div>
+          <div>
+            <span class="label">Status</span>
+            <span>{{ package.status.value if package.status.value is defined else package.status }}</span>
+          </div>
+          <div>
+            <span class="label">Source message</span>
+            <span>
+              {% if package.message %}
+              <a href="/messages/{{ package.message.id }}">{{ package.message.subject or "(No subject)" }}</a>
+              {% else %}
+              Unknown
+              {% endif %}
+            </span>
+          </div>
+          <div>
+            <span class="label">Provider</span>
+            <span>{{ package.provider_name }}</span>
+          </div>
+          <div>
+            <span class="label">External action</span>
+            <span>No external system is modified by this package.</span>
+          </div>
+        </div>
+      </section>
+
+      {% if package.draft_response %}
+      <section class="panel">
+        <h2>Draft Response</h2>
+        <pre>{{ package.draft_response }}</pre>
+      </section>
+      {% endif %}
+
+      <section class="panel">
+        <h2>Local Review Status</h2>
+        <form method="post" action="/review-packages/{{ package.id }}/status" class="actions">
+          <label>
+            <span class="label">Status</span>
+            <select name="status">
+              {% for status in status_options %}
+              <option value="{{ status.value }}" {% if status == package.status %}selected{% endif %}>{{ status.value.replace("_", " ").title() }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            <span class="label">Draft response or edit note</span>
+            <textarea name="draft_response">{{ package.draft_response or "" }}</textarea>
+          </label>
+          <label>
+            <span class="label">Local review note</span>
+            <textarea name="user_note">{{ package.user_note or "" }}</textarea>
+          </label>
+          <button class="primary" type="submit">Save local status</button>
+        </form>
+      </section>
+      {% else %}
+      <div class="empty">Review package not found.</div>
+      {% endif %}
+    </main>
+  </body>
+</html>

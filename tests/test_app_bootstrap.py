@@ -86,4 +86,4 @@ def test_alembic_bootstrap_creates_current_local_schema(tmp_path, monkeypatch):
 
     with engine.connect() as connection:
         version = connection.execute(text("select version_num from alembic_version")).scalar_one()
-    assert version == "0005_gmail_conversation_context"
+    assert version == "0006_ai_review_packages"

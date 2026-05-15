@@ -9,8 +9,11 @@ from app.models.entities import (
     Contact,
     Message,
     MessageClassification,
+    ProposedActionReviewPackage,
+    ReviewPackageStatus,
 )
 from app.services.attention_service import build_attention_queue
+from app.services.analysis_service import analyze_message, update_review_package_status
 from app.services.contact_service import mark_contact_noise, mark_contact_vip, reset_contact_status
 from app.services.draft_service import create_draft_reply
 from app.services.feedback_service import apply_message_correction
@@ -225,6 +228,59 @@ def generate_draft(
     }
 
 
+@api_router.post("/messages/{message_id}/analyze")
+def analyze_message_endpoint(message_id: int, db: Session = Depends(get_db)) -> dict:
+    message = db.get(Message, message_id)
+    if not message:
+        raise HTTPException(status_code=404, detail="Message not found")
+    result = analyze_message(db, message)
+    package = result.review_package
+    summary = result.conversation_summary
+    return {
+        "review_package_id": package.id,
+        "conversation_summary_id": summary.id,
+        "summary": summary.summary_text,
+        "action_type": package.action_type.value,
+        "explanation": package.explanation,
+        "confidence": float(package.confidence),
+        "draft_response": package.draft_response,
+        "review_only": True,
+        "external_action_created": False,
+    }
+
+
+@api_router.get("/review-packages")
+def get_review_packages(db: Session = Depends(get_db)) -> list[dict]:
+    packages = (
+        db.query(ProposedActionReviewPackage)
+        .order_by(ProposedActionReviewPackage.updated_at.desc(), ProposedActionReviewPackage.id.desc())
+        .limit(100)
+        .all()
+    )
+    return [_review_package_dict(package) for package in packages]
+
+
+@api_router.post("/review-packages/{package_id}/status")
+def set_review_package_status(
+    package_id: int,
+    status: str = Form(...),
+    user_note: str | None = Form(None),
+    draft_response: str | None = Form(None),
+    db: Session = Depends(get_db),
+) -> dict:
+    try:
+        package = update_review_package_status(
+            db,
+            package_id,
+            status=ReviewPackageStatus(status),
+            user_note=user_note,
+            draft_response=draft_response,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _review_package_dict(package)
+
+
 @api_router.post("/messages/{message_id}/fetch-conversation")
 def fetch_conversation(message_id: int, db: Session = Depends(get_db)) -> dict:
     try:
@@ -263,3 +319,21 @@ def unread_human(db: Session = Depends(get_db)) -> list[dict]:
         .all()
     )
     return [{"id": m.id, "subject": m.subject, "sender": m.sender_email} for m, _ in rows]
+
+
+def _review_package_dict(package: ProposedActionReviewPackage) -> dict:
+    return {
+        "id": package.id,
+        "thread_id": package.thread_id,
+        "message_id": package.message_id,
+        "summary": (
+            package.conversation_summary.summary_text if package.conversation_summary else None
+        ),
+        "action_type": package.action_type.value,
+        "explanation": package.explanation,
+        "confidence": float(package.confidence),
+        "draft_response": package.draft_response,
+        "status": package.status.value,
+        "review_only": True,
+        "external_action_created": False,
+    }

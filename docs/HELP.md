@@ -34,6 +34,10 @@ Current MVP features:
 - Generate a local review-only draft suggestion from a message detail page.
 - Choose a voice profile for draft suggestions: client, friend, partner, vendor, or short acknowledgement.
 - Review local draft suggestions from the Drafts page.
+- Analyze a stored Gmail conversation with the local mock AI analysis provider.
+- Store and view local conversation summaries.
+- Store and view proposed action review packages with a recommendation, explanation, confidence score, optional draft response, and local review status.
+- Locally approve, reject, edit, or snooze a review package without changing Gmail or any calendar.
 - Filter the attention queue by active/unreviewed, needs reply, important, noise, reviewed, date range, sender/contact, and source.
 
 ## What it does not do today
@@ -46,6 +50,8 @@ RTH CommsDesk does not currently:
 - Delete emails.
 - Read Outlook, Teams, SMS, or other message channels.
 - Create external Gmail drafts.
+- Create calendar events or reminders externally.
+- Execute proposed archive, delete, unsubscribe, label, or calendar actions externally.
 - Use paid or cloud AI credentials as a requirement for local draft generation.
 - Store full email bodies by default.
 
@@ -68,6 +74,19 @@ The Contacts page is linked from the dashboard header. Use it to edit contact pr
 ### Drafts
 
 The Drafts page lists local draft suggestions. Drafts are stored only in the local CommsDesk database and are not sent or created in Gmail.
+
+### Review Packages
+
+The Review Packages page lists local AI analysis recommendations. Each package shows:
+
+- communication summary
+- recommended action
+- explanation
+- confidence score
+- draft response when a reply or clarification is recommended
+- local status: pending, approved, rejected, edited, or snoozed
+
+Review packages are local only. Approving a package does not send email, create a Gmail draft, archive, delete, unsubscribe, label a message, or create a calendar event.
 
 ### Recent Unread Human Messages
 
@@ -147,6 +166,32 @@ Creates a local draft suggestion from the message detail page. Choose a voice pr
 - Short acknowledgement: very brief confirmation of receipt.
 
 Generated drafts are suggestions only. The app does not send the draft, reply to Gmail, create a Gmail draft, archive, or delete anything.
+
+If a conversation has a review package, draft generation uses the stored conversation summary, proposed action type, full locally stored thread context, contact relationship, importance score, and summarized correction history. If the review package says no response is needed, no draft is created automatically.
+
+### Analyze conversation
+
+On a message detail page, Analyze conversation creates or updates a local review package for that source message and thread.
+
+The local mock analysis provider can recommend:
+
+- no response needed
+- reply
+- schedule meeting
+- ask clarifying question
+- mark noise
+- unsubscribe review
+- create calendar reminder
+- follow up later
+- archive candidate
+- delete candidate
+- review needed
+
+Calendar reminders, archive/delete candidates, unsubscribe review, and other actions remain local recommendations only.
+
+### Review package status
+
+Open a review package to approve, reject, edit, or snooze it locally. The status is for local tracking and does not execute anything outside CommsDesk.
 
 ### Review drafts
 
