@@ -9,10 +9,14 @@ RTH CommsDesk helps review Gmail messages by showing likely important items in a
 Current MVP features:
 
 - Sync recent Gmail inbox messages in read-only mode.
+- Backfill older Gmail inbox pages in read-only mode.
 - Keep Gmail sync metadata locally so repeat syncs are incremental.
 - Skip duplicate Gmail messages and duplicate attention items on repeat sync.
-- Show the latest sync counts: fetched, inserted, duplicates skipped, and threads updated.
+- Show the latest sync/backfill counts: fetched, inserted, duplicates skipped, threads updated, and backlog cursor status.
 - Store message metadata and snippets by default.
+- Fetch and store full Gmail conversation content manually from a message detail page.
+- Show a chronological Gmail conversation timeline on message detail pages.
+- Preserve sender, recipients, CC, dates, subject, and message order when full thread context is available.
 - Classify messages using local deterministic rules.
 - Assign an attention score.
 - Show a readable dashboard with attention items, scores, labels, reasons, VIP contacts, unread human-like messages, and suspected noise.
@@ -30,6 +34,7 @@ Current MVP features:
 - Generate a local review-only draft suggestion from a message detail page.
 - Choose a voice profile for draft suggestions: client, friend, partner, vendor, or short acknowledgement.
 - Review local draft suggestions from the Drafts page.
+- Filter the attention queue by active/unreviewed, needs reply, important, noise, reviewed, date range, sender/contact, and source.
 
 ## What it does not do today
 
@@ -49,6 +54,8 @@ RTH CommsDesk does not currently:
 ### Attention Queue
 
 The Attention Queue lists messages that the app thinks may need attention. Higher scores should appear closer to the top.
+
+Reviewed and noise/dismissed items are excluded from the default active queue so the list can move forward as items are processed. Use the queue filters to view reviewed or noise items again.
 
 ### VIP Contacts
 
@@ -89,9 +96,21 @@ Normal sync uses the last successful Gmail high-water mark. This keeps future sy
 
 Runs a safe manual resync of the recent Gmail window without using the high-water mark. Existing messages are updated and counted as duplicates rather than inserted again.
 
+### Backfill older
+
+Fetches the next older Gmail inbox page using Gmail's backlog cursor. Use this when the dashboard keeps showing the same recent messages and you want the local queue to move farther back through the mailbox.
+
+Backfill is read-only. It stores local message records and sync diagnostics only.
+
 ### View
 
 Opens the message detail page.
+
+### Fetch full conversation
+
+On a Gmail message detail page, fetches all available messages in that Gmail thread and stores normalized body text locally. Plain text MIME parts are preferred. HTML-only messages are converted to plain text before storage/display.
+
+The conversation timeline then shows the selected message in chronological thread context. This is intended to make cases clear where one person changed plans and another person only acknowledged the update.
 
 ### Mark as reviewed
 

@@ -63,15 +63,15 @@ Automation is allowed when it is explicitly designed, auditable, and reversible 
 
 ## Current baseline
 
-The current MVP is Gmail-first. It can ingest Gmail metadata/snippets, persist sync high-water metadata, avoid duplicate local sync side effects, classify messages with deterministic rules, score attention items, manage contacts and aliases, track relationship-aware importance, and generate local review-only draft suggestions with deterministic/mock voice profiles.
+The current MVP is Gmail-first. It can ingest Gmail metadata/snippets, persist sync high-water metadata, backfill older Gmail pages, fetch full Gmail thread context on demand, avoid duplicate local sync side effects, classify messages with deterministic rules, score attention items, manage contacts and aliases, track relationship-aware importance, and generate local review-only draft suggestions with deterministic/mock voice profiles.
 
 Known rough edges:
 
-- Drafts are not yet context-aware enough and may produce vague, unnatural replies.
-- Full conversation/thread content is not yet reliably fetched and summarized.
+- Drafts are not yet context-aware enough and may produce vague, unnatural replies; Phase 05 makes the raw thread context available, but Phase 06 must use it intelligently.
+- Full conversation/thread content is fetched manually on selected Gmail conversations, but automatic summarization is not yet implemented.
 - Sent-mail learning is not yet implemented, so voice profiles do not yet reflect Rohan's real writing patterns.
 - The system does not yet learn enough from Reviewed/Important/Noise feedback to move large queues quickly.
-- Bulk triage for 7,000+ historical emails is not yet implemented.
+- Historical Gmail backfill can page beyond the first 100 messages, but bulk triage for 7,000+ historical emails is not yet implemented.
 - Outlook Calendar/Gmail Calendar availability checks are not yet implemented.
 - Approved outbound send/calendar execution is not yet implemented.
 - Unsubscribe, archive, label, and delete automations are not yet implemented.

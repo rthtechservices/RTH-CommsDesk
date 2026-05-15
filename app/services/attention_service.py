@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import desc
+from datetime import datetime
+
+from sqlalchemy import desc, func, or_
 from sqlalchemy.orm import Session
 
 from app.models.entities import (
@@ -90,10 +92,60 @@ def _recommended_action(classification: MessageClassification) -> str:
     return "Review"
 
 
-def build_attention_queue(db: Session, include_reviewed: bool = False) -> list[AttentionItem]:
-    query = db.query(AttentionItem)
-    if not include_reviewed:
+def build_attention_queue(
+    db: Session,
+    include_reviewed: bool = False,
+    status_filter: str = "active",
+    needs_reply: bool = False,
+    important: bool = False,
+    noise: bool = False,
+    date_start: datetime | None = None,
+    date_end: datetime | None = None,
+    sender: str | None = None,
+    source: str | None = None,
+) -> list[AttentionItem]:
+    query = (
+        db.query(AttentionItem)
+        .outerjoin(Message, AttentionItem.message_id == Message.id)
+        .outerjoin(MessageClassification, MessageClassification.message_id == Message.id)
+        .outerjoin(Contact, AttentionItem.contact_id == Contact.id)
+    )
+    if not include_reviewed and status_filter in {"active", "unreviewed"}:
         query = query.filter(AttentionItem.status == AttentionStatus.NEW)
+    elif status_filter == "reviewed":
+        query = query.filter(AttentionItem.status == AttentionStatus.REVIEWED)
+
+    if needs_reply:
+        query = query.filter(MessageClassification.requires_reply.is_(True))
+    if important:
+        query = query.filter(
+            or_(AttentionItem.attention_score >= 60, MessageClassification.urgency_level >= 2)
+        )
+    if noise or status_filter == "noise":
+        query = query.filter(
+            or_(
+                AttentionItem.status == AttentionStatus.DISMISSED,
+                MessageClassification.is_marketing.is_(True),
+                MessageClassification.is_newsletter.is_(True),
+                MessageClassification.is_group_noise.is_(True),
+                Contact.is_noise.is_(True),
+            )
+        )
+    if date_start:
+        query = query.filter(Message.received_at >= date_start)
+    if date_end:
+        query = query.filter(Message.received_at <= date_end)
+    if sender:
+        pattern = f"%{sender.strip().lower()}%"
+        query = query.filter(
+            or_(
+                func.lower(Message.sender_email).like(pattern),
+                func.lower(Message.sender_display_name).like(pattern),
+            )
+        )
+    if source:
+        query = query.filter(Message.source_type == source)
+
     return (
         query.order_by(desc(AttentionItem.attention_score), desc(AttentionItem.updated_at))
         .limit(100)

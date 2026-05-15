@@ -66,6 +66,15 @@ python -m pytest -q
 - Local mock draft generation is a required fallback so the app remains usable without paid AI credentials.
 - Review pages must keep the safety boundary visible: local suggestions only, not sent, and not created in Gmail.
 
+## Gmail conversation context lessons
+
+- A single Gmail inbox message is not enough context for reply decisions; store and display the whole Gmail thread before expecting Phase 06 to infer whether a response is needed.
+- Use Gmail `threadId` as the source conversation key and sort local timeline entries by `received_at` plus local id for deterministic display.
+- Prefer `text/plain` MIME parts when available. When only HTML exists, strip tags and script/style content before storage or display.
+- Preserve quoted lines and reply text in normalized bodies; they are often the only clue for who said what in a thread.
+- Historical Gmail backfill must persist `nextPageToken`; otherwise the dashboard keeps cycling through the same recent window.
+- Reviewed and dismissed/noise items should stay out of the default active queue so backlog triage can progress.
+
 ## UI lessons
 
 - A raw list of scores and reasons is technically useful but not user-friendly.

@@ -31,6 +31,66 @@ Record completed work here at the end of every phase. Newest entries should be a
 - 
 ```
 
+## 2026-05-15 — Phase 05: Gmail Conversation Context and Full-Content Ingestion
+
+### Summary
+- Added Gmail conversation-context support so selected messages can fetch and store the full Gmail thread in read-only mode.
+- Added normalized recipient and CC storage, full-thread fetched markers, and Gmail backlog pagination diagnostics.
+- Improved Gmail MIME body extraction to prefer plain text, sanitize HTML fallback, and preserve quoted/reply text in stored bodies.
+- Added a chronological conversation timeline to message detail pages, with the selected message highlighted in relation to the full thread.
+- Added a manual “Fetch full conversation” action for Gmail messages whose full context is not stored yet.
+- Added Gmail historical backfill controls that continue through Gmail `nextPageToken` instead of repeatedly showing only the first recent window.
+- Added attention queue filters for active/unreviewed, needs reply, important, noise, reviewed, date range, sender/contact, and source.
+- Kept external mailbox behavior read-only; no send, archive, delete, unsubscribe, label, or calendar-write behavior was added.
+
+### Files changed
+- `app/connectors/base.py`
+- `app/connectors/gmail/client.py`
+- `app/models/entities.py`
+- `app/services/attention_service.py`
+- `app/services/conversation_service.py`
+- `app/services/gmail_sync_service.py`
+- `app/api/routes.py`
+- `app/web/routes.py`
+- `app/web/templates/dashboard.html`
+- `app/web/templates/message_detail.html`
+- `alembic/versions/0005_gmail_conversation_context.py`
+- `tests/test_app_bootstrap.py`
+- `tests/test_gmail_conversation_context.py`
+- `README.md`
+- `docs/PROJECT_TRACKING.md`
+- `docs/PHASE_PLAN.md`
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/HELP.md`
+- `docs/phases/PHASE_05_MICROSOFT_365_CONNECTORS.md`
+
+### Tests run
+- `python -m pytest -q` — passed, 43 tests.
+
+### Smoke tests
+- App startup: `python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8028` started successfully and `GET /` returned HTTP 200.
+- Dashboard: startup smoke confirmed the dashboard renders with sync/backfill diagnostics and queue filters.
+- Key workflow: mocked tests cover full Gmail thread fetch, plain-text and HTML body extraction, conversation timeline ordering, reviewed/noise queue progression, and historical pagination.
+
+### Documentation updated
+- `README.md`
+- `docs/PROJECT_TRACKING.md`
+- `docs/PHASE_PLAN.md`
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/HELP.md`
+- `docs/phases/PHASE_05_MICROSOFT_365_CONNECTORS.md`
+
+### Known issues
+- Full conversation fetch is manual from the message detail page unless full body storage is enabled for sync.
+- Phase 05 exposes thread context but does not improve AI summarization or recommendation quality.
+- Sent-mail learning and outbound execution remain out of scope.
+
+### Recommended next actions
+- Human review and smoke-test Phase 05 with real Gmail threads, including the Christian/Michael dinner-cancellation scenario.
+- After review, proceed to Phase 06: AI summarization and proposed action intelligence.
+
 ## 2026-05-15 — Phase 04: Safe Draft Reply Generation and Voice Profiles
 
 ### Summary

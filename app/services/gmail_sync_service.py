@@ -37,6 +37,8 @@ class SyncResult:
     high_water_message_id: str | None = None
     since: datetime | None = None
     resync: bool = False
+    next_page_token: str | None = None
+    full_thread_fetched_count: int = 0
 
     @property
     def synced(self) -> int:
@@ -57,6 +59,8 @@ class SyncResult:
             "high_water_message_id": self.high_water_message_id,
             "since": self.since.isoformat() if self.since else None,
             "resync": self.resync,
+            "next_page_token": self.next_page_token,
+            "full_thread_fetched_count": self.full_thread_fetched_count,
         }
 
 
@@ -103,6 +107,8 @@ def _effective_since(state: SourceSyncState, explicit_since: datetime | None) ->
 def _update_existing_message(existing: Message, item: NormalizedMessage) -> None:
     existing.sender_display_name = item.sender_display_name
     existing.sender_email = item.sender_email
+    existing.recipient_emails = _serialize_addresses(item.recipient_emails)
+    existing.cc_emails = _serialize_addresses(item.cc_emails)
     existing.received_at = item.received_at or existing.received_at
     existing.subject = item.subject
     existing.snippet = item.snippet
@@ -111,6 +117,25 @@ def _update_existing_message(existing: Message, item: NormalizedMessage) -> None
         existing.body_stored_mode = BodyStoredMode.FULL_TEXT
     existing.is_unread = item.is_unread
     existing.has_attachments = item.has_attachments
+
+
+def _serialize_addresses(addresses: list[str] | None) -> str | None:
+    if not addresses:
+        return None
+    unique = []
+    seen = set()
+    for address in addresses:
+        normalized = address.strip().lower()
+        if normalized and normalized not in seen:
+            unique.append(normalized)
+            seen.add(normalized)
+    return "\n".join(unique) if unique else None
+
+
+def deserialize_addresses(value: str | None) -> list[str]:
+    if not value:
+        return []
+    return [line.strip() for line in value.splitlines() if line.strip()]
 
 
 def _refresh_thread_metadata(db: Session, thread_id: int) -> bool:
@@ -195,73 +220,10 @@ def sync_gmail_messages(
         raise
 
     result.fetched_count = len(messages)
-    touched_thread_ids: set[int] = set()
     newest_message = _newest_message(messages)
 
     try:
-        for item in messages:
-            contact = ensure_contact_for_sender(db, item.sender_email, item.sender_display_name)
-
-            thread = (
-                db.query(MessageThread)
-                .filter_by(source_type=item.source_type, source_thread_id=item.source_thread_id)
-                .first()
-            )
-            if not thread:
-                thread = MessageThread(
-                    source_type=item.source_type,
-                    source_thread_id=item.source_thread_id,
-                    normalized_subject=item.subject,
-                    contact_id=contact.id if contact else None,
-                    unread_count=0,
-                    last_message_at=item.received_at,
-                )
-                db.add(thread)
-                db.flush()
-            elif contact and thread.contact_id is None:
-                thread.contact_id = contact.id
-
-            existing = (
-                db.query(Message)
-                .filter_by(source_type=item.source_type, source_message_id=item.source_message_id)
-                .first()
-            )
-            if existing:
-                _update_existing_message(existing, item)
-                touched_thread_ids.add(existing.thread_id)
-                result.skipped_duplicate_count += 1
-                continue
-
-            message = Message(
-                thread_id=thread.id,
-                source_type=item.source_type,
-                source_message_id=item.source_message_id,
-                sender_display_name=item.sender_display_name,
-                sender_email=item.sender_email,
-                received_at=item.received_at or datetime.now(UTC),
-                subject=item.subject,
-                snippet=item.snippet,
-                body_text=item.body_text,
-                body_stored_mode=(
-                    BodyStoredMode.FULL_TEXT if item.body_text else BodyStoredMode.SNIPPET_ONLY
-                ),
-                is_unread=item.is_unread,
-                has_attachments=item.has_attachments,
-            )
-            db.add(message)
-            db.flush()
-
-            classification = classify_and_persist(message, headers=item.headers)
-            db.add(classification)
-            db.flush()
-
-            upsert_attention_item(db, contact, thread, message, classification)
-            touched_thread_ids.add(thread.id)
-            result.inserted_count += 1
-
-        for thread_id in touched_thread_ids:
-            if _refresh_thread_metadata(db, thread_id):
-                result.updated_thread_count += 1
+        _upsert_messages(db, messages, result)
 
         state = _get_or_create_sync_state(db, "gmail", account_identifier)
         state.last_finished_at = datetime.now(UTC)
@@ -298,6 +260,189 @@ def sync_gmail_messages(
         db.commit()
         result.errors.append(str(exc))
         raise
+
+
+def sync_gmail_backfill(
+    db: Session,
+    connector: GmailConnector | None = None,
+    page_token: str | None = None,
+    limit: int | None = None,
+) -> SyncResult:
+    connector = connector or GmailConnector()
+    settings = get_settings()
+    account_identifier = settings.gmail_account
+    state = _get_or_create_sync_state(db, "gmail", account_identifier)
+    effective_page_token = page_token if page_token is not None else state.backlog_next_page_token
+    previous_backfill_finished_at = state.last_backfill_finished_at
+    started_at = datetime.now(UTC)
+    state.last_backfill_started_at = started_at
+    state.last_backfill_finished_at = None
+    state.last_backfill_error = None
+    db.commit()
+
+    result = SyncResult(
+        source_type="gmail",
+        account_identifier=account_identifier,
+        next_page_token=effective_page_token,
+    )
+
+    if (
+        page_token is None
+        and effective_page_token is None
+        and previous_backfill_finished_at is not None
+    ):
+        state.last_backfill_finished_at = datetime.now(UTC)
+        state.last_backfill_fetched_count = 0
+        state.last_backfill_inserted_count = 0
+        state.last_backfill_skipped_duplicate_count = 0
+        state.last_backfill_error = None
+        db.commit()
+        return result
+
+    try:
+        page = connector.fetch_message_page(
+            limit=limit or settings.gmail_read_max_results,
+            page_token=effective_page_token,
+        )
+    except Exception as exc:
+        db.rollback()
+        state = _get_or_create_sync_state(db, "gmail", account_identifier)
+        state.last_backfill_started_at = started_at
+        state.last_backfill_finished_at = datetime.now(UTC)
+        state.last_backfill_error = str(exc)
+        db.commit()
+        raise
+
+    result.next_page_token = page.next_page_token
+    result.fetched_count = len(page.messages)
+    try:
+        _upsert_messages(db, page.messages, result)
+        state = _get_or_create_sync_state(db, "gmail", account_identifier)
+        state.backlog_next_page_token = page.next_page_token
+        state.last_backfill_finished_at = datetime.now(UTC)
+        state.last_backfill_fetched_count = result.fetched_count
+        state.last_backfill_inserted_count = result.inserted_count
+        state.last_backfill_skipped_duplicate_count = result.skipped_duplicate_count
+        state.last_backfill_error = None
+        db.commit()
+        return result
+    except Exception as exc:
+        db.rollback()
+        state = _get_or_create_sync_state(db, "gmail", account_identifier)
+        state.last_backfill_started_at = started_at
+        state.last_backfill_finished_at = datetime.now(UTC)
+        state.last_backfill_fetched_count = result.fetched_count
+        state.last_backfill_inserted_count = result.inserted_count
+        state.last_backfill_skipped_duplicate_count = result.skipped_duplicate_count
+        state.last_backfill_error = str(exc)
+        db.commit()
+        result.errors.append(str(exc))
+        raise
+
+
+def fetch_full_gmail_conversation(
+    db: Session, message_id: int, connector: GmailConnector | None = None
+) -> SyncResult:
+    message = db.get(Message, message_id)
+    if not message:
+        raise ValueError("Message not found")
+    if message.source_type != "gmail":
+        raise ValueError("Full conversation fetch is currently available for Gmail messages only")
+
+    connector = connector or GmailConnector()
+    settings = get_settings()
+    result = SyncResult(source_type="gmail", account_identifier=settings.gmail_account)
+    thread_messages = connector.fetch_thread_messages(message.thread.source_thread_id)
+    result.fetched_count = len(thread_messages)
+    result.full_thread_fetched_count = len(thread_messages)
+    try:
+        touched = _upsert_messages(db, thread_messages, result)
+        thread = db.get(MessageThread, message.thread_id)
+        if thread:
+            thread.full_content_fetched_at = datetime.now(UTC)
+            touched.add(thread.id)
+        for thread_id in touched:
+            _refresh_thread_metadata(db, thread_id)
+        db.commit()
+        return result
+    except Exception as exc:
+        db.rollback()
+        result.errors.append(str(exc))
+        raise
+
+
+def _upsert_messages(
+    db: Session, messages: list[NormalizedMessage], result: SyncResult
+) -> set[int]:
+    touched_thread_ids: set[int] = set()
+
+    for item in messages:
+        contact = ensure_contact_for_sender(db, item.sender_email, item.sender_display_name)
+
+        thread = (
+            db.query(MessageThread)
+            .filter_by(source_type=item.source_type, source_thread_id=item.source_thread_id)
+            .first()
+        )
+        if not thread:
+            thread = MessageThread(
+                source_type=item.source_type,
+                source_thread_id=item.source_thread_id,
+                normalized_subject=item.subject,
+                contact_id=contact.id if contact else None,
+                unread_count=0,
+                last_message_at=item.received_at,
+            )
+            db.add(thread)
+            db.flush()
+        elif contact and thread.contact_id is None:
+            thread.contact_id = contact.id
+
+        existing = (
+            db.query(Message)
+            .filter_by(source_type=item.source_type, source_message_id=item.source_message_id)
+            .first()
+        )
+        if existing:
+            _update_existing_message(existing, item)
+            touched_thread_ids.add(existing.thread_id)
+            result.skipped_duplicate_count += 1
+            continue
+
+        message = Message(
+            thread_id=thread.id,
+            source_type=item.source_type,
+            source_message_id=item.source_message_id,
+            sender_display_name=item.sender_display_name,
+            sender_email=item.sender_email,
+            recipient_emails=_serialize_addresses(item.recipient_emails),
+            cc_emails=_serialize_addresses(item.cc_emails),
+            received_at=item.received_at or datetime.now(UTC),
+            subject=item.subject,
+            snippet=item.snippet,
+            body_text=item.body_text,
+            body_stored_mode=(
+                BodyStoredMode.FULL_TEXT if item.body_text else BodyStoredMode.SNIPPET_ONLY
+            ),
+            is_unread=item.is_unread,
+            has_attachments=item.has_attachments,
+        )
+        db.add(message)
+        db.flush()
+
+        classification = classify_and_persist(message, headers=item.headers)
+        db.add(classification)
+        db.flush()
+
+        upsert_attention_item(db, contact, thread, message, classification)
+        touched_thread_ids.add(thread.id)
+        result.inserted_count += 1
+
+    for thread_id in touched_thread_ids:
+        if _refresh_thread_metadata(db, thread_id):
+            result.updated_thread_count += 1
+
+    return touched_thread_ids
 
 
 def _newest_message(messages: list[NormalizedMessage]) -> NormalizedMessage | None:

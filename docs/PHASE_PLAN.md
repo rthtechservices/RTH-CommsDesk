@@ -111,6 +111,8 @@ Out of scope:
 - External send/archive/delete/unsubscribe behavior.
 - Calendar execution.
 
+Status: completed.
+
 ## Phase 06 — AI summarization and proposed action intelligence
 
 Primary outcome: start producing useful intelligence, not generic replies.

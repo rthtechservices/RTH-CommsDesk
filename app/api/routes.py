@@ -14,7 +14,12 @@ from app.services.attention_service import build_attention_queue
 from app.services.contact_service import mark_contact_noise, mark_contact_vip, reset_contact_status
 from app.services.draft_service import create_draft_reply
 from app.services.feedback_service import apply_message_correction
-from app.services.gmail_sync_service import get_sync_state, sync_gmail_messages
+from app.services.gmail_sync_service import (
+    fetch_full_gmail_conversation,
+    get_sync_state,
+    sync_gmail_backfill,
+    sync_gmail_messages,
+)
 
 api_router = APIRouter()
 
@@ -23,6 +28,23 @@ api_router = APIRouter()
 def sync_gmail(resync: bool = Form(False), db: Session = Depends(get_db)) -> dict:
     try:
         result = sync_gmail_messages(db, force_resync=resync)
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Gmail OAuth client secrets file is missing. Set GMAIL_CLIENT_SECRETS_FILE "
+                "to a valid path before syncing."
+            ),
+        ) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return result.as_dict()
+
+
+@api_router.post("/sync/gmail/backfill")
+def backfill_gmail(db: Session = Depends(get_db)) -> dict:
+    try:
+        result = sync_gmail_backfill(db)
     except FileNotFoundError as exc:
         raise HTTPException(
             status_code=400,
@@ -58,6 +80,17 @@ def gmail_sync_status(db: Session = Depends(get_db)) -> dict:
         "last_skipped_duplicate_count": state.last_skipped_duplicate_count,
         "last_updated_thread_count": state.last_updated_thread_count,
         "last_error": state.last_error,
+        "backlog_next_page_token": state.backlog_next_page_token,
+        "last_backfill_started_at": (
+            state.last_backfill_started_at.isoformat() if state.last_backfill_started_at else None
+        ),
+        "last_backfill_finished_at": (
+            state.last_backfill_finished_at.isoformat() if state.last_backfill_finished_at else None
+        ),
+        "last_backfill_fetched_count": state.last_backfill_fetched_count,
+        "last_backfill_inserted_count": state.last_backfill_inserted_count,
+        "last_backfill_skipped_duplicate_count": state.last_backfill_skipped_duplicate_count,
+        "last_backfill_error": state.last_backfill_error,
     }
 
 
@@ -190,6 +223,23 @@ def generate_draft(
         "voice_profile_id": draft.voice_profile_id,
         "review_only": True,
     }
+
+
+@api_router.post("/messages/{message_id}/fetch-conversation")
+def fetch_conversation(message_id: int, db: Session = Depends(get_db)) -> dict:
+    try:
+        result = fetch_full_gmail_conversation(db, message_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Gmail OAuth client secrets file is missing. Set GMAIL_CLIENT_SECRETS_FILE "
+                "to a valid path before fetching the conversation."
+            ),
+        ) from exc
+    return result.as_dict()
 
 
 @api_router.get("/vip-contacts")

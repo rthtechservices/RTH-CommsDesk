@@ -79,6 +79,36 @@
         color: #344454;
         white-space: pre-wrap;
       }
+      .message-body {
+        max-height: 420px;
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcfd;
+        padding: 12px;
+        color: #243444;
+        white-space: pre-wrap;
+      }
+      .timeline {
+        display: grid;
+        gap: 12px;
+      }
+      .timeline-item {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 12px;
+        background: #fbfcfd;
+      }
+      .timeline-item.selected {
+        border-color: var(--brand);
+        background: #f4faf7;
+      }
+      .timeline-body {
+        max-height: 260px;
+        overflow: auto;
+        margin-top: 8px;
+        white-space: pre-wrap;
+      }
       .facts {
         display: grid;
         gap: 8px;
@@ -219,6 +249,21 @@
                 <span>{{ attention_item.attention_score if attention_item else "None" }}</span>
               </div>
               <div>
+                <span class="label">Thread</span>
+                <span>
+                  {{ message.thread.source_thread_id if message.thread else "Unknown" }}
+                  {% if has_full_conversation %}| full conversation fetched{% else %}| full conversation not fetched{% endif %}
+                </span>
+              </div>
+              <div>
+                <span class="label">To</span>
+                <span>{% if recipient_emails %}{{ recipient_emails|join(", ") }}{% else %}Not stored{% endif %}</span>
+              </div>
+              <div>
+                <span class="label">CC</span>
+                <span>{% if cc_emails %}{{ cc_emails|join(", ") }}{% else %}None stored{% endif %}</span>
+              </div>
+              <div>
                 <span class="label">Recommended action</span>
                 <span>{{ attention_item.recommended_action if attention_item else "None" }}</span>
               </div>
@@ -252,6 +297,43 @@
           <section class="panel">
             <h2>Snippet</h2>
             <p class="snippet">{{ message.snippet or "No snippet stored." }}</p>
+          </section>
+
+          <section class="panel">
+            <h2>Stored Body</h2>
+            {% if message.body_text %}
+            <div class="message-body">{{ message.body_text }}</div>
+            {% else %}
+            <div class="empty">Full body is not stored for this message yet.</div>
+            {% endif %}
+          </section>
+
+          <section class="panel">
+            <h2>Conversation Timeline</h2>
+            {% if conversation_error %}
+            <p class="muted">Conversation fetch did not complete. Check Gmail OAuth setup and try again.</p>
+            {% endif %}
+            <div class="timeline">
+              {% for entry in timeline %}
+              {% set m = entry.message %}
+              <article class="timeline-item {% if entry.is_selected %}selected{% endif %}">
+                <strong>
+                  {% if entry.is_selected %}Selected message | {% endif %}
+                  {{ m.sender_display_name or m.sender_email or "Unknown sender" }}
+                </strong>
+                <div class="muted">
+                  {% if m.sender_email %}&lt;{{ m.sender_email }}&gt;{% endif %}
+                  {% if m.received_at %} | {{ m.received_at.strftime("%Y-%m-%d %H:%M") }}{% endif %}
+                  | {{ m.subject or "(No subject)" }}
+                </div>
+                <div class="timeline-body">
+                  {{ m.body_text or m.snippet or "No body or snippet stored." }}
+                </div>
+              </article>
+              {% else %}
+              <div class="empty">No conversation messages stored yet.</div>
+              {% endfor %}
+            </div>
           </section>
 
           <section class="panel">
@@ -314,6 +396,11 @@
               {% if attention_item %}
               <form method="post" action="/attention/{{ attention_item.id }}/review">
                 <button type="submit">Mark reviewed</button>
+              </form>
+              {% endif %}
+              {% if not has_full_conversation %}
+              <form method="post" action="/messages/{{ message.id }}/fetch-conversation">
+                <button type="submit">Fetch full conversation</button>
               </form>
               {% endif %}
               {% if contact %}

@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, time
+
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -15,6 +17,7 @@ from app.models.entities import (
     UserFeedback,
 )
 from app.services.attention_service import build_attention_queue
+from app.services.conversation_service import conversation_timeline
 from app.services.contact_service import (
     CONTACT_STATUS_OPTIONS,
     PREFERRED_CHANNEL_OPTIONS,
@@ -42,14 +45,53 @@ from app.services.feedback_service import (
     friendly_classification_label,
 )
 from app.services.gmail_sync_service import get_sync_state, sync_gmail_messages
+from app.services.gmail_sync_service import (
+    deserialize_addresses,
+    fetch_full_gmail_conversation,
+    sync_gmail_backfill,
+)
 
 web_router = APIRouter()
 templates = Jinja2Templates(directory="app/web/templates")
 
 
+def _parse_date_start(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.combine(datetime.fromisoformat(value).date(), time.min, tzinfo=UTC)
+    except ValueError:
+        return None
+
+
+def _parse_date_end(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.combine(datetime.fromisoformat(value).date(), time.max, tzinfo=UTC)
+    except ValueError:
+        return None
+
+
+def _queue_filters(request: Request) -> dict:
+    params = request.query_params
+    queue_filter = params.get("queue_filter", "active")
+    return {
+        "status_filter": queue_filter,
+        "needs_reply": params.get("needs_reply") == "1" or queue_filter == "needs_reply",
+        "important": params.get("important") == "1" or queue_filter == "important",
+        "noise": queue_filter == "noise",
+        "date_start": _parse_date_start(params.get("date_start")),
+        "date_end": _parse_date_end(params.get("date_end")),
+        "sender": params.get("sender") or None,
+        "source": params.get("source") or None,
+    }
+
+
 @web_router.get("/")
 def dashboard(request: Request, db: Session = Depends(get_db)):
-    attention = build_attention_queue(db)[:30]
+    filters = _queue_filters(request)
+    attention = build_attention_queue(db, **filters)[:30]
     message_ids = [item.message_id for item in attention if item.message_id]
     classifications = {
         c.message_id: c
@@ -101,6 +143,13 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "suspected_noise": suspected_noise,
             "sync_state": sync_state,
             "sync_error": request.query_params.get("sync_error"),
+            "queue_filter": request.query_params.get("queue_filter", "active"),
+            "filter_needs_reply": request.query_params.get("needs_reply") == "1",
+            "filter_important": request.query_params.get("important") == "1",
+            "filter_sender": request.query_params.get("sender", ""),
+            "filter_source": request.query_params.get("source", ""),
+            "filter_date_start": request.query_params.get("date_start", ""),
+            "filter_date_end": request.query_params.get("date_end", ""),
         },
     )
 
@@ -109,6 +158,17 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 def web_sync_gmail(resync: bool = Form(False), db: Session = Depends(get_db)):
     try:
         sync_gmail_messages(db, force_resync=resync)
+    except (FileNotFoundError, RuntimeError):
+        return RedirectResponse(url="/?sync_error=configuration", status_code=303)
+    except Exception:
+        return RedirectResponse(url="/?sync_error=failed", status_code=303)
+    return RedirectResponse(url="/", status_code=303)
+
+
+@web_router.post("/sync/gmail/backfill")
+def web_backfill_gmail(db: Session = Depends(get_db)):
+    try:
+        sync_gmail_backfill(db)
     except (FileNotFoundError, RuntimeError):
         return RedirectResponse(url="/?sync_error=configuration", status_code=303)
     except Exception:
@@ -152,6 +212,8 @@ def message_detail(message_id: int, request: Request, db: Session = Depends(get_
         draft_replies = recent_drafts_for_message(db, message_id)
         voice_profiles = available_voice_profiles(db)
         suggested_profile_id = suggested_voice_profile_id(db, message)
+        timeline = conversation_timeline(db, message.thread_id, message.id)
+        has_full_conversation = bool(message.thread and message.thread.full_content_fetched_at)
     else:
         status_code = 404
     return templates.TemplateResponse(
@@ -169,11 +231,35 @@ def message_detail(message_id: int, request: Request, db: Session = Depends(get_
             "draft_replies": draft_replies if message else [],
             "voice_profiles": voice_profiles if message else [],
             "suggested_profile_id": suggested_profile_id if message else None,
+            "timeline": timeline if message else [],
+            "has_full_conversation": has_full_conversation if message else False,
+            "recipient_emails": deserialize_addresses(message.recipient_emails) if message else [],
+            "cc_emails": deserialize_addresses(message.cc_emails) if message else [],
+            "conversation_error": request.query_params.get("conversation_error"),
             "correction_labels": CORRECTION_LABELS,
             "friendly_label": friendly_classification_label(classification),
             "classification_tags": classification_tags(classification),
         },
         status_code=status_code,
+    )
+
+
+@web_router.post("/messages/{message_id}/fetch-conversation")
+def web_fetch_conversation(message_id: int, request: Request, db: Session = Depends(get_db)):
+    try:
+        fetch_full_gmail_conversation(db, message_id)
+    except (FileNotFoundError, RuntimeError):
+        return RedirectResponse(
+            url=f"{request.url_for('message_detail', message_id=message_id)}?conversation_error=configuration",
+            status_code=303,
+        )
+    except Exception:
+        return RedirectResponse(
+            url=f"{request.url_for('message_detail', message_id=message_id)}?conversation_error=failed",
+            status_code=303,
+        )
+    return RedirectResponse(
+        url=request.url_for("message_detail", message_id=message_id), status_code=303
     )
 
 

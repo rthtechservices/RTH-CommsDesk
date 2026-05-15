@@ -28,7 +28,8 @@ Each LLM session should complete one phase only, update the documentation, and s
 ## Known MVP limitations
 - Outlook/Teams/SMS/WhatsApp/Messenger connectors are stubbed only.
 - AI classifier is provider-neutral but runs with deterministic logic/mock fallback by default.
-- Gmail sync is read-only and duplicate-safe, but still limited to recent inbox messages from the configured Gmail account.
+- Gmail sync is read-only and duplicate-safe. Recent sync handles the active inbox window, and manual backfill can page farther through the Gmail backlog.
+- Gmail conversation context can be fetched on demand so detail pages show a full thread timeline when full content is available.
 - Draft generation uses a deterministic mock/local provider by default; no paid AI credentials are required for local development.
 
 ## Safety rules
@@ -122,4 +123,4 @@ Do not delete or commit `client_secret.json`, `gmail_token.json`, `.env`, or any
 
 The next implementation phase is:
 
-Phase 05 — Microsoft 365 connectors: Outlook and Teams.
+Phase 06 — Additional notification-source ingestion.
