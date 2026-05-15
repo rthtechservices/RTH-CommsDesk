@@ -256,6 +256,8 @@ Scope:
 - Add deployment documentation.
 - Add production security checklist.
 
+Status: completed.
+
 ## Backlog ideas
 
 - Browser extension for quick triage.

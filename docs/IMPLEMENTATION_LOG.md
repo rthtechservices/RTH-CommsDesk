@@ -31,6 +31,68 @@ Record completed work here at the end of every phase. Newest entries should be a
 - 
 ```
 
+## 2026-05-15 — Phase 12: Deployment, Authentication, and Production Hardening
+
+### Summary
+- Added deployment-grade application authentication with web login/session cookies and API token verification.
+- Added authentication middleware with explicit non-local enforcement behavior and notification-webhook exception path.
+- Added structured logging configuration with token/secret/password redaction support.
+- Added retention and admin cache-clear services/routes for message bodies, sent-learning excerpts, and aged execution audit rows.
+- Added deployment/security documentation and CI workflow (`ruff` + `pytest`) for repeatable release gates.
+
+### Files changed
+- `app/core/config.py`
+- `app/core/auth.py`
+- `app/core/logging_config.py`
+- `app/main.py`
+- `app/services/admin_service.py`
+- `app/api/routes.py`
+- `app/web/routes.py`
+- `app/web/templates/dashboard.html`
+- `app/web/templates/login.html`
+- `app/web/templates/admin.html`
+- `.env.example`
+- `.github/workflows/ci.yml`
+- `tests/test_auth_flow.py`
+- `tests/test_admin_service.py`
+- `README.md`
+- `docs/DEPLOYMENT.md`
+- `docs/SECURITY_CHECKLIST.md`
+- `docs/HELP.md`
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/PHASE_PLAN.md`
+- `docs/PHASE_STATUS.md`
+- `docs/phases/PHASE_12_PRODUCTION_HARDENING.md`
+
+### Tests run
+- `python -m ruff check .` — passed.
+- `python -m pytest -q` — passed, 75 tests.
+
+### Smoke tests
+- App startup: covered by test client bootstrap and health endpoint route availability.
+- Dashboard: route tests confirm dashboard accessibility under local defaults and auth behavior when enabled.
+- Key workflow: automated tests cover login/session flow, API token enforcement, webhook bypass path, retention cleanup, and cache-clear controls.
+
+### Documentation updated
+- `README.md`
+- `docs/DEPLOYMENT.md`
+- `docs/SECURITY_CHECKLIST.md`
+- `docs/HELP.md`
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/PHASE_PLAN.md`
+- `docs/PHASE_STATUS.md`
+- `docs/phases/PHASE_12_PRODUCTION_HARDENING.md`
+
+### Known issues
+- Microsoft Graph connector authentication remains adapter-config driven; full tenant-specific OAuth registration is deployment-specific.
+- Production secret rotation cadence is operational policy and must be enforced outside app code.
+
+### Recommended next actions
+- Run staging deployment rehearsal using `docs/DEPLOYMENT.md`.
+- Adopt a scheduled job for `/api/admin/retention/run` based on organizational retention policy.
+
 ## 2026-05-15 — Phase 11: Microsoft 365 and Additional Communication Connectors
 
 ### Summary

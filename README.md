@@ -36,6 +36,7 @@ Each LLM session should complete one phase only, update the documentation, and s
 - Bulk triage mode supports paginated queue processing, local automation candidate generation, and reversible bulk actions.
 - Local calendar availability recommendations can prepare reminder/scheduling proposals with conflict reasoning for review packages.
 - Approved outbound execution flows now support prepare/approve/confirm lifecycle with audit logs and mock provider execution.
+- Authentication defaults are local-development-friendly; production deployments must provide explicit auth and secret settings.
 
 ## Safety rules
 - Never commit secrets, OAuth tokens, or private message data.
@@ -97,11 +98,18 @@ Do not delete or commit `client_secret.json`, `gmail_token.json`, `.env`, or any
 - Store message metadata and snippets by default.
 - Full body storage is disabled unless `GMAIL_STORE_FULL_BODY=true`.
 - OAuth token file (`gmail_token.json`) and client secrets are local-only and gitignored.
+- Structured logging redacts token/secret/password/authorization values.
+- Retention windows can scrub stored message bodies, sent-learning excerpts, and aged execution audit rows.
 
 ## Safety confirmation
-- No send/reply automation exists.
-- No archive/delete actions exist.
+- No unsupervised send/archive/delete automation exists.
 - No scraping/bypass behavior is implemented.
+
+## Deployment and hardening docs
+
+- Deployment/runbook: `docs/DEPLOYMENT.md`
+- Production checklist: `docs/SECURITY_CHECKLIST.md`
+- User/admin operations: `docs/HELP.md`
 
 ## Project structure
 ```
@@ -124,8 +132,6 @@ Do not delete or commit `client_secret.json`, `gmail_token.json`, `.env`, or any
   /phases
 ```
 
-## Current next phase
+## Current phase status
 
-The next implementation phase is:
-
-Phase 12 — Deployment, authentication, and production hardening.
+Phases 01 through 12 are now implemented in this repository roadmap.

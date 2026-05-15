@@ -42,3 +42,22 @@ This phase should happen after the core assistant workflow is useful: conversati
 - Deployment steps are clear enough to repeat.
 - Secrets are not logged or committed.
 - Backup/restore and data retention guidance are documented.
+
+## Completion notes (2026-05-15)
+
+- Added application authentication controls:
+  - Web login/logout session auth (`/login`, `/logout`)
+  - API token auth via `X-API-Key` or Bearer token
+  - Runtime auth configuration validation for non-local environments
+- Added environment-specific hardening settings in `app/core/config.py` and `.env.example`.
+- Added structured logging with sensitive-value redaction in `app/core/logging_config.py`.
+- Added admin retention/cache-control service and routes:
+  - `/admin` (web)
+  - `/api/admin/retention/run`
+  - `/api/admin/cache/clear`
+- Added deployment and security docs:
+  - `docs/DEPLOYMENT.md`
+  - `docs/SECURITY_CHECKLIST.md`
+- Added CI workflow (`.github/workflows/ci.yml`) running `ruff` and `pytest`.
+- Added tests for auth flow/middleware and retention admin logic.
+- Validation result: `python -m ruff check .` and `python -m pytest -q` both passed (75 tests).

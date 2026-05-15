@@ -26,7 +26,7 @@ def normalize_notification_payload(payload: dict) -> NormalizedMessage:
         received_at=created_at,
         subject=title[:500],
         snippet=summary[:500] or None,
-        body_text=summary[:1200] or None,
+        body_text=None,
         has_attachments=False,
         is_unread=True,
         headers={"x-notification-channel": channel},

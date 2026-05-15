@@ -50,6 +50,8 @@ Current MVP features:
 - Apply bulk actions and undo recent bulk actions where practical.
 - Prepare, approve, and confirm outbound execution records for draft creation, reply send, calendar creation, and label/archive actions.
 - View execution audit trails with payload/result history.
+- Enforce web/API authentication when enabled for non-local deployment.
+- Provide admin retention controls to clear cached bodies/excerpts and purge aged audit rows.
 
 ## What it does not do today
 
@@ -58,6 +60,7 @@ RTH CommsDesk does not currently:
 - Execute any outbound action without explicit approve + confirm steps.
 - Perform live Microsoft Graph mailbox/chat sync without connector service configuration and permissions.
 - Run non-mock production outbound provider calls by default in local development.
+- Auto-approve or auto-confirm execution actions.
 - Use paid or cloud AI credentials as a requirement for local draft generation.
 - Store full email bodies by default.
 
@@ -179,6 +182,10 @@ Runs Teams message ingestion through the Microsoft connector adapter. Messages a
 
 `POST /api/notifications/webhook` accepts notification summaries (SMS/WhatsApp/Messenger style). These entries are stored as lower-confidence summaries, deduplicated by notification id/source id, and clearly marked with source confidence.
 
+### Sign in and API auth
+
+When app authentication is enabled, web routes require login (`/login`) and API routes require either `X-API-Key` or `Authorization: Bearer <token>`. Notification webhook ingestion remains protected by webhook secret when configured.
+
 ### View
 
 Opens the message detail page.
@@ -280,6 +287,10 @@ Removes VIP or noise status from a contact and recalculates existing messages fr
 ### Edit contact
 
 Opens the contact profile. Saving relationship, importance, alias, VIP/noise, channel, or notes changes recalculates local attention scores for existing messages that match the contact primary email or aliases.
+
+### Admin retention controls
+
+Open `/admin` to run retention cleanup and clear selected local cached content. These controls only affect local storage and do not modify external Gmail/Microsoft accounts.
 
 Supported relationship types:
 

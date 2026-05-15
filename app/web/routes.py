@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, time
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
@@ -6,6 +7,8 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
+from app.core.auth import build_session_token, verify_login_credentials
+from app.core.config import get_settings
 from app.core.database import get_db
 from app.models.entities import (
     AttentionItem,
@@ -13,14 +16,17 @@ from app.models.entities import (
     BulkTriageActionLog,
     Contact,
     DraftReply,
+    ExecutionAuditLog,
     ExecutionRecord,
     InferenceStatus,
     Message,
     MessageClassification,
     ProposedActionReviewPackage,
     ReviewPackageStatus,
+    SentMailLearningRecord,
     UserFeedback,
 )
+from app.services.admin_service import clear_cached_content, run_retention_cleanup
 from app.services.attention_service import build_attention_queue
 from app.services.analysis_service import (
     analyze_message,
@@ -120,6 +126,117 @@ def _queue_filters(request: Request) -> dict:
         "sender": params.get("sender") or None,
         "source": params.get("source") or None,
     }
+
+
+def _safe_next_path(value: str | None) -> str:
+    if not value or not value.startswith("/"):
+        return "/"
+    return value
+
+
+@web_router.get("/login")
+def login_page(request: Request):
+    settings = get_settings()
+    if not settings.auth_required:
+        return RedirectResponse(url="/", status_code=303)
+    return templates.TemplateResponse(
+        "login.html",
+        {
+            "request": request,
+            "next_path": _safe_next_path(request.query_params.get("next")),
+            "error": request.query_params.get("error") == "1",
+        },
+    )
+
+
+@web_router.post("/login")
+def login_submit(
+    username: str = Form(""),
+    password: str = Form(""),
+    next_path: str = Form("/"),
+):
+    settings = get_settings()
+    if not settings.auth_required:
+        return RedirectResponse(url="/", status_code=303)
+    safe_next = _safe_next_path(next_path)
+    if not verify_login_credentials(username.strip(), password, settings):
+        return RedirectResponse(
+            url=f"/login?error=1&next={quote(safe_next, safe='/?=&')}",
+            status_code=303,
+        )
+    token = build_session_token(settings.app_auth_username or username.strip(), settings)
+    response = RedirectResponse(url=safe_next, status_code=303)
+    response.set_cookie(
+        key=settings.auth_session_cookie_name,
+        value=token,
+        max_age=max(1, settings.auth_session_ttl_hours) * 3600,
+        httponly=True,
+        secure=settings.normalized_env in {"production", "prod", "staging"},
+        samesite="lax",
+    )
+    return response
+
+
+@web_router.post("/logout")
+def logout():
+    settings = get_settings()
+    response = RedirectResponse(url="/login" if settings.auth_required else "/", status_code=303)
+    response.delete_cookie(settings.auth_session_cookie_name)
+    return response
+
+
+@web_router.get("/admin")
+def admin_panel(request: Request, db: Session = Depends(get_db)):
+    message_body_count = (
+        db.query(func.count(Message.id)).filter(Message.body_text.is_not(None)).scalar() or 0
+    )
+    sent_excerpt_count = (
+        db.query(func.count(SentMailLearningRecord.id))
+        .filter(
+            or_(
+                SentMailLearningRecord.body_excerpt.is_not(None),
+                SentMailLearningRecord.snippet_excerpt.is_not(None),
+            )
+        )
+        .scalar()
+        or 0
+    )
+    audit_count = db.query(func.count(ExecutionAuditLog.id)).scalar() or 0
+    return templates.TemplateResponse(
+        "admin.html",
+        {
+            "request": request,
+            "message_body_count": message_body_count,
+            "sent_excerpt_count": sent_excerpt_count,
+            "audit_count": audit_count,
+            "retention_result": request.query_params.get("retention_result"),
+            "cache_result": request.query_params.get("cache_result"),
+        },
+    )
+
+
+@web_router.post("/admin/retention/run")
+def run_retention(db: Session = Depends(get_db)):
+    result = run_retention_cleanup(db).as_dict()
+    serialized = ",".join(f"{key}:{value}" for key, value in result.items())
+    return RedirectResponse(
+        url=f"/admin?retention_result={quote(serialized, safe='')}", status_code=303
+    )
+
+
+@web_router.post("/admin/cache/clear")
+def clear_cache(
+    clear_message_bodies: bool = Form(False),
+    clear_sent_learning_excerpts: bool = Form(False),
+    db: Session = Depends(get_db),
+):
+    result = clear_cached_content(
+        db,
+        clear_message_bodies=clear_message_bodies,
+        clear_sent_learning_excerpts=clear_sent_learning_excerpts,
+    ).as_dict()
+    serialized = ",".join(f"{key}:{value}" for key, value in result.items())
+    return RedirectResponse(url=f"/admin?cache_result={quote(serialized, safe='')}", status_code=303)
 
 
 @web_router.get("/")

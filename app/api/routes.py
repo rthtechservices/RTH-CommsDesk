@@ -17,6 +17,7 @@ from app.models.entities import (
 )
 from app.services.attention_service import build_attention_queue
 from app.services.analysis_service import analyze_message, update_review_package_status
+from app.services.admin_service import clear_cached_content, run_retention_cleanup
 from app.services.bulk_triage_service import (
     apply_bulk_action,
     automation_candidates_for_dashboard,
@@ -121,6 +122,24 @@ def notification_webhook(
         raise HTTPException(status_code=401, detail="Invalid webhook secret")
     result = ingest_notification_summary(db, payload)
     return result.as_dict()
+
+
+@api_router.post("/admin/retention/run")
+def admin_retention_run(db: Session = Depends(get_db)) -> dict:
+    return run_retention_cleanup(db).as_dict()
+
+
+@api_router.post("/admin/cache/clear")
+def admin_cache_clear(
+    clear_message_bodies: bool = Form(False),
+    clear_sent_learning_excerpts: bool = Form(False),
+    db: Session = Depends(get_db),
+) -> dict:
+    return clear_cached_content(
+        db,
+        clear_message_bodies=clear_message_bodies,
+        clear_sent_learning_excerpts=clear_sent_learning_excerpts,
+    ).as_dict()
 
 
 @api_router.get("/sync/gmail/status")

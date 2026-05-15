@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admin | RTH CommsDesk</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        background: #f6f7f9;
+        color: #17202a;
+      }
+      main {
+        width: min(920px, calc(100% - 32px));
+        margin: 24px auto;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid #d9dee6;
+        border-radius: 10px;
+        padding: 18px;
+        margin-bottom: 16px;
+      }
+      h1,
+      h2 {
+        margin-top: 0;
+      }
+      .muted {
+        color: #607080;
+      }
+      .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .stat {
+        border: 1px solid #d9dee6;
+        border-radius: 8px;
+        padding: 12px;
+      }
+      button {
+        border: 0;
+        border-radius: 6px;
+        padding: 8px 12px;
+        background: #246b5a;
+        color: #fff;
+        font-weight: 700;
+      }
+      form {
+        margin-top: 10px;
+      }
+      label {
+        display: block;
+        margin: 8px 0;
+      }
+      .result {
+        margin-top: 8px;
+        color: #16483d;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p><a href="/">← Back to dashboard</a></p>
+      <h1>Admin controls</h1>
+      <p class="muted">Retention and local cache controls. These actions do not modify external accounts.</p>
+
+      <section class="card">
+        <h2>Current local data footprint</h2>
+        <div class="stat-grid">
+          <div class="stat">
+            <strong>{{ message_body_count }}</strong>
+            <div class="muted">stored message bodies</div>
+          </div>
+          <div class="stat">
+            <strong>{{ sent_excerpt_count }}</strong>
+            <div class="muted">sent-learning excerpts</div>
+          </div>
+          <div class="stat">
+            <strong>{{ audit_count }}</strong>
+            <div class="muted">execution audit rows</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Run retention cleanup</h2>
+        <p class="muted">Uses configured retention windows from environment settings.</p>
+        <form method="post" action="/admin/retention/run">
+          <button type="submit">Run retention now</button>
+        </form>
+        {% if retention_result %}
+        <div class="result">Result: {{ retention_result }}</div>
+        {% endif %}
+      </section>
+
+      <section class="card">
+        <h2>Clear cached content</h2>
+        <form method="post" action="/admin/cache/clear">
+          <label>
+            <input type="checkbox" name="clear_message_bodies" value="true" checked />
+            Clear stored message bodies
+          </label>
+          <label>
+            <input type="checkbox" name="clear_sent_learning_excerpts" value="true" checked />
+            Clear sent-learning excerpts
+          </label>
+          <button type="submit">Clear selected content</button>
+        </form>
+        {% if cache_result %}
+        <div class="result">Result: {{ cache_result }}</div>
+        {% endif %}
+      </section>
+    </main>
+  </body>
+</html>

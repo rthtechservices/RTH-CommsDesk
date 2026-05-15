@@ -122,6 +122,14 @@ python -m pytest -q
 - Connector sync state should be tracked per source/account even for webhook-like sources so failures and recency remain auditable.
 - UI should always display message source and confidence to avoid over-trusting low-fidelity notification summaries.
 
+## Production hardening lessons
+
+- Keep authentication optional for local-only development but mandatory by configuration for exposed/staging/production environments.
+- Enforce separate web-session auth and API token auth so browser and automation surfaces are both protected.
+- Use structured logs with explicit redaction filters; never rely on callers to avoid sensitive strings consistently.
+- Treat retention as an active control surface with explicit cleanup commands and auditable result counts, not as passive documentation.
+- Keep admin cleanup operations local-data-only to avoid accidental external account modifications.
+
 ## UI lessons
 
 - A raw list of scores and reasons is technically useful but not user-friendly.
