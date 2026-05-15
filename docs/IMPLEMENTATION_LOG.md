@@ -31,6 +31,57 @@ Record completed work here at the end of every phase. Newest entries should be a
 - 
 ```
 
+## 2026-05-15 — Phase 07: Sent-Mail Learning, VIP Inference, and Voice Calibration
+
+### Summary
+- Added Gmail Sent-mail learning ingestion and local storage that keeps learning records separate from inbound triage rows.
+- Added inferred VIP candidates using sent frequency, recency, reply patterns, relationship type, and correction history.
+- Added inferred voice guidance with salutation style, preferred name, and tone notes at both contact and relationship scope.
+- Added a Voice Calibration screen with reviewable/editable approve/reject controls for VIP and voice guidance.
+- Updated local mock draft generation to use approved guidance and avoid generic filler when learned tone notes request it.
+
+### Files changed
+- `app/models/entities.py`
+- `alembic/versions/0007_sent_mail_learning.py`
+- `app/connectors/base.py`
+- `app/connectors/gmail/client.py`
+- `app/services/voice_learning_service.py`
+- `app/services/draft_service.py`
+- `app/api/routes.py`
+- `app/web/routes.py`
+- `app/web/templates/dashboard.html`
+- `app/web/templates/voice_calibration.html`
+- `tests/test_voice_learning.py`
+- `tests/test_app_bootstrap.py`
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/HELP.md`
+- `docs/phases/PHASE_07_SEARCH_BRIEFING.md`
+- `docs/PHASE_STATUS.md`
+
+### Tests run
+- `python -m ruff check .` — passed.
+- `python -m pytest -q` — passed, 54 tests.
+
+### Smoke tests
+- App startup: not run manually in this phase.
+- Dashboard: covered by route tests.
+- Key workflow: automated tests cover sent-mail ingestion, VIP inference, inferred salutation, friend/client draft tone, and approved guidance usage.
+
+### Documentation updated
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/HELP.md`
+- `docs/phases/PHASE_07_SEARCH_BRIEFING.md`
+- `docs/PHASE_STATUS.md`
+
+### Known issues
+- Sent-mail learning currently pulls only Gmail Sent messages; Microsoft sent-mail learning remains future connector scope.
+- Inference uses excerpted local text and deterministic heuristics; additional tuning can improve edge-case salutation detection.
+
+### Recommended next actions
+- Proceed to Phase 08: Bulk triage and noise automation.
+
 ## 2026-05-15 — Phase 06: AI Summarization and Proposed Action Intelligence
 
 ### Summary

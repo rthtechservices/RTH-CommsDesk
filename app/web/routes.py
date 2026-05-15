@@ -12,6 +12,7 @@ from app.models.entities import (
     AttentionStatus,
     Contact,
     DraftReply,
+    InferenceStatus,
     Message,
     MessageClassification,
     ProposedActionReviewPackage,
@@ -56,6 +57,13 @@ from app.services.gmail_sync_service import (
     deserialize_addresses,
     fetch_full_gmail_conversation,
     sync_gmail_backfill,
+)
+from app.services.voice_learning_service import (
+    run_sent_mail_learning,
+    update_vip_candidate_status,
+    update_voice_guidance_status,
+    vip_candidates_for_review,
+    voice_guidance_for_review,
 )
 
 web_router = APIRouter()
@@ -531,6 +539,68 @@ def drafts_index(request: Request, db: Session = Depends(get_db)):
         .all()
     )
     return templates.TemplateResponse(request, "drafts.html", {"drafts": drafts})
+
+
+@web_router.get("/voice-calibration")
+def voice_calibration(request: Request, db: Session = Depends(get_db)):
+    return templates.TemplateResponse(
+        request,
+        "voice_calibration.html",
+        {
+            "vip_candidates": vip_candidates_for_review(db),
+            "guidance_rows": voice_guidance_for_review(db),
+            "inference_statuses": list(InferenceStatus),
+            "learning_run": request.query_params.get("learning_run"),
+        },
+    )
+
+
+@web_router.post("/voice-calibration/run-learning")
+def web_run_sent_learning(db: Session = Depends(get_db)):
+    run_sent_mail_learning(db)
+    return RedirectResponse(url="/voice-calibration?learning_run=ok", status_code=303)
+
+
+@web_router.post("/voice-calibration/vip/{candidate_id}")
+def web_update_vip_candidate(
+    candidate_id: int,
+    status: str = Form(...),
+    review_note: str | None = Form(None),
+    db: Session = Depends(get_db),
+):
+    try:
+        update_vip_candidate_status(
+            db,
+            candidate_id,
+            status=InferenceStatus(status),
+            review_note=review_note,
+        )
+    except ValueError:
+        pass
+    return RedirectResponse(url="/voice-calibration", status_code=303)
+
+
+@web_router.post("/voice-calibration/guidance/{guidance_id}")
+def web_update_voice_guidance(
+    guidance_id: int,
+    status: str = Form(...),
+    salutation_style: str | None = Form(None),
+    preferred_name: str | None = Form(None),
+    tone_notes: str | None = Form(None),
+    db: Session = Depends(get_db),
+):
+    try:
+        update_voice_guidance_status(
+            db,
+            guidance_id,
+            status=InferenceStatus(status),
+            salutation_style=salutation_style,
+            preferred_name=preferred_name,
+            tone_notes=tone_notes,
+        )
+    except ValueError:
+        pass
+    return RedirectResponse(url="/voice-calibration", status_code=303)
 
 
 @web_router.get("/drafts/{draft_id}")

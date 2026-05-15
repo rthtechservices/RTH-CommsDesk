@@ -154,6 +154,8 @@ Out of scope:
 - Sending email.
 - Calendar write actions.
 
+Status: completed.
+
 ## Phase 08 — Bulk triage and noise automation
 
 Primary outcome: make the app useful for a 7,000+ email backlog.

@@ -22,6 +22,12 @@ def test_dashboard_loads():
     assert response.status_code == 200
 
 
+def test_voice_calibration_route_loads():
+    with TestClient(app) as client:
+        response = client.get("/voice-calibration")
+    assert response.status_code == 200
+
+
 def test_message_detail_route_loads(db_session):
     thread = MessageThread(source_type="gmail", source_thread_id="route-t1", unread_count=1)
     db_session.add(thread)
@@ -65,6 +71,9 @@ def test_sync_endpoint_returns_clear_oauth_error(monkeypatch):
 
 
 def test_alembic_bootstrap_creates_current_local_schema(tmp_path, monkeypatch):
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+
     from app.core import database
 
     db_file = tmp_path / "bootstrap.db"
@@ -86,4 +95,6 @@ def test_alembic_bootstrap_creates_current_local_schema(tmp_path, monkeypatch):
 
     with engine.connect() as connection:
         version = connection.execute(text("select version_num from alembic_version")).scalar_one()
-    assert version == "0006_ai_review_packages"
+    alembic_cfg = Config(str(database.PROJECT_ROOT / "alembic.ini"))
+    alembic_cfg.set_main_option("script_location", str(database.PROJECT_ROOT / "alembic"))
+    assert version == ScriptDirectory.from_config(alembic_cfg).get_current_head()

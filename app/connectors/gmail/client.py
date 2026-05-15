@@ -132,14 +132,46 @@ class GmailConnector(BaseConnector):
     ) -> list[NormalizedMessage]:
         return self.fetch_message_page(limit=limit, since=since).messages
 
+    def fetch_sent_messages(
+        self,
+        limit: int = 100,
+        since: datetime | None = None,
+        *,
+        include_body: bool = True,
+    ) -> list[NormalizedMessage]:
+        page = self.fetch_mailbox_page(
+            mailbox_query="in:sent",
+            limit=limit,
+            since=since,
+            include_body=include_body,
+        )
+        return page.messages
+
     def fetch_message_page(
         self,
         limit: int = 100,
         since: datetime | None = None,
         page_token: str | None = None,
     ) -> MessagePage:
+        return self.fetch_mailbox_page(
+            mailbox_query="in:inbox",
+            limit=limit,
+            since=since,
+            page_token=page_token,
+            include_body=None,
+        )
+
+    def fetch_mailbox_page(
+        self,
+        *,
+        mailbox_query: str,
+        limit: int = 100,
+        since: datetime | None = None,
+        page_token: str | None = None,
+        include_body: bool | None = None,
+    ) -> MessagePage:
         service = self._build_service()
-        query_parts = ["in:inbox"]
+        query_parts = [mailbox_query]
         if since:
             query_parts.append(f"after:{int(since.timestamp())}")
 
@@ -157,7 +189,7 @@ class GmailConnector(BaseConnector):
 
         for msg_ref in messages:
             data = self._get_message(service, msg_ref["id"])
-            result.append(self._normalize_message_data(data))
+            result.append(self._normalize_message_data(data, include_body=include_body))
 
         return MessagePage(messages=result, next_page_token=response.get("nextPageToken"))
 

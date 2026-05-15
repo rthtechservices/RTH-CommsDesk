@@ -32,6 +32,7 @@ Each LLM session should complete one phase only, update the documentation, and s
 - Gmail conversation context can be fetched on demand so detail pages show a full thread timeline when full content is available.
 - Draft generation and AI analysis use deterministic mock/local providers by default; no paid AI credentials are required for local development.
 - Local conversation summaries and proposed action review packages are stored for review only. They do not modify Gmail or calendars.
+- Sent-mail learning can infer VIP candidates and salutation/tone guidance, with explicit approve/reject/edit controls on the Voice Calibration page.
 
 ## Safety rules
 - Never commit secrets, OAuth tokens, or private message data.
@@ -124,4 +125,4 @@ Do not delete or commit `client_secret.json`, `gmail_token.json`, `.env`, or any
 
 The next implementation phase is:
 
-Phase 07 — Sent-mail learning, VIP inference, and voice calibration.
+Phase 08 — Bulk triage and noise automation.

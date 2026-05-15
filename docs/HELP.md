@@ -33,6 +33,8 @@ Current MVP features:
 - Correct a message with structured labels such as important, needs reply, client work, job alert, newsletter, receipt, system notice, marketing, noise, or ignore.
 - Generate a local review-only draft suggestion from a message detail page.
 - Choose a voice profile for draft suggestions: client, friend, partner, vendor, or short acknowledgement.
+- Run Sent-mail learning to infer VIP candidates, salutation preference, and tone guidance.
+- Review/approve/reject/edit inferred VIP and voice guidance from the Voice Calibration page.
 - Review local draft suggestions from the Drafts page.
 - Analyze a stored Gmail conversation with the local mock AI analysis provider.
 - Store and view local conversation summaries.
@@ -74,6 +76,18 @@ The Contacts page is linked from the dashboard header. Use it to edit contact pr
 ### Drafts
 
 The Drafts page lists local draft suggestions. Drafts are stored only in the local CommsDesk database and are not sent or created in Gmail.
+
+### Voice Calibration
+
+The Voice Calibration page lets you refresh Sent-mail learning inferences and review:
+
+- inferred VIP candidates
+- inferred salutation style
+- inferred preferred name
+- inferred tone notes
+- excerpted evidence used for inference
+
+Guidance only affects draft tone after you approve it.
 
 ### Review Packages
 
@@ -169,6 +183,8 @@ Generated drafts are suggestions only. The app does not send the draft, reply to
 
 If a conversation has a review package, draft generation uses the stored conversation summary, proposed action type, full locally stored thread context, contact relationship, importance score, and summarized correction history. If the review package says no response is needed, no draft is created automatically.
 
+If approved voice guidance exists, draft generation also applies inferred salutation style/preferred name and tone notes (for example, to avoid full-name formal greetings in friend threads or to keep client replies concise and professional).
+
 ### Analyze conversation
 
 On a message detail page, Analyze conversation creates or updates a local review package for that source message and thread.
@@ -196,6 +212,10 @@ Open a review package to approve, reject, edit, or snooze it locally. The status
 ### Review drafts
 
 Open the Drafts page from the dashboard header or open a generated draft directly after creating it. The review page shows the source message, selected voice profile, local status, and suggested reply text.
+
+### Voice calibration refresh
+
+Open Voice Calibration from the dashboard header and click **Refresh inferences from Sent Mail**. Then approve/reject/edit inferred VIP and tone guidance so only approved guidance affects draft generation.
 
 ### Reset contact normal
 

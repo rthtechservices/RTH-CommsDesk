@@ -35,3 +35,8 @@ class BaseConnector:
         self, limit: int = 100, since: datetime | None = None
     ) -> list[NormalizedMessage]:
         raise NotImplementedError
+
+    def fetch_sent_messages(
+        self, limit: int = 100, since: datetime | None = None
+    ) -> list[NormalizedMessage]:
+        raise NotImplementedError

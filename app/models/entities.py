@@ -68,6 +68,12 @@ class ReviewPackageStatus(StrEnum):
     SNOOZED = "snoozed"
 
 
+class InferenceStatus(StrEnum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
 class Contact(Base):
     __tablename__ = "contacts"
 
@@ -295,6 +301,87 @@ class DraftReply(Base):
     thread: Mapped[MessageThread] = relationship()
     message: Mapped[Message | None] = relationship()
     voice_profile: Mapped[VoiceProfile | None] = relationship(back_populates="drafts")
+
+
+class SentMailLearningRecord(Base):
+    __tablename__ = "sent_mail_learning_records"
+    __table_args__ = (
+        UniqueConstraint(
+            "source_type",
+            "source_message_id",
+            "recipient_email",
+            name="uq_sent_learning_source_message_recipient",
+        ),
+        Index("ix_sent_learning_contact_sent_at", "contact_id", "sent_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source_type: Mapped[str] = mapped_column(String(50))
+    source_message_id: Mapped[str] = mapped_column(String(255))
+    source_thread_id: Mapped[str | None] = mapped_column(String(255))
+    contact_id: Mapped[int | None] = mapped_column(ForeignKey("contacts.id"))
+    recipient_email: Mapped[str] = mapped_column(String(255), index=True)
+    sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    subject: Mapped[str | None] = mapped_column(String(500))
+    snippet_excerpt: Mapped[str | None] = mapped_column(String(500))
+    body_excerpt: Mapped[str | None] = mapped_column(Text)
+    is_reply: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    contact: Mapped[Contact | None] = relationship()
+
+
+class VipInferenceCandidate(Base):
+    __tablename__ = "vip_inference_candidates"
+    __table_args__ = (
+        UniqueConstraint("contact_id", name="uq_vip_inference_contact"),
+        Index("ix_vip_inference_score", "score"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    contact_id: Mapped[int] = mapped_column(ForeignKey("contacts.id"), index=True)
+    score: Mapped[int] = mapped_column(Integer, default=0)
+    sent_count: Mapped[int] = mapped_column(Integer, default=0)
+    reply_ratio: Mapped[Decimal] = mapped_column(Numeric(5, 4), default=Decimal("0.0"))
+    last_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reasons: Mapped[str] = mapped_column(Text)
+    status: Mapped[InferenceStatus] = mapped_column(
+        Enum(InferenceStatus), default=InferenceStatus.PENDING
+    )
+    review_note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+    contact: Mapped[Contact] = relationship()
+
+
+class VoiceGuidance(Base):
+    __tablename__ = "voice_guidance"
+    __table_args__ = (
+        Index("ix_voice_guidance_status", "status"),
+        Index("ix_voice_guidance_contact_relationship", "contact_id", "relationship_type"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    contact_id: Mapped[int | None] = mapped_column(ForeignKey("contacts.id"), index=True)
+    relationship_type: Mapped[str | None] = mapped_column(String(50))
+    salutation_style: Mapped[str | None] = mapped_column(String(50))
+    preferred_name: Mapped[str | None] = mapped_column(String(255))
+    tone_notes: Mapped[str | None] = mapped_column(String(500))
+    evidence_excerpt: Mapped[str | None] = mapped_column(Text)
+    source: Mapped[str] = mapped_column(String(50), default="sent_inference")
+    status: Mapped[InferenceStatus] = mapped_column(
+        Enum(InferenceStatus), default=InferenceStatus.PENDING
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+    contact: Mapped[Contact | None] = relationship()
 
 
 class ProposedActionReviewPackage(Base):

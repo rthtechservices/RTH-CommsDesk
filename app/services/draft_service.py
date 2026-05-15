@@ -21,6 +21,7 @@ from app.services.analysis_service import (
 )
 from app.services.contact_service import contact_status, find_contact_by_sender_email
 from app.services.feedback_service import friendly_classification_label, summarize_classification
+from app.services.voice_learning_service import resolve_guidance_for_message
 
 SHORT_ACK_AUDIENCE = "short_acknowledgement"
 SUPPORTED_DRAFT_AUDIENCES = [
@@ -54,6 +55,9 @@ class DraftContext:
     proposed_action_explanation: str
     review_package_draft_response: str
     full_thread_context: str
+    learned_salutation_style: str
+    learned_preferred_name: str
+    learned_tone_notes: str
 
 
 class DraftProvider(Protocol):
@@ -69,6 +73,7 @@ class MockDraftProvider:
     def generate(self, context: DraftContext, voice_profile: VoiceProfile) -> str:
         audience = (voice_profile.audience_type or "client").strip().lower()
         recipient = _recipient_name(context)
+        greeting = _greeting_line(context, recipient)
         subject_line = f"Re: {context.subject}" if context.subject else "Re: your note"
 
         if context.review_package_draft_response:
@@ -80,58 +85,65 @@ class MockDraftProvider:
                 "override that recommendation."
             )
         elif context.proposed_action_type == "ask_clarifying_question":
-            body = (
-                f"Hi {recipient},\n\n"
+            body = _compose_body(
+                greeting,
                 "Can you send me a bit more detail on what you need from me here? Once I have "
-                "that, I can give you a clearer answer.\n\n"
-                "Thanks"
+                "that, I can give you a clearer answer.",
+                "Thanks",
             )
         elif context.proposed_action_type == "reply":
             detail = _specific_reply_detail(context)
-            body = (
-                f"Hi {recipient},\n\n"
+            body = _compose_body(
+                greeting,
                 f"Thanks for reaching out. I can help with {detail}. I will review the thread "
-                "context and come back with clear next steps.\n\n"
-                "Best"
+                "context and come back with clear next steps.",
+                "Best",
             )
         elif audience == "friend":
-            body = (
-                f"Hey {recipient},\n\n"
-                "Thanks for the note. I saw this and wanted to acknowledge it directly. "
-                "I will take a closer look and follow up with anything specific.\n\n"
-                "Talk soon"
+            friend_greeting = greeting if context.learned_salutation_style else f"Hey {recipient},"
+            body = _compose_body(
+                friend_greeting,
+                "Thanks for the note. I will take a closer look and follow up with anything specific.",
+                "Talk soon",
             )
         elif audience == "partner":
-            body = (
-                f"Hey {recipient},\n\n"
+            partner_greeting = greeting if context.learned_salutation_style else f"Hey {recipient},"
+            body = _compose_body(
+                partner_greeting,
                 "I hear you. I will look at this properly and come back with a clear answer "
-                "instead of rushing a half-response.\n\n"
-                "Love"
+                "instead of rushing a half-response.",
+                "Love",
             )
         elif audience == "vendor":
-            body = (
-                f"Hi {recipient},\n\n"
+            body = _compose_body(
+                greeting,
                 "Thanks for sending this. Please keep this thread updated with any required "
-                "next steps, timing, or outstanding items.\n\n"
-                "Regards"
+                "next steps, timing, or outstanding items.",
+                "Regards",
             )
         elif audience == SHORT_ACK_AUDIENCE:
-            body = (
-                f"Hi {recipient},\n\n"
-                "Received, thank you. I will review and follow up if anything else is needed.\n\n"
-                "Thanks"
+            body = _compose_body(
+                greeting,
+                "Received, thank you. I will review and follow up if anything else is needed.",
+                "Thanks",
             )
         else:
-            body = (
-                f"Hi {recipient},\n\n"
+            body = _compose_body(
+                greeting,
                 "Thanks for reaching out. I have this on my radar and will review the details. "
-                "I will follow up with clear next steps once I have confirmed the path forward.\n\n"
-                "Best"
+                "I will follow up with clear next steps once I have confirmed the path forward.",
+                "Best",
             )
+
+        if context.learned_tone_notes and "avoid corporate filler" in context.learned_tone_notes.lower():
+            body = body.replace("I saw this and wanted to acknowledge it directly. ", "")
+            body = body.replace("I wanted to acknowledge this directly. ", "")
 
         note = "Review-only draft suggestion. This has not been sent."
         if context.classification_label in {"Newsletter", "Marketing", "Noise"}:
             note += " This message may not need a reply."
+        if context.learned_tone_notes:
+            note += f" Learned tone guidance: {context.learned_tone_notes}."
 
         return f"{note}\n\nSubject: {subject_line}\n\n{body}"
 
@@ -172,6 +184,7 @@ def build_draft_context(db: Session, message: Message) -> DraftContext:
         if review_package and review_package.conversation_summary
         else ""
     )
+    guidance = resolve_guidance_for_message(db, message, contact=contact)
     return DraftContext(
         message_id=message.id,
         thread_id=message.thread_id,
@@ -195,6 +208,9 @@ def build_draft_context(db: Session, message: Message) -> DraftContext:
         proposed_action_explanation=(review_package.explanation if review_package else ""),
         review_package_draft_response=(review_package.draft_response if review_package else "") or "",
         full_thread_context=_full_thread_context(db, message),
+        learned_salutation_style=(guidance.salutation_style if guidance else "") or "",
+        learned_preferred_name=(guidance.preferred_name if guidance else "") or "",
+        learned_tone_notes=(guidance.tone_notes if guidance else "") or "",
     )
 
 
@@ -282,8 +298,35 @@ def _normalize_audience(value: str | None) -> str | None:
 
 def _recipient_name(context: DraftContext) -> str:
     return (
-        context.contact_name or context.sender_name or context.sender_email.split("@")[0] or "there"
+        context.learned_preferred_name
+        or context.contact_name
+        or context.sender_name
+        or context.sender_email.split("@")[0]
+        or "there"
     )
+
+
+def _greeting_line(context: DraftContext, recipient: str) -> str:
+    style = (context.learned_salutation_style or "").strip().lower()
+    preferred = context.learned_preferred_name.strip() if context.learned_preferred_name else recipient
+    if style == "no_greeting":
+        return ""
+    if style == "formal":
+        return f"Dear {preferred},"
+    if style in {"first_name", "nickname"}:
+        first = preferred.split()[0] if preferred else recipient
+        return f"Hey {first},"
+    if style == "full_name":
+        return f"Hi {preferred},"
+    return f"Hi {recipient},"
+
+
+def _compose_body(greeting: str, middle: str, signoff: str) -> str:
+    middle = middle.strip()
+    signoff = signoff.strip()
+    if greeting:
+        return f"{greeting}\n\n{middle}\n\n{signoff}"
+    return f"{middle}\n\n{signoff}"
 
 
 def _full_thread_context(db: Session, message: Message) -> str:

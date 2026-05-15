@@ -1,7 +1,6 @@
 from datetime import UTC, datetime
 
 from app.models.entities import (
-    AttentionItem,
     AttentionStatus,
     Contact,
     Message,

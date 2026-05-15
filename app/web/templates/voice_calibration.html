@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Voice Calibration | RTH CommsDesk</title>
+    <style>
+      :root {
+        --bg: #f6f7f9;
+        --surface: #ffffff;
+        --line: #d9dee6;
+        --text: #17202a;
+        --muted: #607080;
+        --brand: #246b5a;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 15px;
+        line-height: 1.45;
+      }
+      a {
+        color: var(--brand);
+        font-weight: 700;
+        text-decoration: none;
+      }
+      .wrap {
+        width: min(1100px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 22px 0 42px;
+      }
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+        padding: 16px;
+        margin-bottom: 16px;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        border-top: 1px solid var(--line);
+        padding: 8px 6px;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        color: var(--muted);
+        font-size: 12px;
+        text-transform: uppercase;
+      }
+      td form {
+        display: grid;
+        gap: 6px;
+      }
+      button,
+      select,
+      input,
+      textarea {
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        font: inherit;
+      }
+      button {
+        min-height: 34px;
+        background: var(--surface);
+        font-weight: 700;
+        cursor: pointer;
+        padding: 7px 10px;
+      }
+      button.primary {
+        border-color: var(--brand);
+        background: var(--brand);
+        color: #ffffff;
+      }
+      select,
+      input,
+      textarea {
+        width: 100%;
+        padding: 7px;
+      }
+      textarea {
+        min-height: 64px;
+        resize: vertical;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <a href="/">Back to dashboard</a>
+      <h1>Voice Calibration</h1>
+      <p class="muted">
+        Inference runs on local Sent-mail learning records. Evidence is excerpted and does not expose full message bodies.
+      </p>
+      {% if learning_run == "ok" %}
+      <p><strong>Sent-mail learning refreshed.</strong></p>
+      {% endif %}
+
+      <section class="panel">
+        <h2>Run Sent-mail learning</h2>
+        <form method="post" action="/voice-calibration/run-learning">
+          <button class="primary" type="submit">Refresh inferences from Sent Mail</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>Inferred VIP candidates</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Contact</th>
+              <th>Score</th>
+              <th>Signals</th>
+              <th>Status</th>
+              <th>Review</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in vip_candidates %}
+            <tr>
+              <td>
+                {% if row.contact %}{{ row.contact.display_name or row.contact.primary_email }}{% endif %}
+                <div class="muted">{{ row.contact.primary_email if row.contact else "" }}</div>
+              </td>
+              <td>{{ row.score }}</td>
+              <td>
+                <div>sent={{ row.sent_count }} | reply={{ "%.0f"|format((row.reply_ratio or 0) * 100) }}%</div>
+                <div class="muted">{{ row.reasons }}</div>
+              </td>
+              <td>{{ row.status.value if row.status.value is defined else row.status }}</td>
+              <td>
+                <form method="post" action="/voice-calibration/vip/{{ row.id }}">
+                  <select name="status">
+                    {% for status in inference_statuses %}
+                    <option value="{{ status.value }}" {% if status == row.status %}selected{% endif %}>{{ status.value }}</option>
+                    {% endfor %}
+                  </select>
+                  <input type="text" name="review_note" placeholder="Optional note" value="{{ row.review_note or "" }}" />
+                  <button type="submit">Save</button>
+                </form>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="5" class="muted">No VIP inference candidates yet.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+
+      <section class="panel">
+        <h2>Inferred voice guidance</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Scope</th>
+              <th>Salutation</th>
+              <th>Preferred name</th>
+              <th>Tone notes</th>
+              <th>Evidence excerpt</th>
+              <th>Status</th>
+              <th>Review</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in guidance_rows %}
+            <tr>
+              <td>
+                {% if row.contact %}
+                Contact: {{ row.contact.display_name or row.contact.primary_email }}
+                {% else %}
+                Relationship: {{ row.relationship_type or "unknown" }}
+                {% endif %}
+              </td>
+              <td>{{ row.salutation_style or "-" }}</td>
+              <td>{{ row.preferred_name or "-" }}</td>
+              <td>{{ row.tone_notes or "-" }}</td>
+              <td class="muted">{{ row.evidence_excerpt or "-" }}</td>
+              <td>{{ row.status.value if row.status.value is defined else row.status }}</td>
+              <td>
+                <form method="post" action="/voice-calibration/guidance/{{ row.id }}">
+                  <select name="status">
+                    {% for status in inference_statuses %}
+                    <option value="{{ status.value }}" {% if status == row.status %}selected{% endif %}>{{ status.value }}</option>
+                    {% endfor %}
+                  </select>
+                  <input type="text" name="salutation_style" value="{{ row.salutation_style or "" }}" placeholder="first_name, no_greeting, formal..." />
+                  <input type="text" name="preferred_name" value="{{ row.preferred_name or "" }}" placeholder="Preferred name" />
+                  <textarea name="tone_notes" placeholder="Tone notes">{{ row.tone_notes or "" }}</textarea>
+                  <button type="submit">Save</button>
+                </form>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="7" class="muted">No voice guidance inferred yet.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </body>
+</html>

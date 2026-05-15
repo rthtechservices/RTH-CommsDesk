@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from datetime import datetime
-
 from sqlalchemy import desc, func, or_
 from sqlalchemy.orm import Session
 

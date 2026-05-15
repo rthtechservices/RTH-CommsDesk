@@ -69,7 +69,7 @@ Known rough edges:
 
 - Drafts are not yet context-aware enough and may produce vague, unnatural replies; Phase 05 makes the raw thread context available, but Phase 06 must use it intelligently.
 - Full conversation/thread content is fetched manually on selected Gmail conversations, but automatic summarization is not yet implemented.
-- Sent-mail learning is not yet implemented, so voice profiles do not yet reflect Rohan's real writing patterns.
+- Sent-mail learning and calibration inference are now available, but the guidance quality still depends on explicit review/approval and ongoing inference tuning.
 - The system does not yet learn enough from Reviewed/Important/Noise feedback to move large queues quickly.
 - Historical Gmail backfill can page beyond the first 100 messages, but bulk triage for 7,000+ historical emails is not yet implemented.
 - Outlook Calendar/Gmail Calendar availability checks are not yet implemented.

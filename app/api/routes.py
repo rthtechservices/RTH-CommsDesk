@@ -7,6 +7,7 @@ from app.models.entities import (
     AttentionItem,
     AttentionStatus,
     Contact,
+    InferenceStatus,
     Message,
     MessageClassification,
     ProposedActionReviewPackage,
@@ -22,6 +23,13 @@ from app.services.gmail_sync_service import (
     get_sync_state,
     sync_gmail_backfill,
     sync_gmail_messages,
+)
+from app.services.voice_learning_service import (
+    run_sent_mail_learning,
+    update_vip_candidate_status,
+    update_voice_guidance_status,
+    vip_candidates_for_review,
+    voice_guidance_for_review,
 )
 
 api_router = APIRouter()
@@ -296,6 +304,109 @@ def fetch_conversation(message_id: int, db: Session = Depends(get_db)) -> dict:
             ),
         ) from exc
     return result.as_dict()
+
+
+@api_router.post("/learning/sent-mail/run")
+def run_sent_learning(db: Session = Depends(get_db)) -> dict:
+    result = run_sent_mail_learning(db)
+    return {
+        "fetched_count": result.fetched_count,
+        "inserted_count": result.inserted_count,
+        "updated_count": result.updated_count,
+        "vip_candidate_count": result.vip_candidate_count,
+        "guidance_count": result.guidance_count,
+    }
+
+
+@api_router.get("/learning/voice-calibration")
+def get_voice_calibration(db: Session = Depends(get_db)) -> dict:
+    vip_candidates = vip_candidates_for_review(db)
+    guidance_rows = voice_guidance_for_review(db)
+    return {
+        "vip_candidates": [
+            {
+                "id": row.id,
+                "contact_id": row.contact_id,
+                "contact_name": row.contact.display_name if row.contact else None,
+                "contact_email": row.contact.primary_email if row.contact else None,
+                "score": row.score,
+                "sent_count": row.sent_count,
+                "reply_ratio": float(row.reply_ratio),
+                "reasons": row.reasons,
+                "status": row.status.value,
+                "review_note": row.review_note,
+            }
+            for row in vip_candidates
+        ],
+        "voice_guidance": [
+            {
+                "id": row.id,
+                "contact_id": row.contact_id,
+                "relationship_type": row.relationship_type,
+                "salutation_style": row.salutation_style,
+                "preferred_name": row.preferred_name,
+                "tone_notes": row.tone_notes,
+                "evidence_excerpt": row.evidence_excerpt,
+                "source": row.source,
+                "status": row.status.value,
+                "is_active": row.is_active,
+            }
+            for row in guidance_rows
+        ],
+    }
+
+
+@api_router.post("/learning/vip/{candidate_id}/status")
+def set_vip_learning_status(
+    candidate_id: int,
+    status: str = Form(...),
+    review_note: str | None = Form(None),
+    db: Session = Depends(get_db),
+) -> dict:
+    try:
+        candidate = update_vip_candidate_status(
+            db,
+            candidate_id,
+            status=InferenceStatus(status),
+            review_note=review_note,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {
+        "id": candidate.id,
+        "contact_id": candidate.contact_id,
+        "status": candidate.status.value,
+        "score": candidate.score,
+    }
+
+
+@api_router.post("/learning/guidance/{guidance_id}/status")
+def set_voice_guidance_status(
+    guidance_id: int,
+    status: str = Form(...),
+    salutation_style: str | None = Form(None),
+    preferred_name: str | None = Form(None),
+    tone_notes: str | None = Form(None),
+    db: Session = Depends(get_db),
+) -> dict:
+    try:
+        guidance = update_voice_guidance_status(
+            db,
+            guidance_id,
+            status=InferenceStatus(status),
+            salutation_style=salutation_style,
+            preferred_name=preferred_name,
+            tone_notes=tone_notes,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {
+        "id": guidance.id,
+        "status": guidance.status.value,
+        "is_active": guidance.is_active,
+        "salutation_style": guidance.salutation_style,
+        "preferred_name": guidance.preferred_name,
+    }
 
 
 @api_router.get("/vip-contacts")

@@ -83,6 +83,14 @@ python -m pytest -q
 - Draft generation can use full locally stored thread context in Phase 06, but it should still keep user correction history summarized rather than copying raw feedback notes into prompts.
 - Reminder, archive, delete, unsubscribe, and calendar recommendations must remain candidates until a later approved-execution phase adds explicit external write behavior.
 
+## Sent-mail learning and voice calibration lessons
+
+- Keep sent-mail learning storage separate from inbound triage records so replaying learning does not mutate message-attention history.
+- Store excerpted evidence for voice calibration review; avoid exposing full sent-message bodies in calibration lists.
+- Use deterministic salutation/tone inference as a baseline, but always require explicit approve/reject/edit before guidance becomes active.
+- Approved contact-level voice guidance should override generic voice-profile defaults. Relationship-level guidance should be fallback only.
+- Draft generators should honor learned "avoid corporate filler" notes to remove stock phrasing when more natural contact-specific style exists.
+
 ## UI lessons
 
 - A raw list of scores and reasons is technically useful but not user-friendly.
