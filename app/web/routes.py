@@ -140,9 +140,9 @@ def login_page(request: Request):
     if not settings.auth_required:
         return RedirectResponse(url="/", status_code=303)
     return templates.TemplateResponse(
+        request,
         "login.html",
         {
-            "request": request,
             "next_path": _safe_next_path(request.query_params.get("next")),
             "error": request.query_params.get("error") == "1",
         },
@@ -203,9 +203,9 @@ def admin_panel(request: Request, db: Session = Depends(get_db)):
     )
     audit_count = db.query(func.count(ExecutionAuditLog.id)).scalar() or 0
     return templates.TemplateResponse(
+        request,
         "admin.html",
         {
-            "request": request,
             "message_body_count": message_body_count,
             "sent_excerpt_count": sent_excerpt_count,
             "audit_count": audit_count,
@@ -241,6 +241,7 @@ def clear_cache(
 
 @web_router.get("/")
 def dashboard(request: Request, db: Session = Depends(get_db)):
+    settings = get_settings()
     filters = _queue_filters(request)
     attention = build_attention_queue(db, **filters)[:30]
     message_ids = [item.message_id for item in attention if item.message_id]
@@ -310,6 +311,12 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "filter_date_end": request.query_params.get("date_end", ""),
             "review_packages": review_packages,
             "automation_candidates": automation_candidates,
+            "provider_status": {
+                "ai_provider": settings.ai_provider,
+                "calendar_provider": settings.calendar_provider,
+                "execution_provider": "mock",
+                "gmail_full_body": settings.gmail_store_full_body,
+            },
         },
     )
 

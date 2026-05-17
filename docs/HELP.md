@@ -16,6 +16,7 @@ Current MVP features:
 - Keep Gmail sync metadata locally so repeat syncs are incremental.
 - Skip duplicate Gmail messages and duplicate attention items on repeat sync.
 - Show the latest sync/backfill counts: fetched, inserted, duplicates skipped, threads updated, and backlog cursor status.
+- Show current provider/storage status on the dashboard: AI analysis provider, calendar provider, execution provider, and Gmail full-body sync state.
 - Store message metadata and snippets by default.
 - Fetch and store full Gmail conversation content manually from a message detail page.
 - Show a chronological Gmail conversation timeline on message detail pages.
@@ -168,7 +169,16 @@ Runs a safe manual resync of the recent Gmail window without using the high-wate
 
 Fetches the next older Gmail inbox page using Gmail's backlog cursor. Use this when the dashboard keeps showing the same recent messages and you want the local queue to move farther back through the mailbox.
 
-Backfill is read-only. It stores local message records and sync diagnostics only.
+Each click/run fetches one Gmail results page. The maximum page size is controlled by `GMAIL_READ_MAX_RESULTS` and defaults to 100. If Gmail returns a `nextPageToken`, CommsDesk stores it and the next Backfill older run continues from that token. Backfill is read-only. It stores local message records and sync diagnostics only.
+
+### Provider and storage status
+
+The dashboard shows the current local runtime mode:
+
+- AI analysis provider: usually `mock` until live AI is configured in a later phase.
+- Calendar provider: usually `mock` unless a read provider is configured.
+- Execution provider: `mock` in local development; execution still requires prepare, approve, and final confirm.
+- Gmail full-body sync: `Off` means sync stores metadata/snippets by default and full conversation content is fetched manually from message detail pages.
 
 ### Sync Outlook
 

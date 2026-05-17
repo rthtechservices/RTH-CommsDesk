@@ -27,6 +27,10 @@ def test_web_auth_redirects_then_allows_login(auth_enabled_env):
         assert redirect.status_code == 303
         assert redirect.headers["location"].startswith("/login")
 
+        login_page = client.get("/login")
+        assert login_page.status_code == 200
+        assert "Sign in" in login_page.text
+
         invalid = client.post(
             "/login",
             data={"username": "admin", "password": "wrong", "next_path": "/"},

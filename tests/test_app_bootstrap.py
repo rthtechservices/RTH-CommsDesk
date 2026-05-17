@@ -20,6 +20,8 @@ def test_dashboard_loads():
     with TestClient(app) as client:
         response = client.get("/")
     assert response.status_code == 200
+    assert "AI analysis provider" in response.text
+    assert "Gmail full-body sync" in response.text
 
 
 def test_voice_calibration_route_loads():
@@ -38,6 +40,13 @@ def test_executions_route_loads():
     with TestClient(app) as client:
         response = client.get("/executions")
     assert response.status_code == 200
+
+
+def test_admin_route_loads():
+    with TestClient(app) as client:
+        response = client.get("/admin")
+    assert response.status_code == 200
+    assert "Admin controls" in response.text
 
 
 def test_message_detail_route_loads(db_session):

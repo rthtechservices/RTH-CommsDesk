@@ -31,6 +31,62 @@ Record completed work here at the end of every phase. Newest entries should be a
 - 
 ```
 
+## 2026-05-16 — Phase 13: Stabilization, Real-Data Smoke Testing, and Regression Cleanup
+
+### Summary
+- Ran Phase 13 stabilization against the existing local Gmail-backed SQLite database and disposable migration smoke databases.
+- Verified clean Alembic migration to head and a synthetic pre-Phase-06 upgrade path from `0005_gmail_conversation_context` to `0011_connector_source_confidence`.
+- Ran real read-only Gmail sync, backfill, full conversation fetch, conversation analysis, sent-mail learning, queue progression, review-package status, bulk triage, and execution-screen smoke checks.
+- Fixed a real browser-route regression where `/admin` and the auth-enabled `/login` page used the old `TemplateResponse` positional signature and failed under the current Starlette/Jinja runtime.
+- Added dashboard provider/storage status visibility for AI provider, calendar provider, execution provider, and Gmail full-body sync state.
+
+### Files changed
+- `app/web/routes.py`
+- `app/web/templates/dashboard.html`
+- `tests/test_app_bootstrap.py`
+- `tests/test_auth_flow.py`
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/HELP.md`
+- `docs/PHASE_STATUS.md`
+- `docs/phases/PHASE_13_STABILIZATION_REAL_SMOKE.md`
+
+### Tests run
+- `python -m ruff check .` — passed.
+- `python -m pytest -q` — passed, 76 tests.
+- `python -m pytest tests/test_app_bootstrap.py::test_dashboard_loads tests/test_app_bootstrap.py::test_admin_route_loads tests/test_auth_flow.py::test_web_auth_redirects_then_allows_login -q` — passed, 3 tests.
+
+### Smoke tests
+- Clean migration/startup: disposable `phase13_clean_smoke.db` migrated from empty database to Alembic head and `python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8130` returned dashboard HTTP 200.
+- Upgrade validation: disposable database upgraded to `0005_gmail_conversation_context`, then upgraded successfully to `0011_connector_source_confidence`.
+- App startup: `python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8131` started against the existing local database and returned HTTP 200.
+- Final startup command: `python -m uvicorn app.main:app --reload` returned dashboard HTTP 200 on the default local port.
+- Browser route smoke: dashboard, message detail, full conversation timeline, review packages, drafts, contacts, voice calibration, bulk triage, executions, admin, and local-auth redirect/login surfaces rendered without server errors after the fix.
+- Link scan: 377 local GET links discovered from major pages returned without broken local links.
+- Real Gmail sync: incremental read-only sync fetched 26 Gmail messages, inserted 25 new local rows, skipped 1 duplicate, and updated 25 threads.
+- Real Gmail backfill: one backfill run fetched 100 older Gmail messages, inserted 100 local rows, updated 97 threads, and advanced `next_page_token` to the next Gmail backlog page.
+- Full conversation fetch: real Gmail full-thread fetch completed for the dinner-cancellation and renewal examples; both were duplicate-safe and stored local thread context only.
+- Review packages: dinner-cancellation analysis returned `no_response_needed` with no draft response; renewal analysis returned `create_calendar_reminder` with no external calendar action created.
+- Voice calibration: sent-mail learning fetched 200 sent messages, updated existing learning rows, and left 116 VIP candidates plus 118 voice-guidance rows available for review.
+- Bulk triage/reviewed/noise progression: one reviewed action and one noise action removed selected items from the active/unreviewed queue; both were undone through bulk action undo.
+- Execution screen: prepared one mock execution record from a review package and verified the execution queue/detail pages show status and provider without confirming execution.
+
+### Documentation updated
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/HELP.md`
+- `docs/PHASE_STATUS.md`
+- `docs/phases/PHASE_13_STABILIZATION_REAL_SMOKE.md`
+
+### Known issues
+- Live AI provider integration remains Phase 14 scope; Phase 13 verified the deterministic/mock provider path only.
+- Live Gmail/Calendar/Microsoft external write providers remain Phase 15 scope; Phase 13 did not confirm or execute outbound actions.
+- Microsoft Graph OAuth/client setup remains deployment-specific and was not wired in this phase.
+- Gmail backfill is intentionally one Gmail page per click/run, using the persisted Gmail `nextPageToken`; with the current setting, that means up to `GMAIL_READ_MAX_RESULTS` messages per backfill run.
+
+### Recommended next actions
+- Proceed to Phase 14: Live AI Provider Integration and Prompt Quality.
+
 ## 2026-05-15 — Phase 12: Deployment, Authentication, and Production Hardening
 
 ### Summary

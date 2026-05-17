@@ -231,6 +231,16 @@
         color: var(--warn);
         font-weight: 700;
       }
+      .runtime-status {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 18px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+        padding: 12px 14px;
+      }
       .filters {
         display: grid;
         grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -346,6 +356,24 @@
           Sync did not complete. Check Gmail OAuth setup and local configuration.
         </div>
         {% endif %}
+      </section>
+      <section class="runtime-status" aria-label="Provider and storage status">
+        <div class="sync-stat">
+          <strong>{{ provider_status.ai_provider }}</strong>
+          <span class="muted">AI analysis provider</span>
+        </div>
+        <div class="sync-stat">
+          <strong>{{ provider_status.calendar_provider }}</strong>
+          <span class="muted">Calendar provider</span>
+        </div>
+        <div class="sync-stat">
+          <strong>{{ provider_status.execution_provider }}</strong>
+          <span class="muted">Execution provider</span>
+        </div>
+        <div class="sync-stat">
+          <strong>{% if provider_status.gmail_full_body %}On{% else %}Off{% endif %}</strong>
+          <span class="muted">Gmail full-body sync</span>
+        </div>
       </section>
       <div class="grid">
         <section>

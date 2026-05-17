@@ -129,6 +129,15 @@ python -m pytest -q
 - Use structured logs with explicit redaction filters; never rely on callers to avoid sensitive strings consistently.
 - Treat retention as an active control surface with explicit cleanup commands and auditable result counts, not as passive documentation.
 - Keep admin cleanup operations local-data-only to avoid accidental external account modifications.
+- Use the current `templates.TemplateResponse(request, template_name, context, ...)` call style consistently. The old positional style can pass the context dict as the template name under newer Starlette/Jinja versions and break routes such as `/admin` or auth-enabled `/login`.
+
+## Stabilization smoke lessons
+
+- When testing `uvicorn --reload`, restart the process after route/template edits before trusting browser results. The reloader can briefly serve a mismatched template and route context during smoke testing.
+- Record Gmail sync and backfill smoke results as counts and cursor behavior only. Avoid logging private subjects, snippets, or body text in phase docs.
+- Backfill is one Gmail result page per click/run. The page size is controlled by `GMAIL_READ_MAX_RESULTS`, and forward progress depends on the persisted Gmail `nextPageToken`.
+- For real-data queue progression tests, use reversible local actions such as bulk action undo where practical so Phase 13 validation does not leave unnecessary triage state changes behind.
+- Provider status belongs in the main workflow. Showing mock/live/local storage state on the dashboard helps prevent deterministic mock providers from being mistaken for live external integrations.
 
 ## UI lessons
 
