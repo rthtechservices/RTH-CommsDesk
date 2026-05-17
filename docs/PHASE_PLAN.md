@@ -100,38 +100,19 @@ Status: completed.
 
 Known limitation: deployment readiness still needs a staging rehearsal and operational policy decisions.
 
-## Next round phases
-
 ## Phase 13 — Stabilization, real-data smoke testing, and regression cleanup
 
-Primary outcome: prove the overnight implementation works with real local data and browser workflows.
+Status: completed.
 
-Scope:
-
-- Clean local reset/migration/startup test.
-- Upgrade test from existing local database if available.
-- Browser smoke test of dashboard, messages, conversations, review packages, contacts, voice calibration, bulk triage, calendar proposals, executions, connectors, admin, and auth pages.
-- Real Gmail tests for full-thread fetch, backfill behavior, queue progression, reviewed/noise filtering, and full-body settings.
-- Document exactly what the backfill button does per click/run.
-- Fix defects found during smoke testing.
-- Add regression tests for real bugs found.
-
-Assigned file: `docs/phases/PHASE_13_STABILIZATION_REAL_SMOKE.md`.
+Known limitation: Phase 13 smoke-tested deterministic/mock AI and execution provider paths only.
 
 ## Phase 14 — Live AI provider integration and prompt quality
 
-Primary outcome: replace mock-only intelligence with configurable live AI while keeping mock fallback.
+Status: completed.
 
-Scope:
+Known limitation: live AI provider calls require environment-provided credentials and model selection; Phase 14 added mock fallback and structured validation but did not smoke-test a real provider credential.
 
-- Implement a real AI provider behind the existing provider-neutral interfaces.
-- Add provider status visibility.
-- Improve prompt templates using full conversation timeline, sender/recipient roles, relationship, voice guidance, and corrections.
-- Require structured AI output and validate it before storage.
-- Add prompt-quality fixture tests for friend acknowledgement, client request, renewal reminder, newsletter/noise, and vague messages.
-- Keep mock provider as the default local/test path.
-
-Assigned file: `docs/phases/PHASE_14_LIVE_AI_PROVIDER_AND_PROMPT_QUALITY.md`.
+## Next round phases
 
 ## Phase 15 — Real provider wiring for Gmail, Calendar, and Microsoft Graph
 

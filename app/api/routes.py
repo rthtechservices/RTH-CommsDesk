@@ -34,6 +34,7 @@ from app.services.gmail_sync_service import (
     sync_gmail_backfill,
     sync_gmail_messages,
 )
+from app.services.live_ai_client import ai_provider_status
 from app.services.execution_service import (
     approve_execution,
     audit_entries_for_execution,
@@ -178,6 +179,19 @@ def gmail_sync_status(db: Session = Depends(get_db)) -> dict:
     }
 
 
+@api_router.get("/ai/status")
+def ai_status() -> dict:
+    status = ai_provider_status(get_settings())
+    return {
+        "requested_provider": status.requested_provider,
+        "effective_provider": status.effective_provider,
+        "model": status.model,
+        "live_enabled": status.live_enabled,
+        "fallback_provider": status.fallback_provider,
+        "detail": status.detail,
+    }
+
+
 @api_router.get("/attention")
 def get_attention_queue(
     include_reviewed: bool = False, db: Session = Depends(get_db)
@@ -305,6 +319,7 @@ def generate_draft(
         "status": draft.status,
         "message_id": draft.message_id,
         "voice_profile_id": draft.voice_profile_id,
+        "provider_name": draft.provider_name,
         "review_only": True,
     }
 
@@ -325,6 +340,7 @@ def analyze_message_endpoint(message_id: int, db: Session = Depends(get_db)) -> 
         "explanation": package.explanation,
         "confidence": float(package.confidence),
         "draft_response": package.draft_response,
+        "provider_name": package.provider_name,
         "review_only": True,
         "external_action_created": False,
     }
@@ -699,6 +715,7 @@ def _review_package_dict(package: ProposedActionReviewPackage) -> dict:
         "confidence": float(package.confidence),
         "draft_response": package.draft_response,
         "status": package.status.value,
+        "provider_name": package.provider_name,
         "review_only": True,
         "external_action_created": False,
         "calendar_proposal": (

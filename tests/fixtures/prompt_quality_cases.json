@@ -1,0 +1,74 @@
+[
+  {
+    "name": "friend_acknowledgement",
+    "subject": "Dinner tonight",
+    "messages": [
+      {
+        "sender_display_name": "Christian",
+        "sender_email": "christian@example.com",
+        "body_text": "I need to cancel dinner tonight. Sorry for the late notice."
+      },
+      {
+        "sender_display_name": "Michael",
+        "sender_email": "michael@example.com",
+        "body_text": "No worries, thanks for the heads up!"
+      }
+    ],
+    "expected_action": "no_response_needed",
+    "forbidden_draft_terms": ["Thanks for reaching out", "I can help"]
+  },
+  {
+    "name": "client_request",
+    "subject": "Revised proposal",
+    "relationship_type": "client",
+    "classification": {"requires_reply": true, "is_client_work": true},
+    "messages": [
+      {
+        "sender_display_name": "Client Contact",
+        "sender_email": "client@example.com",
+        "body_text": "Can you send the revised proposal by Friday?"
+      }
+    ],
+    "expected_action": "reply",
+    "expected_text": "revised proposal"
+  },
+  {
+    "name": "renewal_reminder",
+    "subject": "ICBC renewal notice",
+    "messages": [
+      {
+        "sender_display_name": "ICBC",
+        "sender_email": "renewals@icbc.example",
+        "body_text": "Your vehicle registration renewal is due on 2026-06-12."
+      }
+    ],
+    "expected_action": "create_calendar_reminder",
+    "expected_due_date": "2026-06-12"
+  },
+  {
+    "name": "newsletter_noise",
+    "subject": "Weekly deals",
+    "classification": {"is_newsletter": true, "is_marketing": true},
+    "messages": [
+      {
+        "sender_display_name": "Marketing List",
+        "sender_email": "news@example.com",
+        "body_text": "Weekly newsletter: limited time promotion. Click unsubscribe to stop receiving these emails."
+      }
+    ],
+    "expected_action_any": ["mark_noise", "unsubscribe_review"],
+    "expected_text": "unsubscribe"
+  },
+  {
+    "name": "vague_message",
+    "subject": "Question",
+    "messages": [
+      {
+        "sender_display_name": "Someone",
+        "sender_email": "person@example.com",
+        "body_text": "Can we talk? Need your input."
+      }
+    ],
+    "expected_action_any": ["ask_clarifying_question", "review_needed"]
+  }
+]

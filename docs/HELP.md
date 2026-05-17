@@ -16,7 +16,7 @@ Current MVP features:
 - Keep Gmail sync metadata locally so repeat syncs are incremental.
 - Skip duplicate Gmail messages and duplicate attention items on repeat sync.
 - Show the latest sync/backfill counts: fetched, inserted, duplicates skipped, threads updated, and backlog cursor status.
-- Show current provider/storage status on the dashboard: AI analysis provider, calendar provider, execution provider, and Gmail full-body sync state.
+- Show current provider/storage status on the dashboard: AI analysis provider, live/mock mode, calendar provider, execution provider, and Gmail full-body sync state.
 - Store message metadata and snippets by default.
 - Fetch and store full Gmail conversation content manually from a message detail page.
 - Show a chronological Gmail conversation timeline on message detail pages.
@@ -40,9 +40,10 @@ Current MVP features:
 - Run Sent-mail learning to infer VIP candidates, salutation preference, and tone guidance.
 - Review/approve/reject/edit inferred VIP and voice guidance from the Voice Calibration page.
 - Review local draft suggestions from the Drafts page.
-- Analyze a stored Gmail conversation with the local mock AI analysis provider.
+- Analyze a stored Gmail conversation with the mock AI provider by default or a live AI provider when explicitly configured.
 - Store and view local conversation summaries.
 - Store and view proposed action review packages with a recommendation, explanation, confidence score, optional draft response, and local review status.
+- Validate structured AI output before storing it and fall back to the mock provider if live AI fails or returns invalid output.
 - Generate local calendar availability recommendations for scheduling requests and due-date reminders.
 - Locally approve, reject, edit, or snooze a review package without changing Gmail or any calendar.
 - Filter the attention queue by active/unreviewed, needs reply, important, noise, reviewed, date range, sender/contact, and source.
@@ -63,6 +64,7 @@ RTH CommsDesk does not currently:
 - Run non-mock production outbound provider calls by default in local development.
 - Auto-approve or auto-confirm execution actions.
 - Use paid or cloud AI credentials as a requirement for local draft generation.
+- Use live AI by default. Live AI is opt-in through environment variables and uses mock fallback.
 - Store full email bodies by default.
 
 ## Dashboard sections
@@ -175,7 +177,8 @@ Each click/run fetches one Gmail results page. The maximum page size is controll
 
 The dashboard shows the current local runtime mode:
 
-- AI analysis provider: usually `mock` until live AI is configured in a later phase.
+- AI analysis provider: usually `mock` unless live AI is explicitly configured.
+- AI mode/detail: shows whether the app is using the default mock path or a configured live provider with mock fallback.
 - Calendar provider: usually `mock` unless a read provider is configured.
 - Execution provider: `mock` in local development; execution still requires prepare, approve, and final confirm.
 - Gmail full-body sync: `Off` means sync stores metadata/snippets by default and full conversation content is fetched manually from message detail pages.
@@ -246,11 +249,17 @@ If a conversation has a review package, draft generation uses the stored convers
 
 If approved voice guidance exists, draft generation also applies inferred salutation style/preferred name and tone notes (for example, to avoid full-name formal greetings in friend threads or to keep client replies concise and professional).
 
+When live AI is configured, draft prompts include the full local conversation timeline, selected message, sender/recipient roles, contact relationship, approved voice guidance, recent corrections, and the proposed action context. Draft output is expected as structured JSON and is sanitized before local storage. If live AI fails or returns invalid output, CommsDesk stores a mock fallback draft and shows the fallback provider name on the draft review page.
+
 ### Analyze conversation
 
 On a message detail page, Analyze conversation creates or updates a local review package for that source message and thread.
 
-The local mock analysis provider can recommend:
+The mock analysis provider remains the default. To opt into live AI, set `AI_PROVIDER` to a non-mock provider name and provide `OPENAI_API_KEY` plus `AI_MODEL` in the environment. Optional live settings are `AI_BASE_URL`, `AI_TIMEOUT_SECONDS`, `AI_MAX_TOKENS`, and `AI_TEMPERATURE`.
+
+The analysis prompt includes the full local conversation timeline, selected message, sender/recipient roles, contact relationship, approved voice guidance, recent user corrections, and the known proposed action types. Live output must be structured JSON with summary, action type, explanation, confidence, optional draft body, detected due date, proposed lead time, and caveats. Invalid live output falls back to the mock provider.
+
+The analysis provider can recommend:
 
 - no response needed
 - reply

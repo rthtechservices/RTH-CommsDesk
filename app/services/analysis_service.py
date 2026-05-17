@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from decimal import Decimal
-from typing import Protocol
+from typing import Any, Protocol
 
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.models.entities import (
     AttentionItem,
     CalendarActionProposal,
@@ -30,6 +31,16 @@ from app.services.calendar_availability_service import (
 )
 from app.services.contact_service import contact_status, find_contact_by_sender_email
 from app.services.feedback_service import friendly_classification_label, summarize_classification
+from app.services.gmail_sync_service import deserialize_addresses
+from app.services.live_ai_client import (
+    AIProviderError,
+    OpenAICompatibleJsonClient,
+    ai_provider_status,
+    build_openai_json_client,
+    decimal_confidence,
+    sanitize_ai_text,
+)
+from app.services.voice_learning_service import resolve_guidance_for_message
 
 
 @dataclass(frozen=True)
@@ -39,6 +50,8 @@ class AnalysisMessageContext:
     sender_email: str
     subject: str
     received_at: datetime | None
+    recipient_emails: tuple[str, ...]
+    cc_emails: tuple[str, ...]
     text: str
     is_selected: bool
 
@@ -59,6 +72,9 @@ class AIAnalysisContext:
     attention_score: int | None
     attention_reason: str
     feedback_summary: str
+    learned_salutation_style: str
+    learned_preferred_name: str
+    learned_tone_notes: str
 
 
 @dataclass(frozen=True)
@@ -69,6 +85,7 @@ class AIAnalysisResult:
     confidence: Decimal
     draft_response: str | None = None
     detected_due_date: str | None = None
+    provider_name: str | None = None
 
 
 @dataclass(frozen=True)
@@ -170,6 +187,45 @@ class MockAIAnalysisProvider:
         )
 
 
+class OpenAIAnalysisProvider:
+    def __init__(self, *, client: OpenAICompatibleJsonClient | None = None) -> None:
+        self.client = client or build_openai_json_client()
+        self.name = f"openai:{self.client.model}"
+
+    def analyze(self, context: AIAnalysisContext) -> AIAnalysisResult:
+        system_prompt, user_prompt = build_analysis_prompt(context)
+        payload = self.client.complete_json(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+        )
+        return _analysis_result_from_payload(context, payload, provider_name=self.name)
+
+
+class FallbackAIAnalysisProvider:
+    def __init__(self, primary: AIAnalysisProvider, fallback: AIAnalysisProvider | None = None) -> None:
+        self.primary = primary
+        self.fallback = fallback or MockAIAnalysisProvider()
+        self.name = f"{self.primary.name}->mock_fallback"
+
+    def analyze(self, context: AIAnalysisContext) -> AIAnalysisResult:
+        try:
+            return self.primary.analyze(context)
+        except (AIProviderError, ValueError, TimeoutError):
+            result = self.fallback.analyze(context)
+            explanation = (
+                f"{result.explanation} Live AI was unavailable or returned invalid output; "
+                "the local mock fallback generated this review package."
+            )
+            return replace(result, explanation=explanation, provider_name=self.name)
+
+
+def get_default_analysis_provider() -> AIAnalysisProvider:
+    status = ai_provider_status(get_settings())
+    if status.live_enabled:
+        return FallbackAIAnalysisProvider(OpenAIAnalysisProvider())
+    return MockAIAnalysisProvider()
+
+
 def analyze_message(
     db: Session,
     message: Message,
@@ -177,7 +233,7 @@ def analyze_message(
     provider: AIAnalysisProvider | None = None,
     calendar_provider: CalendarAvailabilityProvider | None = None,
 ) -> AnalysisPersistenceResult:
-    analysis_provider = provider or MockAIAnalysisProvider()
+    analysis_provider = provider or get_default_analysis_provider()
     context = build_analysis_context(db, message)
     result = analysis_provider.analyze(context)
     calendar_provider = calendar_provider or get_default_calendar_provider()
@@ -187,8 +243,9 @@ def analyze_message(
         provider=calendar_provider,
     )
     merged_result = _merge_calendar_recommendation(context, result, calendar_recommendation)
-    summary = _upsert_conversation_summary(db, message.thread_id, merged_result, analysis_provider.name)
-    package = _upsert_review_package(db, message, summary, merged_result, analysis_provider.name)
+    provider_name = merged_result.provider_name or analysis_provider.name
+    summary = _upsert_conversation_summary(db, message.thread_id, merged_result, provider_name)
+    package = _upsert_review_package(db, message, summary, merged_result, provider_name)
     _upsert_calendar_action_proposal(
         db,
         package,
@@ -207,6 +264,7 @@ def build_analysis_context(db: Session, message: Message) -> AIAnalysisContext:
     classification = db.query(MessageClassification).filter_by(message_id=message.id).first()
     attention = db.query(AttentionItem).filter_by(message_id=message.id).first()
     timeline = conversation_context_messages(db, message.thread_id, message.id)
+    guidance = resolve_guidance_for_message(db, message, contact=contact)
     selected_text = next(
         (item.text for item in timeline if item.is_selected),
         _message_text(message),
@@ -226,6 +284,9 @@ def build_analysis_context(db: Session, message: Message) -> AIAnalysisContext:
         attention_score=attention.attention_score if attention else None,
         attention_reason=(attention.reason or "") if attention else "",
         feedback_summary=feedback_summary(db, message, contact),
+        learned_salutation_style=(guidance.salutation_style if guidance else "") or "",
+        learned_preferred_name=(guidance.preferred_name if guidance else "") or "",
+        learned_tone_notes=(guidance.tone_notes if guidance else "") or "",
     )
 
 
@@ -245,11 +306,132 @@ def conversation_context_messages(
             sender_email=(message.sender_email or "").strip(),
             subject=(message.subject or "").strip(),
             received_at=message.received_at,
+            recipient_emails=tuple(deserialize_addresses(message.recipient_emails)),
+            cc_emails=tuple(deserialize_addresses(message.cc_emails)),
             text=_message_text(message),
             is_selected=message.id == selected_message_id,
         )
         for message in messages
     ]
+
+
+def build_analysis_prompt(context: AIAnalysisContext) -> tuple[str, str]:
+    action_values = ", ".join(action.value for action in ProposedActionType)
+    system_prompt = (
+        "You analyze private communication threads for a local review-only dashboard. "
+        "Do not recommend sending, archiving, deleting, unsubscribing, or creating calendar "
+        "items directly. Return only a JSON object. Avoid generic filler such as "
+        "'thanks for reaching out' unless the thread specifically warrants it. If no response "
+        "is needed, set draft_response to null."
+    )
+    timeline = "\n".join(_prompt_timeline_line(message) for message in context.conversation_messages)
+    selected = next((message for message in context.conversation_messages if message.is_selected), None)
+    selected_line = _prompt_timeline_line(selected) if selected else context.selected_message_text
+    user_prompt = f"""
+Known proposed action types:
+{action_values}
+
+Required JSON schema:
+{{
+  "summary": "specific one or two sentence summary",
+  "action_type": "one of the known proposed action types",
+  "explanation": "grounded evidence for the recommendation",
+  "confidence": 0.0,
+  "draft_response": "reply draft or null",
+  "detected_due_date": "YYYY-MM-DD or null",
+  "proposed_lead_time_days": 7,
+  "caveats": ["optional review caveats"]
+}}
+
+Contact relationship:
+- name: {context.contact_name or "unknown"}
+- relationship: {context.contact_relationship}
+- importance tier: {context.contact_importance_tier}
+- contact state: {context.contact_state}
+
+Approved voice guidance:
+- salutation style: {context.learned_salutation_style or "none"}
+- preferred name: {context.learned_preferred_name or "none"}
+- tone notes: {context.learned_tone_notes or "none"}
+
+Classification and attention:
+- classification: {context.classification_label}
+- classification summary: {context.classification_summary}
+- attention score: {context.attention_score}
+- attention reason: {context.attention_reason}
+
+Recent user corrections:
+{context.feedback_summary}
+
+Selected message:
+{selected_line}
+
+Full conversation timeline:
+{timeline}
+
+Decision rules:
+- Friend acknowledgements of another person's cancellation usually need no response.
+- Client requests should recommend reply and mention the actual request in any draft.
+- Renewal or service-provider due dates should recommend create_calendar_reminder with a detected date and lead time.
+- Marketing/newsletter repetition should recommend mark_noise or unsubscribe_review with evidence.
+- Vague likely-actionable messages should recommend ask_clarifying_question or review_needed.
+""".strip()
+    return system_prompt, user_prompt
+
+
+def _analysis_result_from_payload(
+    context: AIAnalysisContext,
+    payload: dict[str, Any],
+    *,
+    provider_name: str,
+) -> AIAnalysisResult:
+    summary = sanitize_ai_text(payload.get("summary"), max_length=700)
+    explanation = sanitize_ai_text(payload.get("explanation"), max_length=1800)
+    if not summary or not explanation:
+        raise AIProviderError("AI output missed summary or explanation")
+
+    action_type = _parse_action_type(payload.get("action_type"))
+    confidence = decimal_confidence(payload.get("confidence"))
+    draft_response = sanitize_ai_text(payload.get("draft_response"), max_length=3000) or None
+    if action_type in {
+        ProposedActionType.NO_RESPONSE_NEEDED,
+        ProposedActionType.MARK_NOISE,
+        ProposedActionType.UNSUBSCRIBE_REVIEW,
+        ProposedActionType.CREATE_CALENDAR_REMINDER,
+        ProposedActionType.ARCHIVE_CANDIDATE,
+        ProposedActionType.DELETE_CANDIDATE,
+    }:
+        draft_response = None
+
+    if action_type == ProposedActionType.REPLY and draft_response:
+        request_detail = _request_detail(context).lower()
+        if request_detail and request_detail not in draft_response.lower():
+            explanation = (
+                f"{explanation} Draft was accepted but should be reviewed for specificity "
+                "against the actual request."
+            )
+
+    detected_due_date = sanitize_ai_text(payload.get("detected_due_date"), max_length=100) or None
+    proposed_lead_time = _parse_lead_time(payload.get("proposed_lead_time_days"))
+    if action_type == ProposedActionType.CREATE_CALENDAR_REMINDER and proposed_lead_time:
+        explanation = f"{explanation} Proposed lead time: {proposed_lead_time} days before due date."
+
+    caveats = payload.get("caveats")
+    if isinstance(caveats, list):
+        cleaned = [sanitize_ai_text(item, max_length=200) for item in caveats[:3]]
+        cleaned = [item for item in cleaned if item]
+        if cleaned:
+            explanation = f"{explanation} Caveats: {'; '.join(cleaned)}"
+
+    return AIAnalysisResult(
+        summary=summary,
+        action_type=action_type,
+        explanation=explanation,
+        confidence=confidence,
+        draft_response=draft_response,
+        detected_due_date=detected_due_date,
+        provider_name=provider_name,
+    )
 
 
 def recent_review_packages_for_message(
@@ -448,6 +630,7 @@ def _merge_calendar_recommendation(
         confidence=Decimal(str(max(float(result.confidence), recommendation.confidence))),
         draft_response=draft_response,
         detected_due_date=result.detected_due_date,
+        provider_name=result.provider_name,
     )
 
 
@@ -491,6 +674,41 @@ def _message_text(message: Message) -> str:
 
 def _clean_text(value: str) -> str:
     return re.sub(r"\s+", " ", value or "").strip().lower()
+
+
+def _prompt_timeline_line(message: AnalysisMessageContext | None) -> str:
+    if not message:
+        return ""
+    marker = "SELECTED" if message.is_selected else "thread"
+    received = message.received_at.isoformat() if message.received_at else "unknown time"
+    sender = message.sender_name or message.sender_email or "unknown sender"
+    recipients = ", ".join(message.recipient_emails) or "unknown recipients"
+    ccs = ", ".join(message.cc_emails) or "none"
+    body = sanitize_ai_text(message.text, max_length=1200)
+    return (
+        f"[{marker}] {received} | From: {sender} <{message.sender_email}> | "
+        f"To: {recipients} | Cc: {ccs} | Subject: {message.subject} | Body: {body}"
+    )
+
+
+def _parse_action_type(value: Any) -> ProposedActionType:
+    normalized = sanitize_ai_text(value, max_length=100).lower().replace("-", "_").replace(" ", "_")
+    try:
+        return ProposedActionType(normalized)
+    except ValueError as exc:
+        raise AIProviderError(f"AI output action type is not supported: {normalized}") from exc
+
+
+def _parse_lead_time(value: Any) -> int | None:
+    if value in {None, ""}:
+        return None
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return None
+    if parsed < 0 or parsed > 365:
+        return None
+    return parsed
 
 
 def _has_any(value: str, needles: list[str]) -> bool:

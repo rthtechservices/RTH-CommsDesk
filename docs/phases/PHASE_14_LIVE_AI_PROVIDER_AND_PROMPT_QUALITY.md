@@ -64,3 +64,32 @@ A service provider gives a due date. Expected result: reminder recommendation wi
 - AI output is structured, validated, and safely stored.
 - The UI indicates which provider generated a review package or draft.
 - The core smoke-test examples produce specific, non-generic outputs.
+
+## Completion notes — 2026-05-17
+
+Status: completed.
+
+Implemented:
+
+- Added an OpenAI-compatible live JSON provider path behind the existing analysis and draft provider interfaces.
+- Kept mock as the default provider when `AI_PROVIDER=mock` or live AI configuration is incomplete.
+- Added environment-only live AI settings: `AI_PROVIDER`, `OPENAI_API_KEY`, `AI_MODEL`, `AI_BASE_URL`, `AI_TIMEOUT_SECONDS`, `AI_MAX_TOKENS`, and `AI_TEMPERATURE`.
+- Added mock fallback wrappers for live analysis and draft generation when the live provider fails, times out, or returns invalid structured output.
+- Expanded analysis prompts with full conversation timeline, selected message, sender/recipient roles, contact relationship, approved voice guidance, recent corrections, known proposed action types, and anti-generic-filler instructions.
+- Expanded draft prompts with full conversation context, selected message/contact details, approved voice guidance, recent corrections, review-package context, and voice-profile guidance.
+- Added JSON validation/sanitization before storing AI-generated summaries, explanations, confidence, detected due dates, lead-time text, and draft bodies.
+- Persisted draft provider names with Alembic revision `0012_live_ai_provider_diagnostics`.
+- Surfaced AI provider status on the dashboard and `/api/ai/status`.
+- Displayed provider names on review-package and draft review pages/API payloads.
+- Added prompt-quality fixtures and regression tests for friend acknowledgement, client request, renewal reminder, newsletter/noise, and vague-message examples.
+
+Validation:
+
+- `python -m ruff check .` — passed.
+- `python -m pytest -q` — passed, 82 tests.
+
+Known limitations:
+
+- No live AI call was smoke-tested because no live provider credentials/model were provided in this session.
+- The live client uses an OpenAI-compatible chat-completions JSON endpoint configured by environment variables.
+- External Gmail/Calendar/Microsoft write-provider wiring remains Phase 15 scope.

@@ -363,6 +363,10 @@
           <span class="muted">AI analysis provider</span>
         </div>
         <div class="sync-stat">
+          <strong>{% if provider_status.ai_live_enabled %}Live{% else %}Mock{% endif %}</strong>
+          <span class="muted">{{ provider_status.ai_detail }}{% if provider_status.ai_model %} Model: {{ provider_status.ai_model }}.{% endif %}</span>
+        </div>
+        <div class="sync-stat">
           <strong>{{ provider_status.calendar_provider }}</strong>
           <span class="muted">Calendar provider</span>
         </div>

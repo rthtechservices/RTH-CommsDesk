@@ -83,6 +83,7 @@ from app.services.gmail_sync_service import (
     fetch_full_gmail_conversation,
     sync_gmail_backfill,
 )
+from app.services.live_ai_client import ai_provider_status
 from app.services.voice_learning_service import (
     run_sent_mail_learning,
     update_vip_candidate_status,
@@ -291,6 +292,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         .all()
     )
     automation_candidates = automation_candidates_for_dashboard(db, limit=12)
+    ai_status = ai_provider_status(settings)
     return templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -312,7 +314,12 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "review_packages": review_packages,
             "automation_candidates": automation_candidates,
             "provider_status": {
-                "ai_provider": settings.ai_provider,
+                "ai_provider": ai_status.effective_provider,
+                "ai_requested_provider": ai_status.requested_provider,
+                "ai_model": ai_status.model,
+                "ai_live_enabled": ai_status.live_enabled,
+                "ai_fallback_provider": ai_status.fallback_provider,
+                "ai_detail": ai_status.detail,
                 "calendar_provider": settings.calendar_provider,
                 "execution_provider": "mock",
                 "gmail_full_body": settings.gmail_store_full_body,

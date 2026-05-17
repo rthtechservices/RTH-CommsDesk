@@ -30,7 +30,7 @@ Each LLM session should complete one phase only, update the documentation, and s
 - AI classifier is provider-neutral but runs with deterministic logic/mock fallback by default.
 - Gmail sync is read-only and duplicate-safe. Recent sync handles the active inbox window, and manual backfill can page farther through the Gmail backlog.
 - Gmail conversation context can be fetched on demand so detail pages show a full thread timeline when full content is available.
-- Draft generation and AI analysis use deterministic mock/local providers by default; no paid AI credentials are required for local development.
+- Draft generation and AI analysis use deterministic mock/local providers by default; no paid AI credentials are required for local development. Live AI can be enabled through environment variables with mock fallback.
 - Local conversation summaries and proposed action review packages are stored for review only. They do not modify Gmail or calendars.
 - Sent-mail learning can infer VIP candidates and salutation/tone guidance, with explicit approve/reject/edit controls on the Voice Calibration page.
 - Bulk triage mode supports paginated queue processing, local automation candidate generation, and reversible bulk actions.
@@ -134,4 +134,4 @@ Do not delete or commit `client_secret.json`, `gmail_token.json`, `.env`, or any
 
 ## Current phase status
 
-Phases 01 through 12 are now implemented in this repository roadmap.
+Phases 01 through 14 are now implemented in this repository roadmap.

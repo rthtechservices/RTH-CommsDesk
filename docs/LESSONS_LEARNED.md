@@ -139,6 +139,14 @@ python -m pytest -q
 - For real-data queue progression tests, use reversible local actions such as bulk action undo where practical so Phase 13 validation does not leave unnecessary triage state changes behind.
 - Provider status belongs in the main workflow. Showing mock/live/local storage state on the dashboard helps prevent deterministic mock providers from being mistaken for live external integrations.
 
+## Live AI provider and prompt-quality lessons
+
+- Keep live AI enablement explicit: `AI_PROVIDER=mock` remains the safe default, and live analysis/drafts should require environment-provided API key and model values.
+- Treat live AI output as untrusted input. Require structured JSON, validate supported action types and confidence, strip control characters, cap stored text length, and drop drafts for no-response/noise/reminder recommendations.
+- Wrap live providers with deterministic mock fallback so review-package generation and local draft creation continue when a provider times out, fails, or returns invalid JSON.
+- Prompt-quality tests should exercise product examples, not only parser behavior: friend acknowledgements, client requests, renewal reminders, newsletters/noise, and vague actionable messages catch regressions that generic unit tests miss.
+- Store and display provider names for generated review packages and drafts so mock, live, and fallback outputs are auditable during real-data smoke testing.
+
 ## UI lessons
 
 - A raw list of scores and reasons is technically useful but not user-friendly.

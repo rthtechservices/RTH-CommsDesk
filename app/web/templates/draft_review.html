@@ -113,6 +113,10 @@
             <span>{{ draft.voice_profile.name if draft.voice_profile else "Local mock voice" }}</span>
           </div>
           <div>
+            <span class="label">Provider</span>
+            <span>{{ draft.provider_name }}</span>
+          </div>
+          <div>
             <span class="label">Source message</span>
             <span>
               {% if draft.message %}

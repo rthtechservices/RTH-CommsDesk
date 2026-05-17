@@ -15,7 +15,15 @@ from app.models.entities import (
     UserFeedback,
     VoiceProfile,
 )
-from app.services.draft_service import DraftContext, create_draft_reply
+from app.services.draft_service import (
+    FallbackDraftProvider,
+    OpenAIDraftProvider,
+    DraftContext,
+    build_draft_context,
+    build_draft_prompt,
+    create_draft_reply,
+)
+from app.services.live_ai_client import AIProviderError
 
 
 class CapturingDraftProvider:
@@ -31,6 +39,21 @@ class CapturingDraftProvider:
         return f"Review-only generated for {voice_profile.audience_type}: {context.subject}"
 
 
+class FakeDraftJsonClient:
+    model = "test-model"
+
+    def __init__(self, payload: dict | None = None, *, fail: bool = False) -> None:
+        self.payload = payload or {}
+        self.fail = fail
+        self.user_prompt = ""
+
+    def complete_json(self, *, system_prompt: str, user_prompt: str) -> dict:
+        self.user_prompt = user_prompt
+        if self.fail:
+            raise AIProviderError("simulated failure")
+        return self.payload
+
+
 def test_mock_draft_provider_uses_selected_voice_profile(db_session):
     message, client_voice, friend_voice = _seed_message_with_profiles(db_session)
 
@@ -43,6 +66,7 @@ def test_mock_draft_provider_uses_selected_voice_profile(db_session):
     assert client_draft.voice_profile_id == client_voice.id
     assert "Review-only draft suggestion" in client_draft.draft_text
     assert "clear next steps" in client_draft.draft_text
+    assert client_draft.provider_name == "mock"
 
     assert friend_draft.voice_profile_id == friend_voice.id
     assert "Hey Client Contact" in friend_draft.draft_text
@@ -61,6 +85,7 @@ def test_draft_context_includes_message_contact_scoring_and_feedback(db_session)
     )
 
     assert draft.draft_text == "Review-only generated for client: Contract question"
+    assert draft.provider_name == "capture"
     assert provider.context is not None
     assert provider.context.subject == "Contract question"
     assert provider.context.sender_email == "client@example.com"
@@ -123,7 +148,55 @@ def test_web_generate_draft_redirects_to_local_review_page(db_session):
     assert "Review-only local suggestion" in review_response.text
     assert "was not created in Gmail" in review_response.text
     assert "Prepare external Gmail draft execution" in review_response.text
+    assert "Provider" in review_response.text
     assert db_session.query(DraftReply).count() == 1
+
+
+def test_live_draft_prompt_and_provider_name_are_review_only(db_session):
+    message, client_voice, _ = _seed_message_with_profiles(db_session)
+    context = build_draft_context(db_session, message)
+    system_prompt, user_prompt = build_draft_prompt(context, client_voice)
+
+    assert "Return only a JSON object" in system_prompt
+    assert "Full conversation timeline" in user_prompt
+    assert "Approved voice guidance" in user_prompt
+    assert "Private full body should not be used by draft context" in user_prompt
+
+    client = FakeDraftJsonClient(
+        {
+            "draft_body": (
+                "Hi Client Contact,\n\nI can confirm the next step after reviewing the contract "
+                "question.\n\nBest"
+            ),
+            "caveats": [],
+        }
+    )
+    draft = create_draft_reply(
+        db_session,
+        message,
+        voice_profile_id=client_voice.id,
+        provider=OpenAIDraftProvider(client=client),
+    )
+
+    assert draft.provider_name == "openai:test-model"
+    assert "Review-only draft suggestion" in draft.draft_text
+    assert "contract question" in draft.draft_text.lower()
+
+
+def test_live_draft_provider_falls_back_safely(db_session):
+    message, client_voice, _ = _seed_message_with_profiles(db_session)
+    provider = FallbackDraftProvider(OpenAIDraftProvider(client=FakeDraftJsonClient(fail=True)))
+
+    draft = create_draft_reply(
+        db_session,
+        message,
+        voice_profile_id=client_voice.id,
+        provider=provider,
+    )
+
+    assert draft.provider_name == "openai:test-model->mock_fallback"
+    assert "mock fallback generated" in draft.draft_text
+    assert "Review-only draft suggestion" in draft.draft_text
 
 
 def _seed_message_with_profiles(db_session):

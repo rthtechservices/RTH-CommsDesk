@@ -5,6 +5,7 @@ from typing import Protocol
 
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.models.entities import (
     AttentionItem,
     Contact,
@@ -21,6 +22,13 @@ from app.services.analysis_service import (
 )
 from app.services.contact_service import contact_status, find_contact_by_sender_email
 from app.services.feedback_service import friendly_classification_label, summarize_classification
+from app.services.live_ai_client import (
+    AIProviderError,
+    OpenAICompatibleJsonClient,
+    ai_provider_status,
+    build_openai_json_client,
+    sanitize_ai_text,
+)
 from app.services.voice_learning_service import resolve_guidance_for_message
 
 SHORT_ACK_AUDIENCE = "short_acknowledgement"
@@ -148,6 +156,111 @@ class MockDraftProvider:
         return f"{note}\n\nSubject: {subject_line}\n\n{body}"
 
 
+class OpenAIDraftProvider:
+    def __init__(self, *, client: OpenAICompatibleJsonClient | None = None) -> None:
+        self.client = client or build_openai_json_client()
+        self.name = f"openai:{self.client.model}"
+
+    def generate(self, context: DraftContext, voice_profile: VoiceProfile) -> str:
+        system_prompt, user_prompt = build_draft_prompt(context, voice_profile)
+        payload = self.client.complete_json(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+        )
+        draft_body = sanitize_ai_text(payload.get("draft_body"), max_length=3000)
+        if not draft_body:
+            raise AIProviderError("AI draft output did not include draft_body")
+        note = "Review-only draft suggestion. This has not been sent."
+        caveats = payload.get("caveats")
+        if isinstance(caveats, list):
+            cleaned = [sanitize_ai_text(item, max_length=180) for item in caveats[:2]]
+            cleaned = [item for item in cleaned if item]
+            if cleaned:
+                note = f"{note} Caveats: {'; '.join(cleaned)}."
+        subject_line = f"Re: {context.subject}" if context.subject else "Re: your note"
+        return f"{note}\n\nSubject: {subject_line}\n\n{draft_body}"
+
+
+class FallbackDraftProvider:
+    def __init__(self, primary: DraftProvider, fallback: DraftProvider | None = None) -> None:
+        self.primary = primary
+        self.fallback = fallback or MockDraftProvider()
+        self.name = f"{self.primary.name}->mock_fallback"
+
+    def generate(self, context: DraftContext, voice_profile: VoiceProfile) -> str:
+        try:
+            return self.primary.generate(context, voice_profile)
+        except (AIProviderError, ValueError, TimeoutError):
+            fallback_text = self.fallback.generate(context, voice_profile)
+            return (
+                "Live AI was unavailable or returned invalid output; mock fallback generated "
+                "this local draft.\n\n"
+                f"{fallback_text}"
+            )
+
+
+def get_default_draft_provider() -> DraftProvider:
+    status = ai_provider_status(get_settings())
+    if status.live_enabled:
+        return FallbackDraftProvider(OpenAIDraftProvider())
+    return MockDraftProvider()
+
+
+def build_draft_prompt(context: DraftContext, voice_profile: VoiceProfile) -> tuple[str, str]:
+    system_prompt = (
+        "You write local review-only email draft suggestions. Do not claim anything was sent, "
+        "scheduled, archived, or created externally. Return only a JSON object with draft_body "
+        "and optional caveats. Avoid generic filler and mention the actual request when replying."
+    )
+    user_prompt = f"""
+Required JSON schema:
+{{
+  "draft_body": "plain text reply body only, no subject line",
+  "caveats": ["optional review caveats"]
+}}
+
+Voice profile:
+- name: {voice_profile.name}
+- audience: {voice_profile.audience_type}
+- tone: {voice_profile.tone_description}
+- formality: {voice_profile.formality_level}
+- signoff style: {voice_profile.signoff_style}
+- preferred phrases: {voice_profile.preferred_phrases or "none"}
+- banned phrases: {voice_profile.banned_phrases or "none"}
+- max length preference: {voice_profile.max_length_preference or "none"}
+
+Selected message and relationship:
+- subject: {context.subject}
+- sender: {context.sender_name or context.sender_email}
+- sender email: {context.sender_email}
+- contact: {context.contact_name or "unknown"}
+- relationship: {context.contact_relationship}
+- contact state: {context.contact_state}
+
+Approved voice guidance:
+- salutation style: {context.learned_salutation_style or "none"}
+- preferred name: {context.learned_preferred_name or "none"}
+- tone notes: {context.learned_tone_notes or "none"}
+
+Review package context:
+- conversation summary: {context.conversation_summary or "none"}
+- proposed action type: {context.proposed_action_type or "none"}
+- proposed action explanation: {context.proposed_action_explanation or "none"}
+- existing draft response: {context.review_package_draft_response or "none"}
+
+Classification and corrections:
+- classification: {context.classification_label}
+- classification summary: {context.classification_summary}
+- attention score: {context.attention_score}
+- attention reason: {context.attention_reason}
+- recent corrections: {context.feedback_summary}
+
+Full conversation timeline:
+{context.full_thread_context}
+""".strip()
+    return system_prompt, user_prompt
+
+
 def create_draft_reply(
     db: Session,
     message: Message,
@@ -159,7 +272,7 @@ def create_draft_reply(
     voice_profile = select_voice_profile(
         db, message=message, voice_profile_id=voice_profile_id, audience_type=audience_type
     )
-    draft_provider = provider or MockDraftProvider()
+    draft_provider = provider or get_default_draft_provider()
     context = build_draft_context(db, message)
     draft = DraftReply(
         thread_id=message.thread_id,
@@ -167,6 +280,7 @@ def create_draft_reply(
         voice_profile_id=voice_profile.id if voice_profile else None,
         status=DraftStatus.GENERATED,
         draft_text=draft_provider.generate(context, voice_profile or _fallback_voice_profile()),
+        provider_name=draft_provider.name,
     )
     db.add(draft)
     db.commit()

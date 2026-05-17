@@ -24,6 +24,11 @@ class Settings(BaseSettings):
 
     ai_provider: str = "mock"
     openai_api_key: str | None = None
+    ai_model: str | None = None
+    ai_base_url: str = "https://api.openai.com/v1"
+    ai_timeout_seconds: float = 20.0
+    ai_max_tokens: int = 1200
+    ai_temperature: float = 0.2
     calendar_provider: str = "mock"
     google_calendar_read_enabled: bool = False
     outlook_calendar_read_enabled: bool = False

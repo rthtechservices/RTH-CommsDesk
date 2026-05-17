@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from decimal import Decimal
 
 from fastapi.testclient import TestClient
@@ -18,7 +20,14 @@ from app.models.entities import (
     ReviewPackageStatus,
     UserFeedback,
 )
-from app.services.analysis_service import analyze_message
+from app.services.analysis_service import (
+    FallbackAIAnalysisProvider,
+    OpenAIAnalysisProvider,
+    analyze_message,
+    build_analysis_context,
+    build_analysis_prompt,
+)
+from app.services.live_ai_client import AIProviderError
 from app.services.draft_service import DraftContext, create_draft_reply
 
 
@@ -31,6 +40,70 @@ class CapturingProvider:
     def generate(self, context: DraftContext, voice_profile) -> str:
         self.context = context
         return "captured draft"
+
+
+class FakeJsonClient:
+    model = "test-model"
+
+    def __init__(self, payload: dict | None = None, *, fail: bool = False) -> None:
+        self.payload = payload or {}
+        self.fail = fail
+        self.system_prompt = ""
+        self.user_prompt = ""
+
+    def complete_json(self, *, system_prompt: str, user_prompt: str) -> dict:
+        self.system_prompt = system_prompt
+        self.user_prompt = user_prompt
+        if self.fail:
+            raise AIProviderError("simulated failure")
+        return self.payload
+
+
+def test_prompt_quality_fixture_examples_produce_specific_actions(db_session):
+    fixture_path = Path(__file__).parent / "fixtures" / "prompt_quality_cases.json"
+    cases = json.loads(fixture_path.read_text(encoding="utf-8"))
+
+    for case in cases:
+        contact_id = None
+        relationship = case.get("relationship_type")
+        if relationship:
+            contact = Contact(
+                display_name="Client Contact",
+                primary_email=case["messages"][-1]["sender_email"],
+                relationship_type=relationship,
+                importance_tier=4,
+            )
+            db_session.add(contact)
+            db_session.flush()
+            contact_id = contact.id
+        _, selected = _seed_thread(
+            db_session,
+            case["messages"],
+            subject=f"{case['subject']} {case['name']}",
+            contact_id=contact_id,
+            classification_kwargs=case.get("classification"),
+        )
+
+        result = analyze_message(db_session, selected)
+        action = result.review_package.action_type.value
+
+        if "expected_action" in case:
+            assert action == case["expected_action"]
+        else:
+            assert action in case["expected_action_any"]
+        if case.get("expected_due_date"):
+            assert result.conversation_summary.detected_due_date == case["expected_due_date"]
+        if case.get("expected_text"):
+            combined = " ".join(
+                [
+                    result.conversation_summary.summary_text,
+                    result.review_package.explanation,
+                    result.review_package.draft_response or "",
+                ]
+            ).lower()
+            assert case["expected_text"].lower() in combined
+        for term in case.get("forbidden_draft_terms", []):
+            assert term.lower() not in (result.review_package.draft_response or "").lower()
 
 
 def test_dinner_cancellation_acknowledgement_needs_no_response(db_session):
@@ -83,6 +156,7 @@ def test_icbc_renewal_creates_local_calendar_reminder_candidate(db_session):
     assert "2026-06-12" in result.conversation_summary.summary_text
     assert result.conversation_summary.detected_due_date == "2026-06-12"
     assert "before the due date" in result.review_package.explanation
+    assert "Reminder candidate" in result.conversation_summary.summary_text
     assert result.review_package.is_external_action is False
 
 
@@ -195,6 +269,100 @@ def test_draft_context_uses_review_package_summary_action_and_thread(db_session)
     assert "classification_correction: needs_reply" in provider.context.feedback_summary
 
 
+def test_analysis_prompt_includes_required_context(db_session):
+    contact = Contact(
+        display_name="Client Contact",
+        primary_email="client@example.com",
+        relationship_type="client",
+        importance_tier=4,
+    )
+    db_session.add(contact)
+    db_session.flush()
+    _, selected = _seed_thread(
+        db_session,
+        [
+            {
+                "sender_display_name": "Client Contact",
+                "sender_email": "client@example.com",
+                "body_text": "Can you help with the access issue?",
+                "recipient_emails": "rohan@example.com",
+            }
+        ],
+        subject="Access issue",
+        contact_id=contact.id,
+        classification_kwargs={"requires_reply": True, "is_client_work": True},
+    )
+
+    context = build_analysis_context(db_session, selected)
+    system_prompt, user_prompt = build_analysis_prompt(context)
+
+    assert "Return only a JSON object" in system_prompt
+    assert "Known proposed action types" in user_prompt
+    assert "Full conversation timeline" in user_prompt
+    assert "Selected message" in user_prompt
+    assert "relationship: client" in user_prompt
+    assert "To: rohan@example.com" in user_prompt
+    assert "avoid generic filler" in system_prompt.lower()
+
+
+def test_openai_analysis_provider_validates_structured_output(db_session):
+    _, selected = _seed_thread(
+        db_session,
+        [
+            {
+                "sender_display_name": "Client Contact",
+                "sender_email": "client@example.com",
+                "body_text": "Can you send the support checklist?",
+            }
+        ],
+        subject="Support checklist",
+        classification_kwargs={"requires_reply": True, "is_client_work": True},
+    )
+    client = FakeJsonClient(
+        {
+            "summary": "Client Contact asked for the support checklist.",
+            "action_type": "reply",
+            "explanation": "The selected message asks for a specific checklist.",
+            "confidence": 0.86,
+            "draft_response": "Hi Client Contact,\n\nI can send the support checklist today.\n\nBest",
+            "detected_due_date": None,
+            "caveats": [],
+        }
+    )
+
+    result = analyze_message(db_session, selected, provider=OpenAIAnalysisProvider(client=client))
+
+    assert result.review_package.provider_name == "openai:test-model"
+    assert result.review_package.action_type == ProposedActionType.REPLY
+    assert "support checklist" in result.review_package.draft_response
+    assert "support checklist" in client.user_prompt
+
+
+def test_live_analysis_provider_falls_back_safely_on_failure(db_session):
+    _, selected = _seed_thread(
+        db_session,
+        [
+            {
+                "sender_display_name": "Marketing List",
+                "sender_email": "news@example.com",
+                "body_text": "Newsletter promotion. Click unsubscribe.",
+            }
+        ],
+        subject="Deals",
+        classification_kwargs={"is_newsletter": True, "is_marketing": True},
+    )
+    provider = FallbackAIAnalysisProvider(OpenAIAnalysisProvider(client=FakeJsonClient(fail=True)))
+
+    result = analyze_message(db_session, selected, provider=provider)
+
+    assert result.review_package.provider_name == "openai:test-model->mock_fallback"
+    assert result.review_package.action_type in {
+        ProposedActionType.MARK_NOISE,
+        ProposedActionType.UNSUBSCRIBE_REVIEW,
+    }
+    assert "mock fallback" in result.review_package.explanation
+
+
 def test_review_package_web_flow_is_local_only(db_session):
     _, selected = _seed_thread(
         db_session,
@@ -264,6 +432,8 @@ def _seed_thread(
             snippet=payload.get("snippet") or payload.get("body_text"),
             sender_display_name=payload.get("sender_display_name"),
             sender_email=payload.get("sender_email"),
+            recipient_emails=payload.get("recipient_emails"),
+            cc_emails=payload.get("cc_emails"),
             body_text=payload.get("body_text"),
         )
         db_session.add(message)

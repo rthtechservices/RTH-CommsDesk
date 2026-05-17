@@ -319,6 +319,7 @@ class DraftReply(Base):
     voice_profile_id: Mapped[int | None] = mapped_column(ForeignKey("voice_profiles.id"))
     draft_text: Mapped[str] = mapped_column(Text)
     status: Mapped[DraftStatus] = mapped_column(Enum(DraftStatus), default=DraftStatus.GENERATED)
+    provider_name: Mapped[str] = mapped_column(String(100), default="mock")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow

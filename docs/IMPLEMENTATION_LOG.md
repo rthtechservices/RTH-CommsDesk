@@ -31,6 +31,68 @@ Record completed work here at the end of every phase. Newest entries should be a
 - 
 ```
 
+## 2026-05-17 — Phase 14: Live AI Provider Integration and Prompt Quality
+
+### Summary
+- Added an OpenAI-compatible live JSON AI client behind the existing provider-neutral analysis and draft interfaces.
+- Kept the mock provider as the default local/test path and added mock fallback when live AI is unconfigured, fails, times out, or returns invalid structured output.
+- Expanded analysis and draft prompts to include full conversation timeline, selected message, sender/recipient roles, contact relationship, approved voice guidance, recent corrections, known action types, and anti-generic-filler instructions.
+- Added structured AI output validation/sanitization before storing summaries, review packages, detected due dates, explanation text, confidence, and draft bodies.
+- Added AI provider status diagnostics in the dashboard and `/api/ai/status`, and persisted/displayed the provider that generated draft suggestions.
+- Added prompt-quality fixture coverage for friend acknowledgement, client request, renewal reminder, newsletter/noise, and vague-message cases.
+
+### Files changed
+- `app/services/live_ai_client.py`
+- `app/services/analysis_service.py`
+- `app/services/draft_service.py`
+- `app/core/config.py`
+- `app/models/entities.py`
+- `alembic/versions/0012_live_ai_provider_diagnostics.py`
+- `app/api/routes.py`
+- `app/web/routes.py`
+- `app/web/templates/dashboard.html`
+- `app/web/templates/draft_review.html`
+- `tests/test_ai_analysis.py`
+- `tests/test_draft_generation.py`
+- `tests/fixtures/prompt_quality_cases.json`
+- `.env.example`
+- `README.md`
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/HELP.md`
+- `docs/PHASE_PLAN.md`
+- `docs/PHASE_STATUS.md`
+- `docs/phases/PHASE_14_LIVE_AI_PROVIDER_AND_PROMPT_QUALITY.md`
+
+### Tests run
+- `python -m ruff check .` — passed.
+- `python -m pytest -q` — passed, 82 tests.
+
+### Smoke tests
+- App startup: `python -m uvicorn app.main:app --host 127.0.0.1 --port 8144` returned dashboard HTTP 200.
+- Dashboard: startup smoke and automated route tests confirmed dashboard render and provider status text.
+- Browser render: in-app browser opened `http://127.0.0.1:8145/` and confirmed the dashboard, AI analysis provider, mock-provider detail, and Gmail full-body sync status rendered.
+- Key workflow: automated tests cover prompt construction, structured output validation, provider fallback, provider-name persistence, and the five prompt-quality examples.
+
+### Documentation updated
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/HELP.md`
+- `.env.example`
+- `README.md`
+- `docs/PHASE_PLAN.md`
+- `docs/PHASE_STATUS.md`
+- `docs/phases/PHASE_14_LIVE_AI_PROVIDER_AND_PROMPT_QUALITY.md`
+
+### Known issues
+- No live AI call was made during this phase because no live provider credentials/model were provided for smoke testing.
+- The live provider uses an OpenAI-compatible chat-completions JSON endpoint configured by environment variables; model choice remains an operator configuration decision.
+- External Gmail/Calendar/Microsoft write-provider wiring remains Phase 15 scope.
+
+### Recommended next actions
+- Human review and optional live AI smoke test with `AI_PROVIDER`, `OPENAI_API_KEY`, and `AI_MODEL` set in local environment.
+- Proceed to Phase 15: Real Provider Wiring for Gmail, Calendar, and Microsoft Graph.
+
 ## 2026-05-16 — Phase 13: Stabilization, Real-Data Smoke Testing, and Regression Cleanup
 
 ### Summary
