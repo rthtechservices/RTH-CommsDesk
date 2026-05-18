@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Provider Status | RTH CommsDesk</title>
+    <style>
+      :root {
+        --bg: #f6f7f9;
+        --surface: #ffffff;
+        --line: #d9dee6;
+        --text: #17202a;
+        --muted: #607080;
+        --brand: #246b5a;
+        --warn: #8a4b12;
+        --bad: #8a1f1f;
+        --ok: #246b5a;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 15px;
+        line-height: 1.45;
+      }
+      a { color: var(--brand); font-weight: 700; text-decoration: none; }
+      .wrap { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 22px 0 42px; }
+      .panel { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 16px; margin-bottom: 16px; }
+      .muted { color: var(--muted); }
+      .stats { display: flex; flex-wrap: wrap; gap: 10px; }
+      .stat { min-width: 130px; border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: #fbfcfd; }
+      .stat strong { display: block; font-size: 20px; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { border-top: 1px solid var(--line); padding: 9px 7px; text-align: left; vertical-align: top; }
+      th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
+      .state { display: inline-block; border-radius: 999px; padding: 2px 8px; font-size: 12px; font-weight: 800; background: #eef1f4; }
+      .state.live { color: var(--ok); }
+      .state.mock, .state.dry_run { color: var(--warn); }
+      .state.missing_configuration, .state.failed { color: var(--bad); }
+      .state.disabled { color: var(--muted); }
+      @media (max-width: 760px) {
+        table, thead, tbody, tr, th, td { display: block; }
+        th { display: none; }
+        td { border-top: 0; padding: 4px 0; }
+        tr { border-top: 1px solid var(--line); padding: 10px 0; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <a href="/">Back to dashboard</a>
+      <h1>Provider Status</h1>
+      <p class="muted">External providers fail closed. Live writes require feature flags, approval, final confirmation, and dry-run must be turned off deliberately.</p>
+
+      <section class="panel stats">
+        {% for state, count in state_counts.items() %}
+        <div class="stat">
+          <strong>{{ count }}</strong>
+          <span class="muted">{{ state.replace("_", " ").title() }}</span>
+        </div>
+        {% endfor %}
+      </section>
+
+      <section class="panel">
+        <table>
+          <thead>
+            <tr>
+              <th>Provider/action</th>
+              <th>Classification</th>
+              <th>State</th>
+              <th>Mode</th>
+              <th>Detail</th>
+              <th>Next action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in provider_rows %}
+            <tr>
+              <td><strong>{{ row.label }}</strong></td>
+              <td>{{ row.classification }}</td>
+              <td><span class="state {{ row.state }}">{{ row.state.replace("_", " ").title() }}</span></td>
+              <td>{{ row.mode }}</td>
+              <td>{{ row.detail }}</td>
+              <td>{{ row.next_action }}</td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="6" class="muted">No provider status rows are available.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </body>
+</html>

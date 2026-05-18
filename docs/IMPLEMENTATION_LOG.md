@@ -2,6 +2,110 @@
 
 Record completed work here at the end of every phase. Newest entries should be added at the top.
 
+## 2026-05-18 — Phase 16: Product UX and Workflow Consolidation
+
+### Summary
+- Reworked the dashboard into a communications command center with Needs My Attention, Proposed Actions, Ready For Approval, Calendar Candidates, Noise/Unsubscribe Candidates, Backlog Progress, and Provider Status Warnings.
+- Added `/providers` as a provider matrix surface linked from the dashboard runtime status.
+- Expanded review package detail into the central work item view with item position, conversation timeline, contact context, matched voice guidance, recommendation, draft/action payload, and approval/edit/reject/snooze controls.
+- Improved empty states and next-action text so the dashboard points to sync, filters, review packages, providers, or executions instead of dead ends.
+- Preserved existing pages and functionality while making local-only recommendations and external execution flow visibly distinct.
+
+### Files changed
+- `app/web/routes.py`
+- `app/web/templates/dashboard.html`
+- `app/web/templates/review_package_detail.html`
+- `app/web/templates/providers.html`
+- `tests/test_app_bootstrap.py`
+- `tests/test_provider_status.py`
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/HELP.md`
+- `docs/PHASE_STATUS.md`
+- `docs/phases/PHASE_16_PRODUCT_UX_AND_WORKFLOW_CONSOLIDATION.md`
+
+### Tests run
+- `python -m ruff check .` — passed.
+- `python -m pytest -q` — passed, 97 tests.
+- `python -m pytest tests/test_provider_status.py tests/test_execution_service.py tests/test_app_bootstrap.py -q` — passed, 22 tests.
+
+### Smoke tests
+- App startup/routes: temporary Uvicorn on port 8176 returned HTTP 200 for `/`, `/providers`, `/review-packages`, `/bulk-triage`, `/executions`, `/admin`, and `/healthz`.
+- Dashboard: route smoke and automated tests confirm the command center/provider matrix text renders.
+- Azure OpenAI live check: `POST /api/ai/test` returned success with deployment `gpt-4.1-mini` and HTTP 200.
+- Key workflow: automated route tests cover provider page/API status, dry-run execution behavior, fail-closed execution flags, dashboard render, and existing execution routes.
+
+### Documentation updated
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/HELP.md`
+- `docs/PHASE_STATUS.md`
+- `docs/phases/PHASE_16_PRODUCT_UX_AND_WORKFLOW_CONSOLIDATION.md`
+
+### Known issues
+- This phase did not redesign every template or add new schema. It consolidated the main command workflow and review package detail while preserving existing screens.
+- Browser visual QA beyond HTTP route smoke was not run.
+
+### Recommended next actions
+- Human review of the dashboard command center, provider matrix, review package detail, and execution confirmation copy before any future Phase 17 work.
+
+## 2026-05-18 — Phase 15 Complete: Real Provider Wiring Remainder
+
+### Summary
+- Added a provider status service and `/providers` UI/API matrix covering Gmail read, Gmail draft creation, Gmail send reply, Gmail label/archive, Google Calendar read/write, Microsoft Graph Outlook mail, Microsoft Graph Teams, Outlook Calendar read, notification webhook, and Azure/OpenAI-compatible AI.
+- Added explicit provider classifications and states: live-ready, mock-only, adapter-shape-only, partially wired; live, mock, disabled, missing configuration, dry-run, and failed.
+- Added guarded external execution provider support with dry-run results for Gmail draft creation, Gmail send reply, Google Calendar event/reminder creation, and Gmail label/archive actions.
+- Kept `EXECUTION_PROVIDER=mock` and all external write feature flags disabled by default.
+- Added Google Calendar read/freebusy and write/event client seams using optional Google dependencies and explicit feature flags.
+- Added Microsoft Graph app-only OAuth/client setup for Outlook mail where tenant app permissions are configured; Teams and Outlook Calendar remain fail-closed with documented prerequisites.
+- Added skipped live integration seam coverage and deterministic tests for provider status and dry-run/fail-closed execution.
+
+### Files changed
+- `app/core/config.py`
+- `app/services/provider_status_service.py`
+- `app/services/external_provider_clients.py`
+- `app/services/microsoft_graph_client.py`
+- `app/services/execution_service.py`
+- `app/services/calendar_availability_service.py`
+- `app/connectors/outlook/client.py`
+- `app/api/routes.py`
+- `.env.example`
+- `README.md`
+- `docs/DEPLOYMENT.md`
+- `docs/HELP.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/phases/PHASE_15_REAL_PROVIDER_WIRING.md`
+- `tests/test_execution_service.py`
+- `tests/test_provider_status.py`
+
+### Tests run
+- `python -m ruff check .` — passed.
+- `python -m pytest -q` — passed, 97 tests.
+- `python -m pytest tests/test_provider_status.py tests/test_execution_service.py tests/test_app_bootstrap.py -q` — passed, 22 tests.
+
+### Smoke tests
+- Migration from empty DB to head: passed against disposable SQLite DB, Alembic head `0012_live_ai_provider_diagnostics`.
+- App startup/routes: temporary Uvicorn on port 8176 returned HTTP 200 for `/`, `/providers`, `/review-packages`, `/bulk-triage`, `/executions`, `/admin`, and `/healthz`.
+- Azure OpenAI live check: `POST /api/ai/test` returned success with deployment `gpt-4.1-mini` and HTTP 200.
+- Key workflow: dry-run external execution returns `external_write_performed=false`; missing feature flags fail closed and record failed execution status.
+
+### Documentation updated
+- `.env.example`
+- `README.md`
+- `docs/DEPLOYMENT.md`
+- `docs/HELP.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/PHASE_STATUS.md`
+- `docs/phases/PHASE_15_REAL_PROVIDER_WIRING.md`
+
+### Known issues
+- No real external write was executed. This is intentional; all live write flags default off and dry-run defaults on.
+- Microsoft Graph Teams and Outlook Calendar are documented as tenant-permission-dependent adapter paths and remain fail-closed.
+- Gmail write scopes may require reauthorizing the local OAuth token before non-dry-run Gmail draft/send/label actions can work.
+
+### Recommended next actions
+- Human review and optional manual dry-run smoke before any non-dry-run external write testing.
+
 ## Entry template
 
 ```markdown

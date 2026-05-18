@@ -76,3 +76,43 @@ Actions: Approve reminder, Edit date, Reject, Open message.
 - Review packages are easy to find, inspect, approve, reject, or snooze.
 - The user can process a batch without bouncing among unrelated pages.
 - Local-only actions and external-write actions are clearly distinguished.
+
+## Completion notes — 2026-05-18
+
+Status: completed for Phase 16 scope.
+
+Implemented:
+
+- Refined the dashboard into a command center with:
+  - Needs My Attention
+  - Proposed Actions
+  - Ready For Approval
+  - Calendar Candidates
+  - Noise And Unsubscribe Candidates
+  - Backlog Progress
+  - Provider Status Warnings
+- Added `/providers` navigation so fallback/provider state is easy to inspect.
+- Expanded review package detail with:
+  - item position, such as `Item 3 of 17`
+  - conversation summary
+  - full local conversation timeline
+  - recommended action
+  - draft/action payload
+  - confidence and explanation
+  - contact context
+  - approved voice guidance used
+  - approve/edit/reject/snooze controls
+  - explicit external-execution handoff note
+- Improved empty-state copy on the dashboard, proposed action lists, approval queue, calendar candidates, and provider page.
+- Preserved existing detail pages and workflows instead of replacing them with a broad redesign.
+
+Validation:
+
+- `python -m ruff check .` — passed.
+- `python -m pytest -q` — passed, 97 tests.
+- Temporary Uvicorn route smoke for `/`, `/providers`, `/review-packages`, `/bulk-triage`, `/executions`, `/admin`, and `/healthz` — passed.
+
+Known limitations:
+
+- This phase did not add a JavaScript keyboard shortcut system.
+- This phase did not restyle every legacy page. The focus was workflow clarity and main review surfaces.

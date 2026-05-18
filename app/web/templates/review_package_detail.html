@@ -133,6 +133,9 @@
       <a href="/review-packages">Back to review packages</a>
       {% if package %}
       <h1>Review Package</h1>
+      {% if package_position and package_total %}
+      <p class="muted">Item {{ package_position }} of {{ package_total }}</p>
+      {% endif %}
       <p class="notice">Local recommendation only. Approving, rejecting, editing, or snoozing this package does not modify Gmail or any calendar.</p>
 
       <section class="panel">
@@ -168,6 +171,20 @@
             </span>
           </div>
           <div>
+            <span class="label">Contact context</span>
+            <span>
+              {% if contact %}
+              {{ contact.display_name or contact.primary_email or "Known contact" }}
+              | {{ contact.relationship_type }}
+              | importance {{ contact.importance_tier }}
+              {% if contact.is_vip %} | VIP{% endif %}
+              {% if contact.is_noise %} | Noise{% endif %}
+              {% else %}
+              No matched contact profile.
+              {% endif %}
+            </span>
+          </div>
+          <div>
             <span class="label">Provider</span>
             <span>{{ package.provider_name }}</span>
           </div>
@@ -184,6 +201,51 @@
         <pre>{{ package.draft_response }}</pre>
       </section>
       {% endif %}
+
+      <section class="panel">
+        <h2>Conversation Timeline</h2>
+        <div class="facts">
+          {% for row in timeline %}
+          <div>
+            <span class="label">
+              {% if row.message.received_at %}{{ row.message.received_at.strftime("%Y-%m-%d %H:%M") }}{% else %}Message{% endif %}
+            </span>
+            <span>
+              <strong>{{ row.message.sender_display_name or row.message.sender_email or "Unknown sender" }}</strong>
+              {% if row.is_selected %}<span class="muted"> | selected item</span>{% endif %}
+              <br />
+              {{ row.message.body_text or row.message.snippet or "No local body/snippet stored." }}
+            </span>
+          </div>
+          {% else %}
+          <div>
+            <span class="label">Timeline</span>
+            <span>No conversation timeline is available. Fetch full Gmail conversation from the source message when appropriate.</span>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Voice Guidance Used</h2>
+        <div class="facts">
+          {% for guidance in active_guidance %}
+          <div>
+            <span class="label">{{ guidance.source }}</span>
+            <span>
+              {{ guidance.salutation_style or "default salutation" }}
+              {% if guidance.preferred_name %} | {{ guidance.preferred_name }}{% endif %}
+              {% if guidance.tone_notes %} | {{ guidance.tone_notes }}{% endif %}
+            </span>
+          </div>
+          {% else %}
+          <div>
+            <span class="label">Guidance</span>
+            <span>No approved voice guidance matched this contact or relationship.</span>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
 
       {% if package.calendar_proposals %}
       {% set proposal = package.calendar_proposals[0] %}
@@ -255,6 +317,7 @@
         <form method="post" action="/review-packages/{{ package.id }}/prepare-execution" style="margin-top: 10px">
           <button type="submit">Prepare execution from this review package</button>
         </form>
+        <p class="muted">External actions move to the execution queue and still require approve plus final confirm.</p>
       </section>
       {% else %}
       <div class="empty">Review package not found.</div>

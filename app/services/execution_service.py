@@ -7,6 +7,7 @@ from typing import Protocol
 
 from sqlalchemy.orm import Session
 
+from app.core.config import Settings, get_settings
 from app.models.entities import (
     CalendarActionProposal,
     DraftReply,
@@ -19,6 +20,7 @@ from app.models.entities import (
     ReviewPackageStatus,
     utcnow,
 )
+from app.services.external_provider_clients import GmailWriteClient, GoogleCalendarClient
 
 
 class ExecutionProvider(Protocol):
@@ -59,6 +61,70 @@ class MockExecutionProvider:
         return {"operation_id": _mock_id("destructive", payload), "status": "executed"}
 
 
+class GuardedExternalExecutionProvider:
+    def __init__(
+        self,
+        settings: Settings | None = None,
+        *,
+        gmail_client: GmailWriteClient | None = None,
+        calendar_client: GoogleCalendarClient | None = None,
+    ) -> None:
+        self.settings = settings or get_settings()
+        self.gmail_client = gmail_client or GmailWriteClient(self.settings)
+        self.calendar_client = calendar_client or GoogleCalendarClient(self.settings)
+        self.name = "external-dry-run" if self.settings.external_write_dry_run else "external-live"
+
+    def create_external_gmail_draft(self, payload: dict) -> dict:
+        self._require(
+            self.settings.gmail_write_enabled and self.settings.gmail_draft_create_enabled,
+            "Gmail external draft creation",
+        )
+        if self.settings.external_write_dry_run:
+            return self._dry_run_result("create_external_gmail_draft", payload)
+        return self.gmail_client.create_draft(payload)
+
+    def send_gmail_reply(self, payload: dict) -> dict:
+        self._require(
+            self.settings.gmail_write_enabled and self.settings.gmail_send_enabled,
+            "Gmail send reply",
+        )
+        if self.settings.external_write_dry_run:
+            return self._dry_run_result("send_gmail_reply", payload)
+        return self.gmail_client.send_reply(payload)
+
+    def create_calendar_event(self, payload: dict) -> dict:
+        self._require(self.settings.google_calendar_write_enabled, "Google Calendar write")
+        if self.settings.external_write_dry_run:
+            return self._dry_run_result("create_calendar_event", payload)
+        return self.calendar_client.create_event(payload)
+
+    def apply_gmail_label_archive(self, payload: dict) -> dict:
+        self._require(
+            self.settings.gmail_write_enabled and self.settings.gmail_label_archive_enabled,
+            "Gmail label/archive",
+        )
+        if self.settings.external_write_dry_run:
+            return self._dry_run_result("apply_gmail_label_archive", payload)
+        return self.gmail_client.apply_label_archive(payload)
+
+    def delete_or_unsubscribe(self, payload: dict) -> dict:
+        raise RuntimeError("Delete/unsubscribe execution is not live-wired in Phase 15")
+
+    @staticmethod
+    def _dry_run_result(action: str, payload: dict) -> dict:
+        return {
+            "status": "dry_run",
+            "action": action,
+            "external_write_performed": False,
+            "operation_id": _mock_id(f"dry_{action}", payload),
+        }
+
+    @staticmethod
+    def _require(enabled: bool, label: str) -> None:
+        if not enabled:
+            raise RuntimeError(f"{label} is disabled by provider feature flags")
+
+
 @dataclass(frozen=True)
 class PreparedExecution:
     record: ExecutionRecord
@@ -84,6 +150,8 @@ def prepare_execution_for_draft(
         "draft_id": draft.id,
         "thread_id": draft.thread_id,
         "message_id": draft.message_id,
+        "source_thread_id": draft.message.thread.source_thread_id if draft.message and draft.message.thread else None,
+        "source_message_id": draft.message.source_message_id if draft.message else None,
         "subject": draft.message.subject if draft.message else None,
         "to": draft.message.sender_email if draft.message else None,
         "draft_text": draft.draft_text,
@@ -200,7 +268,7 @@ def confirm_execution(
     ):
         raise ValueError("Destructive execution requires CONFIRM_DESTRUCTIVE")
 
-    execution_provider = provider or MockExecutionProvider()
+    execution_provider = provider or get_default_execution_provider()
     record.status = ExecutionStatus.EXECUTING
     record.confirmed_by = actor
     record.confirmed_at = utcnow()
@@ -226,6 +294,14 @@ def confirm_execution(
     db.commit()
     db.refresh(record)
     return record
+
+
+def get_default_execution_provider(settings: Settings | None = None) -> ExecutionProvider:
+    active = settings or get_settings()
+    normalized = (active.execution_provider or "mock").strip().lower()
+    if normalized in {"external", "live", "google"}:
+        return GuardedExternalExecutionProvider(active)
+    return MockExecutionProvider()
 
 
 def list_execution_records(db: Session, *, limit: int = 200) -> list[ExecutionRecord]:
@@ -269,6 +345,7 @@ def _build_review_package_payload(
         "thread_id": package.thread_id,
         "message_id": package.message_id,
         "source_message_id": message.source_message_id if message else None,
+        "source_thread_id": message.thread.source_thread_id if message and message.thread else None,
     }
     if action == ExecutionActionType.SEND_GMAIL_REPLY:
         return {

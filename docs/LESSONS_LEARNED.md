@@ -149,6 +149,20 @@ python -m pytest -q
 - Treat OpenAI-compatible and Azure OpenAI endpoints as different provider shapes. OpenAI-compatible mode appends `/chat/completions` to `AI_BASE_URL` and uses a bearer token; Azure OpenAI mode must build `/openai/deployments/<deployment>/chat/completions?api-version=<version>` from `AZURE_OPENAI_ENDPOINT` and use the `api-key` header.
 - Provider test endpoints should expose sanitized failure categories and HTTP status codes without hiding direct diagnostic failures behind mock fallback. Normal analysis/draft generation should still use mock fallback.
 
+## Real provider wiring lessons
+
+- External provider status should distinguish provider shape from runtime state. A connector can be partially wired but still disabled, missing configuration, or dry-run at runtime.
+- Keep `EXECUTION_PROVIDER=mock` as the default even after live provider clients exist. Live provider selection, feature flags, approval, confirmation, and `EXTERNAL_WRITE_DRY_RUN=false` should all be deliberate choices.
+- Dry-run execution should still require the relevant feature flag so it proves the operator intentionally selected that action family without modifying external systems.
+- Microsoft Graph mail, Teams, and Outlook Calendar require tenant-specific app registration and permissions. Status should fail closed and document prerequisites instead of pretending the adapter is live.
+- Gmail write scopes can require token reauthorization. Do not reuse a read-only smoke result as evidence that draft/send/modify scopes are available.
+
+## UX consolidation lessons
+
+- Provider warnings belong near the top of the daily dashboard because they change what actions the user should trust.
+- Review packages work best as the central unit of work when they show item position, recommendation, evidence, timeline, contact context, draft/action payload, and local review controls together.
+- Keep existing specialized pages, but make the dashboard point to the next useful workflow: attention items, proposed actions, approval queue, calendar candidates, noise candidates, or provider setup.
+
 ## UI lessons
 
 - A raw list of scores and reasons is technically useful but not user-friendly.

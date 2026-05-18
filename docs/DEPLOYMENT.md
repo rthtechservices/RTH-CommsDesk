@@ -32,6 +32,20 @@ GMAIL_TOKEN_FILE=/var/lib/commsdesk/gmail_token.json
 NOTIFICATION_WEBHOOK_SECRET=<long-random-webhook-secret>
 ```
 
+Provider status and dry-run controls:
+
+```text
+EXECUTION_PROVIDER=mock
+EXTERNAL_WRITE_DRY_RUN=true
+GMAIL_WRITE_ENABLED=false
+GMAIL_DRAFT_CREATE_ENABLED=false
+GMAIL_SEND_ENABLED=false
+GMAIL_LABEL_ARCHIVE_ENABLED=false
+GOOGLE_CALENDAR_WRITE_ENABLED=false
+```
+
+Keep these disabled for first deployment. Use `/providers` and `GET /api/providers/status` to confirm live/mock/disabled/missing/dry-run states before enabling any external write path.
+
 Retention controls:
 
 ```text
@@ -39,6 +53,40 @@ RETENTION_MESSAGE_BODY_DAYS=90
 RETENTION_SENT_LEARNING_DAYS=180
 RETENTION_EXECUTION_AUDIT_DAYS=365
 ```
+
+## External provider prerequisites
+
+### Gmail write actions
+
+Live Gmail draft/send/label/archive actions require:
+
+- Google OAuth client configuration available through `GMAIL_CLIENT_SECRETS_FILE`.
+- OAuth token authorization for the required Gmail scope: compose, send, or modify.
+- `EXECUTION_PROVIDER=external`.
+- The matching feature flag enabled, such as `GMAIL_DRAFT_CREATE_ENABLED=true`.
+- Approval and final confirmation in the execution workflow.
+- `EXTERNAL_WRITE_DRY_RUN=false` only after a manual dry-run review.
+
+### Google Calendar
+
+Google Calendar read/write actions require:
+
+- Google OAuth client configuration available through `GMAIL_CLIENT_SECRETS_FILE`.
+- `GOOGLE_CALENDAR_TOKEN_FILE` stored outside committed source.
+- `GOOGLE_CALENDAR_ID` set to the intended calendar, usually `primary`.
+- `GOOGLE_CALENDAR_READ_ENABLED=true` for free/busy checks.
+- `GOOGLE_CALENDAR_WRITE_ENABLED=true` plus external execution flow for event/reminder creation.
+
+### Microsoft Graph
+
+Outlook mail live ingestion requires tenant-specific Microsoft Graph setup:
+
+- Azure app registration.
+- Application permissions and admin consent for the mailbox read scope required by the deployment.
+- `MICROSOFT_TENANT_ID`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, and `MICROSOFT_ACCOUNT`.
+- `MICROSOFT_GRAPH_ENABLED=true` and `MICROSOFT_GRAPH_OUTLOOK_MAIL_ENABLED=true`.
+
+Teams and Outlook Calendar are intentionally fail-closed until the exact tenant permissions and endpoint strategy are confirmed.
 
 ## Deployment steps
 

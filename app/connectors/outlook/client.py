@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from app.connectors.base import BaseConnector, NormalizedMessage
+from app.core.config import get_settings
+from app.services.microsoft_graph_client import MicrosoftGraphMailService
 
 
 class OutlookConnector(BaseConnector):
@@ -14,6 +16,8 @@ class OutlookConnector(BaseConnector):
     def fetch_recent_messages(
         self, limit: int = 100, since: datetime | None = None
     ) -> list[NormalizedMessage]:
+        if self._service is None and get_settings().microsoft_graph_outlook_mail_enabled:
+            self._service = MicrosoftGraphMailService()
         if self._service is None:
             raise RuntimeError(
                 "Outlook connector service is not configured. Provide a Graph service client."
