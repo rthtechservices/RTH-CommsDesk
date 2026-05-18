@@ -40,7 +40,7 @@ Current MVP features:
 - Run Sent-mail learning to infer VIP candidates, salutation preference, and tone guidance.
 - Review/approve/reject/edit inferred VIP and voice guidance from the Voice Calibration page.
 - Review local draft suggestions from the Drafts page.
-- Analyze a stored Gmail conversation with the mock AI provider by default or a live AI provider when explicitly configured.
+- Analyze a stored Gmail conversation with the mock AI provider by default or an OpenAI-compatible/Azure OpenAI provider when explicitly configured.
 - Store and view local conversation summaries.
 - Store and view proposed action review packages with a recommendation, explanation, confidence score, optional draft response, and local review status.
 - Validate structured AI output before storing it and fall back to the mock provider if live AI fails or returns invalid output.
@@ -255,7 +255,13 @@ When live AI is configured, draft prompts include the full local conversation ti
 
 On a message detail page, Analyze conversation creates or updates a local review package for that source message and thread.
 
-The mock analysis provider remains the default. To opt into live AI, set `AI_PROVIDER` to a non-mock provider name and provide `OPENAI_API_KEY` plus `AI_MODEL` in the environment. Optional live settings are `AI_BASE_URL`, `AI_TIMEOUT_SECONDS`, `AI_MAX_TOKENS`, and `AI_TEMPERATURE`.
+The mock analysis provider remains the default.
+
+For OpenAI-compatible Chat Completions, set `AI_PROVIDER=openai`, `OPENAI_API_KEY`, `AI_MODEL`, and optionally `AI_BASE_URL`.
+
+For Azure OpenAI / Azure AI Foundry deployments, set `AI_PROVIDER=azure_openai`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, and `AZURE_OPENAI_API_VERSION`. `AZURE_OPENAI_ENDPOINT` should be the resource endpoint such as `https://example.cognitiveservices.azure.com`, not an Azure `/openai/responses?...` URL. Azure mode builds `/openai/deployments/<deployment>/chat/completions?api-version=<version>` automatically.
+
+Use `GET /api/ai/status` to see whether CommsDesk is using `mock`, `openai`, or `azure_openai`. Use `POST /api/ai/test` to run a tiny JSON-only provider check. The test result shows provider, model/deployment, endpoint host, success/failure, HTTP status code, and sanitized error category such as `auth_error`, `not_found`, `bad_request`, `timeout`, `invalid_json`, or `provider_error`. It does not return API keys.
 
 The analysis prompt includes the full local conversation timeline, selected message, sender/recipient roles, contact relationship, approved voice guidance, recent user corrections, and the known proposed action types. Live output must be structured JSON with summary, action type, explanation, confidence, optional draft body, detected due date, proposed lead time, and caveats. Invalid live output falls back to the mock provider.
 

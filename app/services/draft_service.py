@@ -159,7 +159,7 @@ class MockDraftProvider:
 class OpenAIDraftProvider:
     def __init__(self, *, client: OpenAICompatibleJsonClient | None = None) -> None:
         self.client = client or build_openai_json_client()
-        self.name = f"openai:{self.client.model}"
+        self.name = getattr(self.client, "provider_name", f"openai:{self.client.model}")
 
     def generate(self, context: DraftContext, voice_profile: VoiceProfile) -> str:
         system_prompt, user_prompt = build_draft_prompt(context, voice_profile)

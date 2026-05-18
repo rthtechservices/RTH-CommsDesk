@@ -31,6 +31,53 @@ Record completed work here at the end of every phase. Newest entries should be a
 - 
 ```
 
+## 2026-05-18 — Phase 15 Partial: Azure OpenAI Provider Wiring
+
+### Summary
+- Added first-class `AI_PROVIDER=azure_openai` support for Azure OpenAI / Azure AI Foundry chat-completions deployments.
+- Split live AI request construction so OpenAI-compatible mode uses bearer auth and `{AI_BASE_URL}/chat/completions`, while Azure mode uses the deployment URL and `api-key` header.
+- Added sanitized `/api/ai/test` diagnostics that expose direct live-provider failures without returning API keys or full endpoint paths.
+- Preserved normal analysis/draft mock fallback behavior and kept external Gmail/calendar/execution providers untouched.
+- Made tests default to mock AI regardless of local `.env` live-provider settings.
+
+### Files changed
+- `app/services/live_ai_client.py`
+- `app/core/config.py`
+- `app/api/routes.py`
+- `app/web/routes.py`
+- `app/web/templates/dashboard.html`
+- `tests/conftest.py`
+- `tests/test_live_ai_client.py`
+- `.env.example`
+- `README.md`
+- `docs/HELP.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/phases/PHASE_15_REAL_PROVIDER_WIRING.md`
+
+### Tests run
+- `python -m ruff check .` — passed.
+- `python -m pytest -q` — passed, 90 tests.
+
+### Smoke tests
+- App startup: not run manually for this partial slice.
+- Dashboard: provider diagnostic display covered by existing route tests.
+- Key workflow: automated tests cover Azure URL construction, Azure `api-key` header usage, OpenAI-compatible bearer auth, Azure status reporting, sanitized `/api/ai/test` HTTP failures, and mock default behavior.
+
+### Documentation updated
+- `.env.example`
+- `README.md`
+- `docs/HELP.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/phases/PHASE_15_REAL_PROVIDER_WIRING.md`
+
+### Known issues
+- This is a partial Phase 15 slice only; broader Gmail/Calendar/Microsoft live-provider wiring remains incomplete.
+- No real Azure call was made in the automated tests; `/api/ai/test` is now available for a sanitized live-provider check after local Azure settings are configured.
+
+### Recommended next actions
+- Configure `AI_PROVIDER=azure_openai` with `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, and `AZURE_OPENAI_API_VERSION`, then run `POST /api/ai/test`.
+- Continue the remaining Phase 15 provider readiness and external-write dry-run work after this Azure AI fix is reviewed.
+
 ## 2026-05-17 — Phase 14: Live AI Provider Integration and Prompt Quality
 
 ### Summary

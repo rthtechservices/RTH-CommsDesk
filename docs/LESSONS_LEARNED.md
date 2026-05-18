@@ -146,6 +146,8 @@ python -m pytest -q
 - Wrap live providers with deterministic mock fallback so review-package generation and local draft creation continue when a provider times out, fails, or returns invalid JSON.
 - Prompt-quality tests should exercise product examples, not only parser behavior: friend acknowledgements, client requests, renewal reminders, newsletters/noise, and vague actionable messages catch regressions that generic unit tests miss.
 - Store and display provider names for generated review packages and drafts so mock, live, and fallback outputs are auditable during real-data smoke testing.
+- Treat OpenAI-compatible and Azure OpenAI endpoints as different provider shapes. OpenAI-compatible mode appends `/chat/completions` to `AI_BASE_URL` and uses a bearer token; Azure OpenAI mode must build `/openai/deployments/<deployment>/chat/completions?api-version=<version>` from `AZURE_OPENAI_ENDPOINT` and use the `api-key` header.
+- Provider test endpoints should expose sanitized failure categories and HTTP status codes without hiding direct diagnostic failures behind mock fallback. Normal analysis/draft generation should still use mock fallback.
 
 ## UI lessons
 

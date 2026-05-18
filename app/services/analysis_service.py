@@ -190,7 +190,7 @@ class MockAIAnalysisProvider:
 class OpenAIAnalysisProvider:
     def __init__(self, *, client: OpenAICompatibleJsonClient | None = None) -> None:
         self.client = client or build_openai_json_client()
-        self.name = f"openai:{self.client.model}"
+        self.name = getattr(self.client, "provider_name", f"openai:{self.client.model}")
 
     def analyze(self, context: AIAnalysisContext) -> AIAnalysisResult:
         system_prompt, user_prompt = build_analysis_prompt(context)

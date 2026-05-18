@@ -74,6 +74,31 @@ Each LLM session should complete one phase only, update the documentation, and s
 4. Read-only Gmail scope only is used: `https://www.googleapis.com/auth/gmail.readonly`.
 5. If credentials are missing, `/api/sync/gmail` returns a clear configuration error.
 
+## Live AI provider setup
+
+Mock AI remains the default. To use OpenAI-compatible Chat Completions, set:
+
+```env
+AI_PROVIDER=openai
+OPENAI_API_KEY=...
+AI_MODEL=...
+AI_BASE_URL=https://api.openai.com/v1
+```
+
+To use Azure OpenAI / Azure AI Foundry deployments, set:
+
+```env
+AI_PROVIDER=azure_openai
+AZURE_OPENAI_ENDPOINT=https://<resource-name>.cognitiveservices.azure.com
+AZURE_OPENAI_API_KEY=...
+AZURE_OPENAI_DEPLOYMENT=...
+AZURE_OPENAI_API_VERSION=2025-04-01-preview
+```
+
+Do not put an Azure `/openai/responses?...` or `/chat/completions?...` URL in `AI_BASE_URL`. Azure mode builds the deployment URL from `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT`, and `AZURE_OPENAI_API_VERSION`.
+
+Use `GET /api/ai/status` for sanitized configuration status and `POST /api/ai/test` for a tiny JSON-only provider test. The test endpoint returns provider, model/deployment, endpoint host, success/failure, HTTP status code, and error category without returning API keys.
+
 ## Running tests
 ```bash
 pytest -q

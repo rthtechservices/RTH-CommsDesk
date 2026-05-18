@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     ai_timeout_seconds: float = 20.0
     ai_max_tokens: int = 1200
     ai_temperature: float = 0.2
+    azure_openai_endpoint: str | None = None
+    azure_openai_api_key: str | None = None
+    azure_openai_deployment: str | None = None
+    azure_openai_api_version: str = "2025-04-01-preview"
     calendar_provider: str = "mock"
     google_calendar_read_enabled: bool = False
     outlook_calendar_read_enabled: bool = False

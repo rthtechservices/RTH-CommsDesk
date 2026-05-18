@@ -63,3 +63,39 @@ This phase wires real provider clients behind the existing abstractions while pr
 - External writes remain unavailable unless explicitly enabled.
 - Dry-run mode works for outbound execution providers.
 - At least Gmail read and full-thread fetch remain working.
+
+## Partial completion notes — 2026-05-18 Azure OpenAI support
+
+Status: Azure OpenAI AI-provider portion completed; broader Phase 15 external write-provider work remains planned.
+
+Implemented:
+
+- Added first-class `AI_PROVIDER=azure_openai` support alongside `mock` and `openai`.
+- Added Azure OpenAI configuration fields:
+  - `AZURE_OPENAI_ENDPOINT`
+  - `AZURE_OPENAI_API_KEY`
+  - `AZURE_OPENAI_DEPLOYMENT`
+  - `AZURE_OPENAI_API_VERSION`
+- Preserved existing OpenAI-compatible Chat Completions support through `AI_PROVIDER=openai`, `OPENAI_API_KEY`, `AI_MODEL`, and `AI_BASE_URL`.
+- Split request construction so Azure OpenAI uses:
+  - URL: `{AZURE_OPENAI_ENDPOINT}/openai/deployments/{AZURE_OPENAI_DEPLOYMENT}/chat/completions?api-version={AZURE_OPENAI_API_VERSION}`
+  - Header: `api-key`
+- Kept OpenAI-compatible mode on:
+  - URL: `{AI_BASE_URL}/chat/completions`
+  - Header: `Authorization: Bearer ...`
+- Added sanitized provider diagnostics to `/api/ai/status`.
+- Added `POST /api/ai/test` for a tiny JSON-only live-provider check that returns provider, model/deployment, endpoint host, success/failure, HTTP status code, and error category without exposing API keys.
+- Preserved normal mock fallback for analysis/draft generation while leaving `/api/ai/test` to report direct provider failures.
+- Added tests for Azure URL construction, Azure `api-key` header usage, OpenAI bearer header usage, Azure status diagnostics, sanitized test failures, and mock default behavior.
+
+Validation:
+
+- `python -m ruff check .` — passed.
+- `python -m pytest -q` — passed, 90 tests.
+
+Out of scope for this partial slice:
+
+- Gmail send/draft/label/archive execution-provider changes.
+- Calendar read/write provider changes.
+- Microsoft Graph OAuth/client changes.
+- Phase 15 provider status/admin page for all external providers.

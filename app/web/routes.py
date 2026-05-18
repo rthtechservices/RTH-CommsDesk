@@ -317,6 +317,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                 "ai_provider": ai_status.effective_provider,
                 "ai_requested_provider": ai_status.requested_provider,
                 "ai_model": ai_status.model,
+                "ai_deployment": ai_status.deployment,
                 "ai_live_enabled": ai_status.live_enabled,
                 "ai_fallback_provider": ai_status.fallback_provider,
                 "ai_detail": ai_status.detail,

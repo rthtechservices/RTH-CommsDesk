@@ -34,7 +34,7 @@ from app.services.gmail_sync_service import (
     sync_gmail_backfill,
     sync_gmail_messages,
 )
-from app.services.live_ai_client import ai_provider_status
+from app.services.live_ai_client import ai_provider_status, test_live_ai_provider
 from app.services.execution_service import (
     approve_execution,
     audit_entries_for_execution,
@@ -186,10 +186,17 @@ def ai_status() -> dict:
         "requested_provider": status.requested_provider,
         "effective_provider": status.effective_provider,
         "model": status.model,
+        "deployment": status.deployment,
+        "endpoint_host": status.endpoint_host,
         "live_enabled": status.live_enabled,
         "fallback_provider": status.fallback_provider,
         "detail": status.detail,
     }
+
+
+@api_router.post("/ai/test")
+def test_ai_provider_endpoint() -> dict:
+    return test_live_ai_provider(get_settings())
 
 
 @api_router.get("/attention")
