@@ -7,6 +7,8 @@ __pycache__/
 .env
 /*.env
 gmail_token.json
+google_calendar_token.json
 client_secret.json
 commsdesk.db
 _backups/
+google_calendar_token.json
