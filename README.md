@@ -15,8 +15,9 @@ Before assigning work to Codex, Copilot, or another LLM session, have the sessio
 5. `docs/IMPLEMENTATION_LOG.md`
 6. `docs/LESSONS_LEARNED.md`
 7. `docs/HELP.md`
+8. `docs/MICROSOFT_GRAPH_LOCAL_SMOKE.md` when testing delegated Microsoft Graph locally
 
-Each LLM session should complete one phase only, update the documentation, and stop for human review.
+Each LLM session should complete one phase only, update documentation, and stop for human review.
 
 ## MVP scope
 - Gmail-first connector workflow with optional Outlook/Teams ingestion and notification-summary webhook intake
@@ -26,7 +27,7 @@ Each LLM session should complete one phase only, update the documentation, and s
 - Local SQLite for development
 
 ## Known MVP limitations
-- Outlook/Teams connectors are implemented as mocked Graph-shape adapters; live Microsoft auth/client wiring is environment-specific.
+- Outlook mail read now supports delegated Microsoft Graph OAuth for local smoke testing; Outlook send, Outlook Calendar, and Teams remain disabled/not implemented.
 - Provider status is visible at `/providers`; Microsoft Graph Teams and Outlook Calendar remain fail-closed until tenant-specific permissions are configured.
 - AI classifier is provider-neutral but runs with deterministic logic/mock fallback by default.
 - Gmail sync is read-only and duplicate-safe. Recent sync handles the active inbox window, and manual backfill can page farther through the Gmail backlog.
@@ -161,8 +162,11 @@ MICROSOFT_GRAPH_SCOPES=User.Read Mail.Read offline_access
 MICROSOFT_GRAPH_TOKEN_FILE=./microsoft_graph_token.json
 MICROSOFT_TENANT_ID=...
 MICROSOFT_CLIENT_ID=...
+MICROSOFT_CLIENT_SECRET=
 MICROSOFT_ACCOUNT=me
 ```
+
+No Microsoft client secret or certificate is required for the delegated device-code path. A secret/certificate is only required for `MICROSOFT_GRAPH_AUTH_MODE=app_only`.
 
 Run `POST /api/graph/test` to verify delegated configuration. If no delegated token exists, CommsDesk starts a local device-code authorization flow and returns a sanitized `authorization_required` result. Complete the Microsoft device login, then retry `POST /api/graph/test`. The delegated token is stored only in `MICROSOFT_GRAPH_TOKEN_FILE`; do not commit it.
 
@@ -175,6 +179,8 @@ MICROSOFT_GRAPH_AUTH_MODE=app_only
 MICROSOFT_CLIENT_SECRET=...
 MICROSOFT_ACCOUNT=user@example.com
 ```
+
+Detailed local instructions are in `docs/MICROSOFT_GRAPH_LOCAL_SMOKE.md`.
 
 Teams, Outlook send, and Outlook Calendar remain disabled/not implemented. Phase 17 is read-only for Outlook mail.
 
@@ -201,7 +207,7 @@ Do not delete or commit `client_secret.json`, `gmail_token.json`, `.env`, or any
 ## Privacy defaults
 - Store message metadata and snippets by default.
 - Full body storage is disabled unless `GMAIL_STORE_FULL_BODY=true`.
-- OAuth token file (`gmail_token.json`) and client secrets are local-only and gitignored.
+- OAuth token files (`gmail_token.json`, `google_calendar_token.json`, `microsoft_graph_token.json`) and client secrets are local-only and gitignored.
 - Structured logging redacts token/secret/password/authorization values.
 - Retention windows can scrub stored message bodies, sent-learning excerpts, and aged execution audit rows.
 
@@ -214,6 +220,7 @@ Do not delete or commit `client_secret.json`, `gmail_token.json`, `.env`, or any
 - Deployment/runbook: `docs/DEPLOYMENT.md`
 - Production checklist: `docs/SECURITY_CHECKLIST.md`
 - User/admin operations: `docs/HELP.md`
+- Microsoft Graph local smoke guide: `docs/MICROSOFT_GRAPH_LOCAL_SMOKE.md`
 
 ## Project structure
 ```
@@ -238,4 +245,4 @@ Do not delete or commit `client_secret.json`, `gmail_token.json`, `.env`, or any
 
 ## Current phase status
 
-Phases 01 through 17 are now implemented in this repository roadmap.
+Phases 01 through 17 are implemented. Phases 18 through 20 are documented as the next operational workflow, test-email execution, and inbox-intelligence quality passes.
