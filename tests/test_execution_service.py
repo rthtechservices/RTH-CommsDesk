@@ -173,6 +173,8 @@ def test_external_execution_provider_dry_run_requires_feature_flags(db_session):
             _env_file=None,
             execution_provider="external",
             external_write_dry_run=True,
+            operational_test_mode=True,
+            execution_test_email_allowlist="client@example.com",
             gmail_write_enabled=True,
             gmail_draft_create_enabled=True,
         )
@@ -190,13 +192,41 @@ def test_external_execution_provider_fails_closed_when_flag_missing(db_session):
     prepared = prepare_execution_for_draft(db_session, draft.id, actor="tester")
     approve_execution(db_session, prepared.record.id, actor="tester")
     provider = GuardedExternalExecutionProvider(
-        Settings(_env_file=None, execution_provider="external", external_write_dry_run=True)
+        Settings(
+            _env_file=None,
+            execution_provider="external",
+            external_write_dry_run=True,
+            operational_test_mode=True,
+            execution_test_email_allowlist="client@example.com",
+        )
     )
 
     failed = confirm_execution(db_session, prepared.record.id, actor="tester", provider=provider)
 
     assert failed.status == ExecutionStatus.FAILED
-    assert "disabled by provider feature flags" in (failed.error_text or "")
+    assert failed.error_text == "Blocked: feature flag disabled. Set GMAIL_WRITE_ENABLED=true."
+
+
+def test_external_execution_provider_blocks_non_allowlisted_recipient(db_session):
+    draft = _seed_draft(db_session)
+    prepared = prepare_execution_for_draft(db_session, draft.id, actor="tester")
+    approve_execution(db_session, prepared.record.id, actor="tester")
+    provider = GuardedExternalExecutionProvider(
+        Settings(
+            _env_file=None,
+            execution_provider="external",
+            external_write_dry_run=True,
+            operational_test_mode=True,
+            execution_test_email_allowlist="allowed@example.com",
+            gmail_write_enabled=True,
+            gmail_draft_create_enabled=True,
+        )
+    )
+
+    failed = confirm_execution(db_session, prepared.record.id, actor="tester", provider=provider)
+
+    assert failed.status == ExecutionStatus.FAILED
+    assert failed.error_text == "Blocked: recipient not allowlisted."
 
 
 def test_execution_records_actionable_gmail_scope_error(db_session):

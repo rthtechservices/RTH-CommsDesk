@@ -54,22 +54,44 @@
         <pre>{{ package.reasoning_json or "No reasoning stored." }}</pre>
       </section>
 
+      {% if test_readiness %}
+      <section class="panel">
+        <h2>Test execution eligibility</h2>
+        <div class="callout {% if test_readiness.allowed and test_readiness.dry_run %}callout-amber{% elif test_readiness.allowed %}callout-green{% else %}callout-red{% endif %}">
+          <div class="callout-title">
+            {% if test_readiness.allowed and test_readiness.dry_run %}
+              Dry-run only: no external write will occur
+            {% elif test_readiness.allowed %}
+              Eligible for test execution
+            {% else %}
+              {{ test_readiness.blocked_reason }}
+            {% endif %}
+          </div>
+          <div class="muted" style="font-size:13px">Target: {{ test_readiness.target }}. Required: {{ test_readiness.required_flags | join(", ") }}</div>
+        </div>
+      </section>
+      {% endif %}
+
+      {% if package.calendar_proposals %}
+      <section class="panel">
+        <h2>Calendar proposal</h2>
+        {% set proposal = package.calendar_proposals[0] %}
+        <div class="facts">
+          <div><strong class="label">Target calendar</strong><span>Configured Google Calendar</span></div>
+          <div><strong class="label">Action kind</strong><span>{{ proposal.action_kind.replace("_", " ").title() }}</span></div>
+          <div><strong class="label">Start</strong><span>{{ proposal.proposed_start_at or proposal.reminder_at or "-" }}</span></div>
+          <div><strong class="label">End</strong><span>{{ proposal.proposed_end_at or proposal.reminder_at or "-" }}</span></div>
+          <div><strong class="label">Reasoning</strong><span class="muted">{{ proposal.availability_reasoning or "-" }}</span></div>
+        </div>
+      </section>
+      {% endif %}
+
+      {% if package.draft_response %}
       <section class="panel">
         <h2>Draft content</h2>
-        <form method="post" action="/review-packages/{{ package.id }}/update-draft" style="display:grid;gap:10px">
-          <label style="display:grid;gap:4px">
-            <span class="label">Subject</span>
-            <input name="draft_subject" value="{{ package.draft_subject or '' }}" />
-          </label>
-          <label style="display:grid;gap:4px">
-            <span class="label">Body</span>
-            <textarea name="draft_body" rows="10">{{ package.draft_body or '' }}</textarea>
-          </label>
-          <div>
-            <button type="submit">Save draft changes</button>
-          </div>
-        </form>
+        <pre>{{ package.draft_response }}</pre>
       </section>
+      {% endif %}
     </div>
 
     <aside style="display:grid;gap:12px">
@@ -77,17 +99,23 @@
         <h2>Review actions</h2>
         <div style="display:grid;gap:7px">
           {% if package.status.value not in ["approved"] %}
-          <form method="post" action="/review-packages/{{ package.id }}/approve">
+          <form method="post" action="/review-packages/{{ package.id }}/status">
+            <input type="hidden" name="status" value="approved" />
             <button class="primary" style="width:100%" type="submit">Approve</button>
           </form>
           {% endif %}
           {% if package.status.value not in ["rejected"] %}
-          <form method="post" action="/review-packages/{{ package.id }}/reject">
+          <form method="post" action="/review-packages/{{ package.id }}/status">
+            <input type="hidden" name="status" value="rejected" />
             <button class="danger" style="width:100%" type="submit">Reject</button>
           </form>
           {% endif %}
-          <form method="post" action="/review-packages/{{ package.id }}/reset">
+          <form method="post" action="/review-packages/{{ package.id }}/status">
+            <input type="hidden" name="status" value="pending" />
             <button style="width:100%" type="submit">Reset to pending</button>
+          </form>
+          <form method="post" action="/review-packages/{{ package.id }}/prepare-execution">
+            <button class="amber" style="width:100%" type="submit">Prepare execution from this review package</button>
           </form>
           <p class="muted" style="font-size:12px">Approving marks this record ready for execution preparation. Nothing is sent automatically.</p>
         </div>

@@ -443,6 +443,18 @@
           <li>
             <a href="/executions/{{ record.id }}">Execution #{{ record.id }}</a>
             <div class="muted" style="font-size:11px">{{ record.action_type.value.replace("_", " ").title() }} · <span class="badge amber" style="font-size:10px">{{ record.status.value.replace("_", " ") }}</span></div>
+            {% set ready = ready_execution_readiness.get(record.id) if ready_execution_readiness else none %}
+            {% if ready %}
+            <div style="font-size:11px;margin-top:3px">
+              {% if ready.allowed and ready.dry_run %}
+              <span class="badge amber" style="font-size:10px">Dry-run only: no external write will occur</span>
+              {% elif ready.allowed %}
+              <span class="badge ok" style="font-size:10px">Eligible for test execution</span>
+              {% else %}
+              <span class="badge bad" style="font-size:10px">Blocked: {{ ready.blocked_reason }}</span>
+              {% endif %}
+            </div>
+            {% endif %}
           </li>
           {% else %}
           <li class="widget-empty">No execution records need approval.</li>

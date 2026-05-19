@@ -57,6 +57,26 @@
         </div>
       </section>
 
+      {% if test_readiness %}
+      <section class="panel">
+        <h2>Test Execution Readiness</h2>
+        <div class="facts">
+          <div><strong class="label">Action type</strong><span>{{ test_readiness.action_type.replace("_", " ").title() }}</span></div>
+          <div><strong class="label">Provider</strong><span>{{ test_readiness.provider }}</span></div>
+          <div><strong class="label">Dry-run</strong><span>{% if test_readiness.dry_run %}<span class="badge amber">Dry-run only: no external write will occur</span>{% else %}<span class="badge ok">Live external write possible after confirmation</span>{% endif %}</span></div>
+          <div><strong class="label">{{ test_readiness.target_kind.title() }}</strong><span>{{ test_readiness.target }}</span></div>
+          <div><strong class="label">Allowlist</strong><span>{% if test_readiness.allowlist_match is sameas true %}<span class="badge ok">Eligible for test execution</span>{% elif test_readiness.allowlist_match is sameas false %}<span class="badge bad">Blocked: recipient not allowlisted</span>{% else %}<span class="badge grey">Not applicable</span>{% endif %}</span></div>
+          <div><strong class="label">Required flags</strong><span class="muted">{{ test_readiness.required_flags | join(", ") }}</span></div>
+          <div><strong class="label">Readiness</strong><span>{% if test_readiness.allowed %}<span class="badge {% if test_readiness.dry_run %}amber{% else %}ok{% endif %}">{{ test_readiness.next_action }}</span>{% else %}<span class="badge bad">{{ test_readiness.blocked_reason }}</span>{% endif %}</span></div>
+        </div>
+        <ul class="items" style="margin-top:8px">
+          {% for check in test_readiness.checks %}
+          <li><span class="badge {% if check.passed %}ok{% else %}bad{% endif %}">{{ check.label }}</span> <span class="muted">{{ check.detail }}</span></li>
+          {% endfor %}
+        </ul>
+      </section>
+      {% endif %}
+
       <section class="panel">
         <h2>Final confirmation payload</h2>
         <pre>{{ record.payload_json }}</pre>

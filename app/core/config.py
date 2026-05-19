@@ -55,6 +55,8 @@ class Settings(BaseSettings):
     outlook_calendar_read_enabled: bool = False
     execution_provider: str = "mock"
     external_write_dry_run: bool = True
+    operational_test_mode: bool = False
+    execution_test_email_allowlist: str = ""
 
     app_auth_enabled: bool = False
     app_auth_username: str | None = None

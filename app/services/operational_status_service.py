@@ -10,6 +10,7 @@ from app.models.entities import (
     AttentionItem,
     AttentionStatus,
     ExecutionRecord,
+    ExecutionActionType,
     ExecutionStatus,
     Message,
     ProposedActionReviewPackage,
@@ -17,6 +18,7 @@ from app.models.entities import (
     SourceSyncState,
 )
 from app.services.provider_status_service import provider_status_rows
+from app.services.execution_test_policy import readiness_for_payload
 
 
 SOURCE_FILTERS = ("all", "gmail", "outlook", "notification")
@@ -133,6 +135,27 @@ def operational_smoke_status(
         "ai_provider": ai_provider,
         "execution_provider_mode": active.execution_provider,
         "external_write_dry_run": active.external_write_dry_run,
+        "operational_test_mode": active.operational_test_mode,
+        "execution_test_email_allowlist_configured": bool(
+            active.execution_test_email_allowlist.strip()
+        ),
+        "test_execution_readiness": {
+            "gmail_draft": readiness_for_payload(
+                ExecutionActionType.CREATE_EXTERNAL_GMAIL_DRAFT,
+                {"to": _sample_allowlisted_target(active.execution_test_email_allowlist)},
+                active,
+            ),
+            "gmail_send": readiness_for_payload(
+                ExecutionActionType.SEND_GMAIL_REPLY,
+                {"to": _sample_allowlisted_target(active.execution_test_email_allowlist)},
+                active,
+            ),
+            "google_calendar": readiness_for_payload(
+                ExecutionActionType.CREATE_CALENDAR_EVENT,
+                {},
+                active,
+            ),
+        },
         "gmail_write_flags": {
             "GMAIL_WRITE_ENABLED": active.gmail_write_enabled,
             "GMAIL_DRAFT_CREATE_ENABLED": active.gmail_draft_create_enabled,
@@ -223,3 +246,10 @@ def _ready_execution_count(db: Session) -> int:
         .scalar()
         or 0
     )
+
+
+def _sample_allowlisted_target(raw_allowlist: str | None) -> str:
+    first = next((item.strip() for item in (raw_allowlist or "").split(",") if item.strip()), "")
+    if first.startswith("@"):
+        return f"test{first}"
+    return first

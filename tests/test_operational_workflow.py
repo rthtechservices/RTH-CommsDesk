@@ -139,6 +139,12 @@ def test_operational_smoke_route_exposes_key_status_without_microsoft_writes(db_
     assert "Outlook delegated Graph" in response.text
     assert "Dry-run state" in response.text
     assert "Disabled Microsoft Write Boundaries" in response.text
+    assert "Phase 19 Test Execution Readiness" in response.text
+    assert "Operational test mode" in response.text
+    assert "Test email allowlist" in response.text
+    assert "Gmail draft test execution" in response.text
+    assert "Gmail send test execution" in response.text
+    assert "Google Calendar test execution" in response.text
     provider_status = provider_response.json()
     assert provider_status["microsoft_graph_outlook_mail_send"]["state"] == "disabled"
     assert provider_status["outlook_calendar_read"]["state"] == "disabled"
@@ -268,6 +274,64 @@ def test_review_and_execution_pages_render_workflow_help():
     assert execution_response.status_code == 200
     assert '<span class="active">Execute</span><span>Audit</span>' in execution_response.text
     assert "What this page is for" in execution_response.text
+
+
+def test_execution_detail_renders_test_execution_readiness_panel(db_session):
+    message, _ = _message_with_attention(
+        db_session, source_type="gmail", source_id="exec-readiness", score=77
+    )
+    execution = ExecutionRecord(
+        action_type=ExecutionActionType.SEND_GMAIL_REPLY,
+        attempt_number=1,
+        status=ExecutionStatus.PENDING_REVIEW,
+        payload_json=f'{{"to":"{message.sender_email}"}}',
+        provider_name="mock",
+    )
+    db_session.add(execution)
+    db_session.commit()
+
+    def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    try:
+        with TestClient(app) as client:
+            response = client.get(f"/executions/{execution.id}")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert "Test Execution Readiness" in response.text
+    assert "Blocked: operational test mode disabled" in response.text
+
+
+def test_dashboard_renders_test_execution_blocker_next_best_action(db_session):
+    message, _ = _message_with_attention(
+        db_session, source_type="gmail", source_id="dash-exec-blocker", score=77
+    )
+    execution = ExecutionRecord(
+        action_type=ExecutionActionType.SEND_GMAIL_REPLY,
+        attempt_number=1,
+        status=ExecutionStatus.PENDING_REVIEW,
+        payload_json=f'{{"to":"{message.sender_email}"}}',
+        provider_name="mock",
+    )
+    db_session.add(execution)
+    db_session.commit()
+
+    def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    try:
+        with TestClient(app) as client:
+            response = client.get("/")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert "Phase 19 test execution blocked" in response.text
+    assert "Blocked: operational test mode disabled" in response.text
 
 
 def _message_with_attention(

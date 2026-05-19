@@ -86,6 +86,7 @@ Current MVP features:
 - Apply bulk actions and undo recent bulk actions where practical.
 - Prepare, approve, and confirm outbound execution records for draft creation, reply send, calendar creation, and label/archive actions.
 - Run guarded external execution providers in dry-run mode when explicitly configured; dry-run records do not modify external systems.
+- Enable Phase 19 operational test mode for allowlisted Gmail draft/send and Google Calendar test execution while keeping non-test recipients blocked.
 - View execution audit trails with payload/result history.
 - Enforce web/API authentication when enabled for non-local deployment.
 - Provide admin retention controls to clear cached bodies/excerpts and purge aged audit rows.
@@ -100,6 +101,7 @@ RTH CommsDesk does not currently:
 - Expose Teams as a daily operator sync action.
 - Run non-mock production outbound provider calls by default in local development.
 - Perform live external writes unless `EXECUTION_PROVIDER=external`, the specific feature flag is enabled, execution is approved/confirmed, and dry-run has been deliberately disabled.
+- Streamline Gmail test execution unless `OPERATIONAL_TEST_MODE=true` and `EXECUTION_TEST_EMAIL_ALLOWLIST` contains the target test recipient.
 - Fully live-wire Microsoft Graph Teams or Outlook Calendar without tenant-specific permissions and setup.
 - Auto-approve or auto-confirm execution actions.
 - Use paid or cloud AI credentials as a requirement for local draft generation.
@@ -279,12 +281,25 @@ It shows:
 - Outlook delegated Microsoft Graph authorization and Outlook sync status.
 - Azure/OpenAI analysis status with a test action.
 - Execution provider mode and dry-run state.
+- Phase 19 operational test mode and test recipient allowlist status.
+- Whether Gmail draft, Gmail send, and Google Calendar test execution are currently possible.
 - Gmail write flags and Google Calendar write flag.
 - Source counts for all, Gmail, Outlook, and notification-derived messages.
 - Pending review package and execution queues.
 - Plain-language token/config blockers.
 - Disabled Microsoft write boundaries: Outlook send, Outlook Calendar, and Teams.
 - Copy/paste configuration snippets for safe local defaults, delegated Outlook read, and optional live AI setup. The page does not edit `.env`; restart the app after changing environment variables.
+
+For controlled test execution, configure `.env` manually:
+
+```env
+OPERATIONAL_TEST_MODE=true
+EXECUTION_TEST_EMAIL_ALLOWLIST=test-recipient@example.com
+EXECUTION_PROVIDER=external
+EXTERNAL_WRITE_DRY_RUN=true
+```
+
+Use exact test email addresses whenever possible. Explicit domain entries such as `@example.com` are supported, but non-allowlisted recipients remain blocked. Gmail send requires `EXTERNAL_WRITE_DRY_RUN=false` and still requires explicit approval plus final confirmation.
 
 ### Sync Outlook
 
@@ -420,7 +435,7 @@ From Draft Review, click **Prepare external Gmail draft execution**. Then open t
 
 Review notes stay in CommsDesk; external Gmail drafts must be send-ready. The Draft Review page can show review-only notes, caveats, and explanation text, but the Gmail execution payload uses only the clean subject and user-facing email body. CommsDesk strips review-only labels, caveats, internal reasoning, and duplicated `Subject:` lines before preparing a Gmail draft payload.
 
-When `EXECUTION_PROVIDER=mock`, confirmation records a mock result. When `EXECUTION_PROVIDER=external` and dry-run is on, confirmation records a dry-run result with `external_write_performed=false`.
+When `EXECUTION_PROVIDER=mock`, confirmation records a mock result. When `EXECUTION_PROVIDER=external` and dry-run is on, confirmation records a dry-run result with `external_write_performed=false`. Phase 19 external Gmail draft execution additionally requires `OPERATIONAL_TEST_MODE=true`, `EXECUTION_TEST_EMAIL_ALLOWLIST`, `GMAIL_WRITE_ENABLED=true`, and `GMAIL_DRAFT_CREATE_ENABLED=true`.
 
 If a live Gmail execution says the token has insufficient authentication scopes, delete `gmail_token.json` and re-authorize after enabling the required Gmail write flag. Read-only sync tokens do not automatically gain compose, send, or modify scopes.
 
@@ -435,6 +450,8 @@ Review package detail shows the item position, conversation timeline, recommenda
 Execution records are immutable attempts. A draft or review package can have multiple attempts, and each attempt keeps its own payload, status, provider result/error, timestamps, and audit trail. From an execution detail page, use **Prepare New Execution** to regenerate from the current source artifact, **Re-run Execution** to create a new attempt with the same payload, or **Clone as New Execution** to copy the payload into a fresh pending-review attempt. Every new attempt still requires approval and final confirmation.
 
 Calendar execution uses `GOOGLE_CALENDAR_TIME_ZONE`, defaulting to `America/Vancouver`, and includes that time zone on both the start and end payload values.
+
+Phase 19 Google Calendar test execution requires `OPERATIONAL_TEST_MODE=true`, `EXECUTION_PROVIDER=external`, and `GOOGLE_CALENDAR_WRITE_ENABLED=true`. Dry-run is allowed and clearly records that no external write occurred. Live calendar creation requires final confirmation after reviewing the target calendar and event payload.
 
 ### Reset contact normal
 

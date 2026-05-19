@@ -18,8 +18,8 @@
     <h2>Draft details</h2>
     <div class="facts">
       <div><strong class="label">Status</strong><span><span class="badge {% if draft.status == 'approved' %}ok{% elif draft.status == 'rejected' %}bad{% endif %}">{{ draft.status or "pending" }}</span></span></div>
-      <div><strong class="label">To</strong><span class="muted">{{ draft.to_address }}</span></div>
-      <div><strong class="label">Subject</strong><span>{{ draft.subject or "(no subject)" }}</span></div>
+      <div><strong class="label">To</strong><span class="muted">{{ draft.message.sender_email if draft.message else "-" }}</span></div>
+      <div><strong class="label">Subject</strong><span>{{ draft.send_ready_subject or (draft.message.subject if draft.message else "") or "(no subject)" }}</span></div>
       <div><strong class="label">Voice profile</strong><span class="muted">{{ draft.voice_profile_name or "-" }}</span></div>
       <div><strong class="label">Provider</strong><span class="muted">{{ draft.provider_name or "-" }}</span></div>
       <div><strong class="label">Created</strong><span class="muted">{{ draft.created_at.strftime("%Y-%m-%d %H:%M") if draft.created_at else "-" }}</span></div>
@@ -29,8 +29,26 @@
 
   <section class="panel">
     <h2>Draft body</h2>
-    <pre>{{ draft.body }}</pre>
+    <pre>{{ draft.send_ready_body or draft.draft_text }}</pre>
   </section>
+
+  {% if test_readiness %}
+  <section class="panel">
+    <h2>Test execution eligibility</h2>
+    <div class="callout {% if test_readiness.allowed and test_readiness.dry_run %}callout-amber{% elif test_readiness.allowed %}callout-green{% else %}callout-red{% endif %}">
+      <div class="callout-title">
+        {% if test_readiness.allowed and test_readiness.dry_run %}
+          Dry-run only: no external write will occur
+        {% elif test_readiness.allowed %}
+          Eligible for test execution
+        {% else %}
+          {{ test_readiness.blocked_reason }}
+        {% endif %}
+      </div>
+      <div class="muted" style="font-size:13px">Recipient: {{ test_readiness.target }}. Required: {{ test_readiness.required_flags | join(", ") }}</div>
+    </div>
+  </section>
+  {% endif %}
 
   <section class="panel">
     <h2>Actions</h2>

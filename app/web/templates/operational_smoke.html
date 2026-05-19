@@ -72,6 +72,26 @@
       <h2>Dry-run state</h2>
       <div class="facts">
         <div>
+          <strong class="label">Operational test mode</strong>
+          <span>
+            {% if smoke_status.operational_test_mode %}
+            <span class="badge ok">Enabled</span>
+            {% else %}
+            <span class="badge bad">Disabled</span>
+            {% endif %}
+          </span>
+        </div>
+        <div>
+          <strong class="label">Test email allowlist</strong>
+          <span>
+            {% if smoke_status.execution_test_email_allowlist_configured %}
+            <span class="badge ok">Configured</span>
+            {% else %}
+            <span class="badge bad">Empty</span>
+            {% endif %}
+          </span>
+        </div>
+        <div>
           <strong class="label">External write dry-run</strong>
           <span>
             {% if smoke_status.external_write_dry_run %}
@@ -87,6 +107,29 @@
         <div><strong class="label">{{ flag_name }}</strong><span class="muted">{{ flag_val }}</span></div>
         {% endfor %}
         {% endif %}
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Phase 19 Test Execution Readiness</h2>
+      <div style="display:grid;gap:8px">
+        {% for key, row in smoke_status.test_execution_readiness.items() %}
+        <div class="callout {% if row.allowed and row.dry_run %}callout-amber{% elif row.allowed %}callout-green{% else %}callout-red{% endif %}">
+          <div class="callout-title">
+            {% if key == "gmail_draft" %}Gmail draft test execution{% elif key == "gmail_send" %}Gmail send test execution{% else %}Google Calendar test execution{% endif %}
+          </div>
+          <div class="muted" style="font-size:13px">
+            {% if row.allowed and row.dry_run %}
+              Dry-run only: no external write will occur.
+            {% elif row.allowed %}
+              Eligible for test execution.
+            {% else %}
+              {{ row.blocked_reason }}
+            {% endif %}
+          </div>
+          <div class="muted" style="font-size:12px;margin-top:4px">Required: {{ row.required_flags | join(", ") }}</div>
+        </div>
+        {% endfor %}
       </div>
     </section>
 
@@ -123,6 +166,15 @@
         <div class="muted">AI provider status not available.</div>
         {% endif %}
       </div>
+    </section>
+
+    <section class="panel">
+      <h2>Configuration guidance</h2>
+      <p class="muted" style="font-size:13px;margin-bottom:8px">Copy these into <code>.env</code> manually, then restart Uvicorn. This page does not edit configuration.</p>
+      <pre>OPERATIONAL_TEST_MODE=true
+EXECUTION_TEST_EMAIL_ALLOWLIST=test-recipient@example.com
+EXECUTION_PROVIDER=external
+EXTERNAL_WRITE_DRY_RUN=true</pre>
     </section>
   </div>
 {% endblock %}

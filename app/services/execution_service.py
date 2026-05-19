@@ -23,6 +23,7 @@ from app.models.entities import (
 )
 from app.services.external_provider_clients import GmailWriteClient, GoogleCalendarClient
 from app.services.draft_service import sanitize_send_ready_email_text, send_ready_email_for_draft
+from app.services.execution_test_policy import ensure_test_execution_allowed
 
 
 class ExecutionProvider(Protocol):
@@ -322,6 +323,8 @@ def confirm_execution(
     db.flush()
     payload = _parse_json(record.payload_json)
     try:
+        if isinstance(execution_provider, GuardedExternalExecutionProvider):
+            ensure_test_execution_allowed(record, execution_provider.settings)
         result = _execute_with_provider(execution_provider, record.action_type, payload)
         record.status = ExecutionStatus.EXECUTED
         record.executed_at = utcnow()

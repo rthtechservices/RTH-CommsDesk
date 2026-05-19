@@ -122,3 +122,28 @@ Update:
 ## Codex notes
 
 Do not weaken the existing safety model globally. Add an explicit test-mode path that makes local/operator testing less painful while keeping non-test recipients and unsupported providers blocked. Prefer clear failure messages over permissive fallback.
+
+## Completion notes — 2026-05-19
+
+Status: Completed for human review.
+
+Implemented:
+
+- Added `OPERATIONAL_TEST_MODE=false` and `EXECUTION_TEST_EMAIL_ALLOWLIST=` defaults.
+- Added centralized allowlist parsing and readiness policy in `app/services/execution_test_policy.py`.
+- Supports comma-separated exact addresses and explicit `@domain` entries with case/whitespace normalization.
+- Blocks empty allowlists, non-allowlisted recipients, disabled operational test mode, non-external provider mode, disabled feature flags, Gmail send dry-run, and unsupported actions before external provider writes.
+- Allows Gmail draft and Google Calendar dry-run test execution to record `external_write_performed=false`; Gmail send requires dry-run disabled.
+- Preserved send-ready Gmail subject/body sanitization and Google Calendar timezone payload behavior.
+- Added Test Execution Readiness UI on `/operational-smoke`, execution detail, draft review, review package detail, and dashboard next-best/ready-execution areas.
+- Kept Outlook send, Outlook calendar, and Teams disabled/not implemented.
+
+Validation:
+
+- Focused policy/execution/operational tests passed during implementation.
+- Final full validation and route smoke results are recorded in `docs/IMPLEMENTATION_LOG.md`.
+
+Human review notes:
+
+- Live external Gmail/Calendar writes were not performed in this session.
+- To live-smoke safely, configure one controlled allowlisted test recipient, review the execution payload, then approve and confirm one Gmail draft or Calendar event attempt.

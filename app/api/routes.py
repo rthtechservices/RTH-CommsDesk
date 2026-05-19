@@ -55,6 +55,7 @@ from app.services.external_connectors_service import (
     sync_outlook_messages,
     sync_teams_messages,
 )
+from app.services.execution_test_policy import readiness_for_execution
 from app.services.voice_learning_service import (
     run_sent_mail_learning,
     update_vip_candidate_status,
@@ -807,6 +808,7 @@ def _review_package_dict(package: ProposedActionReviewPackage) -> dict:
 
 
 def _execution_dict(record: ExecutionRecord, *, already_exists: bool = False) -> dict:
+    readiness = readiness_for_execution(record, get_settings())
     return {
         "id": record.id,
         "review_package_id": record.review_package_id,
@@ -827,4 +829,11 @@ def _execution_dict(record: ExecutionRecord, *, already_exists: bool = False) ->
         "confirmed_at": record.confirmed_at.isoformat() if record.confirmed_at else None,
         "executed_at": record.executed_at.isoformat() if record.executed_at else None,
         "already_exists": already_exists,
+        "test_execution_readiness": {
+            "allowed": readiness.allowed,
+            "blocked_reason": readiness.blocked_reason,
+            "target": readiness.target,
+            "dry_run": readiness.dry_run,
+            "required_flags": list(readiness.required_flags),
+        },
     }

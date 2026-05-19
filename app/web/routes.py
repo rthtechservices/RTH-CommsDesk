@@ -16,6 +16,7 @@ from app.models.entities import (
     BulkTriageActionLog,
     Contact,
     DraftReply,
+    ExecutionActionType,
     ExecutionStatus,
     ExecutionAuditLog,
     ExecutionRecord,
@@ -83,6 +84,7 @@ from app.services.execution_service import (
     prepare_new_execution_from_existing,
     rerun_execution,
 )
+from app.services.execution_test_policy import readiness_for_execution, readiness_for_payload
 from app.services.external_connectors_service import sync_outlook_messages, sync_teams_messages
 from app.services.gmail_sync_service import get_sync_state, sync_gmail_messages
 from app.services.gmail_sync_service import (
@@ -150,6 +152,25 @@ def _safe_next_path(value: str | None) -> str:
 
 def _compute_next_best_action(backlog_stats: dict, provider_rows: list) -> dict:
     """Determine the single most important next operator action for the dashboard NBA strip."""
+    ready_execs = backlog_stats.get("ready_executions", 0)
+    test_blocker = backlog_stats.get("test_execution_blocker")
+    test_ready_execs = backlog_stats.get("test_ready_executions", 0)
+    if ready_execs > 0 and test_ready_execs > 0:
+        return {
+            "tier": "pending",
+            "message": f"Review {test_ready_execs} allowlisted test execution record{'s' if test_ready_execs != 1 else ''} awaiting operator action",
+            "primary_label": "Next execution approval",
+            "primary_url": "/executions/next",
+            "secondary": [{"label": "Operational Smoke", "url": "/operational-smoke"}],
+        }
+    if ready_execs > 0 and test_blocker:
+        return {
+            "tier": "blocker",
+            "message": f"Phase 19 test execution blocked: {test_blocker}",
+            "primary_label": "Operational Smoke",
+            "primary_url": "/operational-smoke",
+            "secondary": [{"label": "Executions", "url": "/executions"}],
+        }
     blockers = [
         row for row in provider_rows
         if row.state in {"missing_configuration", "failed"}
@@ -164,7 +185,6 @@ def _compute_next_best_action(backlog_stats: dict, provider_rows: list) -> dict:
             "secondary": [{"label": "Operational Smoke", "url": "/operational-smoke"}],
         }
     pending_pkgs = backlog_stats.get("pending_review_packages", 0)
-    ready_execs = backlog_stats.get("ready_executions", 0)
     attention_total = backlog_stats.get("attention_total", 0)
     reviewed_total = backlog_stats.get("reviewed_total", 0)
     unreviewed = max(0, attention_total - reviewed_total)
@@ -403,6 +423,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     ai_status = ai_provider_status(settings)
     provider_rows = provider_status_rows(settings)
     smoke_status = operational_smoke_status(db, settings)
+    ready_readiness = [readiness_for_execution(record, settings) for record in ready_executions]
+    first_blocker = next((item.blocked_reason for item in ready_readiness if item.blocked_reason), None)
     return templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -448,7 +470,19 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                 if row.state in {"missing_configuration", "failed"}
                 or (row.state == "dry_run" and row.key != "ai_provider")
             ][:5],
-            "next_best_action": _compute_next_best_action(backlog_stats, provider_rows),
+            "ready_execution_readiness": dict(zip([record.id for record in ready_executions], ready_readiness, strict=False)),
+            "next_best_action": _compute_next_best_action(
+                {
+                    **backlog_stats,
+                    "test_ready_executions": len([item for item in ready_readiness if item.allowed]),
+                    "test_execution_blocker": (
+                        "Phase 19 test execution unavailable because operational test mode is disabled."
+                        if not settings.operational_test_mode
+                        else first_blocker
+                    ),
+                },
+                provider_rows,
+            ),
         },
     )
 
@@ -1064,10 +1098,17 @@ def web_update_voice_guidance(
 @web_router.get("/drafts/{draft_id}")
 def draft_detail(draft_id: int, request: Request, db: Session = Depends(get_db)):
     draft = db.get(DraftReply, draft_id)
+    readiness = None
+    if draft:
+        readiness = readiness_for_payload(
+            ExecutionActionType.CREATE_EXTERNAL_GMAIL_DRAFT,
+            {"to": draft.message.sender_email if draft.message else None},
+            get_settings(),
+        )
     return templates.TemplateResponse(
         request,
         "draft_review.html",
-        {"draft": draft},
+        {"draft": draft, "test_readiness": readiness},
         status_code=200 if draft else 404,
     )
 
@@ -1141,6 +1182,26 @@ def review_package_detail(package_id: int, request: Request, db: Session = Depen
                 .limit(5)
                 .all()
             )
+        readiness_action = None
+        readiness_payload: dict[str, object] = {}
+        if package.action_type in {
+            ProposedActionType.REPLY,
+            ProposedActionType.ASK_CLARIFYING_QUESTION,
+        }:
+            readiness_action = ExecutionActionType.SEND_GMAIL_REPLY
+            readiness_payload = {"to": package.message.sender_email if package.message else None}
+        elif package.action_type in {
+            ProposedActionType.CREATE_CALENDAR_REMINDER,
+            ProposedActionType.SCHEDULE_MEETING,
+        }:
+            readiness_action = ExecutionActionType.CREATE_CALENDAR_EVENT
+        test_readiness = (
+            readiness_for_payload(readiness_action, readiness_payload, get_settings())
+            if readiness_action
+            else None
+        )
+    else:
+        test_readiness = None
     return templates.TemplateResponse(
         request,
         "review_package_detail.html",
@@ -1152,6 +1213,7 @@ def review_package_detail(package_id: int, request: Request, db: Session = Depen
             "timeline": timeline,
             "contact": contact,
             "active_guidance": active_guidance,
+            "test_readiness": test_readiness,
         },
         status_code=200 if package else 404,
     )
@@ -1199,6 +1261,7 @@ def execution_detail(execution_id: int, request: Request, db: Session = Depends(
             "record": record,
             "audit": audit_entries_for_execution(db, execution_id) if record else [],
             "attempts": execution_attempt_history(db, record) if record else [],
+            "test_readiness": readiness_for_execution(record, get_settings()) if record else None,
         },
         status_code=200 if record else 404,
     )

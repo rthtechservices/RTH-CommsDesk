@@ -117,6 +117,8 @@ External writes are disabled by default:
 ```env
 EXECUTION_PROVIDER=mock
 EXTERNAL_WRITE_DRY_RUN=true
+OPERATIONAL_TEST_MODE=false
+EXECUTION_TEST_EMAIL_ALLOWLIST=
 GMAIL_WRITE_ENABLED=false
 GMAIL_DRAFT_CREATE_ENABLED=false
 GMAIL_SEND_ENABLED=false
@@ -124,9 +126,11 @@ GMAIL_LABEL_ARCHIVE_ENABLED=false
 GOOGLE_CALENDAR_WRITE_ENABLED=false
 ```
 
-To test guarded dry-run execution without modifying Gmail or calendars, set `EXECUTION_PROVIDER=external`, keep `EXTERNAL_WRITE_DRY_RUN=true`, and enable only the specific action flag being tested. Execution still requires prepare, approve, and final confirm.
+Phase 19 test execution also requires `OPERATIONAL_TEST_MODE=true` and a comma-separated `EXECUTION_TEST_EMAIL_ALLOWLIST`. The allowlist supports exact addresses such as `test@example.com` and explicit domains such as `@example.com`. Empty allowlists and non-allowlisted recipients block streamlined Gmail draft/send execution before any real provider write is attempted.
 
-Do not set `EXTERNAL_WRITE_DRY_RUN=false` unless OAuth scopes, feature flags, provider status, and the execution payload have been manually reviewed.
+To test guarded Gmail draft or Google Calendar dry-run execution without modifying Gmail or calendars, set `EXECUTION_PROVIDER=external`, `OPERATIONAL_TEST_MODE=true`, keep `EXTERNAL_WRITE_DRY_RUN=true`, configure the allowlist, and enable only the specific action flag being tested. Execution still requires prepare, approve, and final confirm.
+
+Do not set `EXTERNAL_WRITE_DRY_RUN=false` unless OAuth scopes, feature flags, provider status, allowlist, and the execution payload have been manually reviewed. Gmail send test execution is blocked while dry-run remains enabled.
 
 ## Google Calendar setup
 
@@ -248,4 +252,4 @@ Do not delete or commit `client_secret.json`, `gmail_token.json`, `.env`, or any
 
 ## Current phase status
 
-Phases 01 through 18.5 are implemented. Phases 19 through 20 are documented as the next test-email execution and inbox-intelligence quality passes.
+Phases 01 through 19 are implemented. Phase 20 is documented as the next inbox-intelligence quality pass.

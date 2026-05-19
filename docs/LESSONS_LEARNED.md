@@ -184,6 +184,8 @@ python -m pytest -q
 - External provider status should distinguish provider shape from runtime state. A connector can be partially wired but still disabled, missing configuration, or dry-run at runtime.
 - Keep `EXECUTION_PROVIDER=mock` as the default even after live provider clients exist. Live provider selection, feature flags, approval, confirmation, and `EXTERNAL_WRITE_DRY_RUN=false` should all be deliberate choices.
 - Dry-run execution should still require the relevant feature flag so it proves the operator intentionally selected that action family without modifying external systems.
+- Streamlined test execution needs a separate operational test-mode policy in addition to provider flags. `EXECUTION_PROVIDER=external` is not enough; require `OPERATIONAL_TEST_MODE=true`, action flags, and allowlisted test recipients before Gmail writes.
+- Keep allowlist parsing centralized. Routes, templates, and provider execution should all read the same readiness result so UI copy cannot drift from the actual enforcement path.
 - Microsoft Graph mail, Teams, and Outlook Calendar require tenant-specific app registration and permissions. Status should fail closed and document prerequisites instead of pretending the adapter is live.
 - Gmail write scopes can require token reauthorization. Do not reuse a read-only smoke result as evidence that draft/send/modify scopes are available.
 - Google Calendar `dateTime` payloads using naive local timestamps must include `timeZone` on both `start` and `end`; default local operator time zone is `America/Vancouver`.

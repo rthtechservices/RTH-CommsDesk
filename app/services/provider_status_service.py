@@ -112,6 +112,36 @@ def provider_status_rows(settings: Settings | None = None) -> list[ProviderStatu
             next_action=_graph_delegated_next_action(active),
         ),
         ProviderStatusRow(
+            key="operational_test_mode",
+            label="Operational test mode",
+            classification="test-safety-gate",
+            state="live" if active.operational_test_mode else "disabled",
+            mode="test mode" if active.operational_test_mode else "disabled",
+            detail="Required before Phase 19 streamlined Gmail or Calendar test execution is available.",
+            next_action=(
+                "Ready; allowlist and per-action flags still apply."
+                if active.operational_test_mode
+                else "Set OPERATIONAL_TEST_MODE=true only for controlled local test execution."
+            ),
+        ),
+        ProviderStatusRow(
+            key="execution_test_email_allowlist",
+            label="Execution test email allowlist",
+            classification="test-safety-gate",
+            state="live" if active.execution_test_email_allowlist.strip() else "missing_configuration",
+            mode="exact-email/domain allowlist",
+            detail=(
+                "At least one test recipient/domain is configured."
+                if active.execution_test_email_allowlist.strip()
+                else "No streamlined test email execution recipients are configured."
+            ),
+            next_action=(
+                "Ready; non-allowlisted recipients remain blocked."
+                if active.execution_test_email_allowlist.strip()
+                else "Set EXECUTION_TEST_EMAIL_ALLOWLIST to comma-separated test addresses."
+            ),
+        ),
+        ProviderStatusRow(
             key="microsoft_graph_outlook_mail",
             label="Outlook mail read",
             classification="partially wired" if graph_configured else "adapter-shape-only",
