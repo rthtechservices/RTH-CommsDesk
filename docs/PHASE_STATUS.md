@@ -19,7 +19,10 @@
 | 15 | Real Provider Wiring for Gmail, Calendar, and Microsoft Graph | ✅ Completed | 2026-05-18 |
 | 16 | Product UX and Workflow Consolidation | ✅ Completed | 2026-05-18 |
 | 17 | Microsoft Graph Delegated OAuth and Outlook Mail Smoke | ✅ Completed | 2026-05-19 |
+| 18 | Operational Inbox Workflow Smoke and Fast-Path UX | Planned | TBD |
+| 19 | Test Email Execution Enablement | Planned | TBD |
+| 20 | Inbox Intelligence Quality Pass | Planned | TBD |
 
 ## Current recommendation
 
-Stop for human review. Phase 17 added delegated Microsoft Graph OAuth for local development, sanitized `POST /api/graph/test` diagnostics, read-only Outlook mail sync through delegated or app-only Graph, and provider status rows that keep Outlook send, Outlook Calendar, and Teams disabled/not implemented.
+Proceed to Phase 18 after local Microsoft Graph delegated configuration is tested. Phase 18 should make the current Gmail, Outlook, AI review-package, draft/action-prep, and audit workflow usable as one practical operator flow before adding more connectors.
