@@ -2,6 +2,38 @@
 
 Record completed work here at the end of every phase. Newest entries should be added at the top.
 
+## 2026-05-19 — Live External Gmail/Calendar Execution Fixes
+
+### Summary
+- Fixed live Google Calendar execution payloads so reminder and scheduled-event writes include `timeZone` on both `start` and `end`, defaulting to `America/Vancouver`.
+- Added configurable `GOOGLE_CALENDAR_TIME_ZONE` and documented it in setup/deployment help.
+- Improved live Gmail insufficient-scope handling so execution failures record a clear `gmail_token.json` reauthorization instruction instead of a generic provider error.
+- Preserved mock execution and external dry-run behavior, and made tests force mock execution defaults so local `.env` live-provider settings do not leak into the test suite.
+
+### Files changed
+- `app/core/config.py`
+- `app/services/external_provider_clients.py`
+- `.env.example`
+- `tests/conftest.py`
+- `tests/test_external_provider_clients.py`
+- `tests/test_execution_service.py`
+- `README.md`
+- `docs/DEPLOYMENT.md`
+- `docs/HELP.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/IMPLEMENTATION_LOG.md`
+
+### Tests run
+- `python -m ruff check .` — passed.
+- `python -m pytest -q` — passed, 101 tests.
+- `python -m pytest tests/test_external_provider_clients.py tests/test_execution_service.py -q` — passed, 11 tests.
+
+### Smoke tests
+- Not run against live external writes after the fix; no real email or calendar write was executed during this patch.
+
+### Known issues
+- Existing live Gmail tokens created with read-only scopes must be deleted and reauthorized before live compose/send/modify actions can succeed.
+
 ## 2026-05-18 — Phase 16: Product UX and Workflow Consolidation
 
 ### Summary

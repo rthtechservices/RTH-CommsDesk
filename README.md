@@ -73,8 +73,9 @@ Each LLM session should complete one phase only, update the documentation, and s
 1. Create OAuth desktop credentials in Google Cloud Console.
 2. Save the JSON as `client_secret.json` (or set `GMAIL_CLIENT_SECRETS_FILE` to that path).
 3. Trigger initial auth by calling `POST /api/sync/gmail`.
-4. Read-only Gmail scope only is used: `https://www.googleapis.com/auth/gmail.readonly`.
-5. If credentials are missing, `/api/sync/gmail` returns a clear configuration error.
+4. Gmail read sync uses `https://www.googleapis.com/auth/gmail.readonly`.
+5. Optional Gmail write execution uses separate compose/send/modify scopes only when explicitly enabled.
+6. If credentials are missing, `/api/sync/gmail` returns a clear configuration error.
 
 ## Live AI provider setup
 
@@ -129,11 +130,18 @@ Google Calendar read/write uses the same local OAuth client secret file plus a s
 CALENDAR_PROVIDER=google
 GOOGLE_CALENDAR_TOKEN_FILE=./google_calendar_token.json
 GOOGLE_CALENDAR_ID=primary
+GOOGLE_CALENDAR_TIME_ZONE=America/Vancouver
 GOOGLE_CALENDAR_READ_ENABLED=true
 GOOGLE_CALENDAR_WRITE_ENABLED=false
 ```
 
 Calendar write remains disabled unless `GOOGLE_CALENDAR_WRITE_ENABLED=true`, `EXECUTION_PROVIDER=external`, approval/confirmation are completed, and dry-run is deliberately disabled.
+
+Calendar execution payloads include `timeZone` on both start and end. `GOOGLE_CALENDAR_TIME_ZONE` defaults to `America/Vancouver`.
+
+## Gmail write-scope reauthorization
+
+If live Gmail draft/send/label execution fails with insufficient authentication scopes, delete the local `gmail_token.json` and re-authorize after enabling the intended Gmail write feature flag. A token created for read-only sync cannot perform compose, send, or modify actions.
 
 ## Microsoft Graph setup
 

@@ -24,6 +24,7 @@ from app.services.execution_service import (
     prepare_execution_for_draft,
     prepare_execution_for_review_package,
 )
+from app.services.external_provider_clients import GMAIL_SCOPE_REAUTH_MESSAGE
 
 
 def test_prepare_and_execute_external_gmail_draft_once(db_session):
@@ -149,6 +150,28 @@ def test_external_execution_provider_fails_closed_when_flag_missing(db_session):
     assert "disabled by provider feature flags" in (failed.error_text or "")
 
 
+def test_execution_records_actionable_gmail_scope_error(db_session):
+    draft = _seed_draft(db_session)
+    prepared = prepare_execution_for_draft(db_session, draft.id, actor="tester")
+    approve_execution(db_session, prepared.record.id, actor="tester")
+
+    failed = confirm_execution(
+        db_session,
+        prepared.record.id,
+        actor="tester",
+        provider=_ScopeFailingProvider(),
+    )
+
+    assert failed.status == ExecutionStatus.FAILED
+    assert failed.error_text == GMAIL_SCOPE_REAUTH_MESSAGE
+    audit = (
+        db_session.query(ExecutionAuditLog)
+        .filter_by(execution_record_id=failed.id, event_type="failed")
+        .one()
+    )
+    assert GMAIL_SCOPE_REAUTH_MESSAGE in (audit.details or "")
+
+
 def _seed_draft(db_session) -> DraftReply:
     thread = MessageThread(source_type="gmail", source_thread_id="exec-draft-thread")
     db_session.add(thread)
@@ -210,3 +233,22 @@ def _seed_review_package(
     db_session.add(package)
     db_session.commit()
     return package
+
+
+class _ScopeFailingProvider:
+    name = "scope-failing-provider"
+
+    def create_external_gmail_draft(self, payload: dict) -> dict:
+        raise RuntimeError(GMAIL_SCOPE_REAUTH_MESSAGE)
+
+    def send_gmail_reply(self, payload: dict) -> dict:
+        raise RuntimeError(GMAIL_SCOPE_REAUTH_MESSAGE)
+
+    def create_calendar_event(self, payload: dict) -> dict:
+        return {"status": "not-used"}
+
+    def apply_gmail_label_archive(self, payload: dict) -> dict:
+        raise RuntimeError(GMAIL_SCOPE_REAUTH_MESSAGE)
+
+    def delete_or_unsubscribe(self, payload: dict) -> dict:
+        raise RuntimeError("not wired")

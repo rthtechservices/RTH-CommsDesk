@@ -1,0 +1,17 @@
+# Stop uvicorn first, then back up the current DB
+New-Item -ItemType Directory -Force ".\_backups" | Out-Null
+Copy-Item ".\commsdesk.db" ".\_backups\commsdesk_$(Get-Date -Format 'yyyyMMdd_HHmmss').db" -ErrorAction SilentlyContinue
+
+# Delete local app data
+Remove-Item ".\commsdesk.db" -Force -ErrorAction SilentlyContinue
+
+Copy-Item ".\gmail_token.json" ".\_backups\gmail_token_$(Get-Date -Format 'yyyyMMdd_HHmmss').json" -ErrorAction SilentlyContinue
+Remove-Item ".\gmail_token.json" -Force -ErrorAction SilentlyContinue
+
+
+# Recreate schema
+.\.venv\Scripts\Activate.ps1
+python -m alembic upgrade head
+
+# Start app
+python -m uvicorn app.main:app --reload

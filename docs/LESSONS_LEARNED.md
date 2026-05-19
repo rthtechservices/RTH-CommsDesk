@@ -156,6 +156,7 @@ python -m pytest -q
 - Dry-run execution should still require the relevant feature flag so it proves the operator intentionally selected that action family without modifying external systems.
 - Microsoft Graph mail, Teams, and Outlook Calendar require tenant-specific app registration and permissions. Status should fail closed and document prerequisites instead of pretending the adapter is live.
 - Gmail write scopes can require token reauthorization. Do not reuse a read-only smoke result as evidence that draft/send/modify scopes are available.
+- Google Calendar `dateTime` payloads using naive local timestamps must include `timeZone` on both `start` and `end`; default local operator time zone is `America/Vancouver`.
 
 ## UX consolidation lessons
 

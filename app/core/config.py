@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     calendar_provider: str = "mock"
     google_calendar_token_file: str = "./google_calendar_token.json"
     google_calendar_id: str = "primary"
+    google_calendar_time_zone: str = "America/Vancouver"
     google_calendar_read_enabled: bool = False
     google_calendar_write_enabled: bool = False
     outlook_calendar_read_enabled: bool = False

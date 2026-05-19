@@ -12,6 +12,13 @@ from app.models.base import Base
 @pytest.fixture(autouse=True)
 def default_mock_ai_provider(monkeypatch):
     monkeypatch.setenv("AI_PROVIDER", "mock")
+    monkeypatch.setenv("EXECUTION_PROVIDER", "mock")
+    monkeypatch.setenv("EXTERNAL_WRITE_DRY_RUN", "true")
+    monkeypatch.setenv("GMAIL_WRITE_ENABLED", "false")
+    monkeypatch.setenv("GMAIL_DRAFT_CREATE_ENABLED", "false")
+    monkeypatch.setenv("GMAIL_SEND_ENABLED", "false")
+    monkeypatch.setenv("GMAIL_LABEL_ARCHIVE_ENABLED", "false")
+    monkeypatch.setenv("GOOGLE_CALENDAR_WRITE_ENABLED", "false")
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("AI_MODEL", raising=False)
     monkeypatch.delenv("AZURE_OPENAI_ENDPOINT", raising=False)

@@ -330,11 +330,15 @@ From Draft Review, click **Prepare external Gmail draft execution**. Then open t
 
 When `EXECUTION_PROVIDER=mock`, confirmation records a mock result. When `EXECUTION_PROVIDER=external` and dry-run is on, confirmation records a dry-run result with `external_write_performed=false`.
 
+If a live Gmail execution says the token has insufficient authentication scopes, delete `gmail_token.json` and re-authorize after enabling the required Gmail write flag. Read-only sync tokens do not automatically gain compose, send, or modify scopes.
+
 ### Prepare execution from review package
 
 From Review Package detail, click **Prepare execution from this review package**. The execution payload is generated from the package action type and any calendar proposal data.
 
 Review package detail shows the item position, conversation timeline, recommendation, explanation, confidence, contact context, matched voice guidance, and local status controls before execution is prepared.
+
+Calendar execution uses `GOOGLE_CALENDAR_TIME_ZONE`, defaulting to `America/Vancouver`, and includes that time zone on both the start and end payload values.
 
 ### Reset contact normal
 

@@ -42,6 +42,7 @@ GMAIL_DRAFT_CREATE_ENABLED=false
 GMAIL_SEND_ENABLED=false
 GMAIL_LABEL_ARCHIVE_ENABLED=false
 GOOGLE_CALENDAR_WRITE_ENABLED=false
+GOOGLE_CALENDAR_TIME_ZONE=America/Vancouver
 ```
 
 Keep these disabled for first deployment. Use `/providers` and `GET /api/providers/status` to confirm live/mock/disabled/missing/dry-run states before enabling any external write path.
@@ -62,6 +63,7 @@ Live Gmail draft/send/label/archive actions require:
 
 - Google OAuth client configuration available through `GMAIL_CLIENT_SECRETS_FILE`.
 - OAuth token authorization for the required Gmail scope: compose, send, or modify.
+- Delete and re-authorize `gmail_token.json` after enabling Gmail write scopes; a read-only token will fail live writes with insufficient authentication scopes.
 - `EXECUTION_PROVIDER=external`.
 - The matching feature flag enabled, such as `GMAIL_DRAFT_CREATE_ENABLED=true`.
 - Approval and final confirmation in the execution workflow.
@@ -74,6 +76,7 @@ Google Calendar read/write actions require:
 - Google OAuth client configuration available through `GMAIL_CLIENT_SECRETS_FILE`.
 - `GOOGLE_CALENDAR_TOKEN_FILE` stored outside committed source.
 - `GOOGLE_CALENDAR_ID` set to the intended calendar, usually `primary`.
+- `GOOGLE_CALENDAR_TIME_ZONE` set to the intended event time zone; default is `America/Vancouver`.
 - `GOOGLE_CALENDAR_READ_ENABLED=true` for free/busy checks.
 - `GOOGLE_CALENDAR_WRITE_ENABLED=true` plus external execution flow for event/reminder creation.
 

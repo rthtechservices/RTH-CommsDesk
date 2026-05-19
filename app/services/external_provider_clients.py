@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import json
 from email.message import EmailMessage
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,13 @@ CALENDAR_WRITE_SCOPE = "https://www.googleapis.com/auth/calendar.events"
 
 class ExternalProviderConfigurationError(RuntimeError):
     """Raised when a live external provider is not intentionally configured."""
+
+
+GMAIL_SCOPE_REAUTH_MESSAGE = (
+    "Gmail OAuth token does not have the required write scope for this action. "
+    "Delete gmail_token.json, then re-authorize after enabling the matching Gmail write "
+    "feature flag and OAuth scope."
+)
 
 
 class GmailWriteClient:
@@ -34,14 +42,11 @@ class GmailWriteClient:
         message_body = {"raw": raw_message}
         if payload.get("source_thread_id"):
             message_body["threadId"] = payload.get("source_thread_id")
-        result = (
+        result = _execute_google_request(
             service.users()
             .drafts()
-            .create(
-                userId=self.settings.gmail_account,
-                body={"message": message_body},
-            )
-            .execute()
+            .create(userId=self.settings.gmail_account, body={"message": message_body}),
+            provider_label="Gmail draft creation",
         )
         return {"status": "created", "draft_id": result.get("id")}
 
@@ -56,11 +61,9 @@ class GmailWriteClient:
         body = {"raw": raw_message}
         if payload.get("source_thread_id"):
             body["threadId"] = payload.get("source_thread_id")
-        result = (
-            service.users()
-            .messages()
-            .send(userId=self.settings.gmail_account, body=body)
-            .execute()
+        result = _execute_google_request(
+            service.users().messages().send(userId=self.settings.gmail_account, body=body),
+            provider_label="Gmail send reply",
         )
         return {"status": "sent", "message_id": result.get("id")}
 
@@ -81,11 +84,11 @@ class GmailWriteClient:
             body["addLabelIds"] = [self.settings.gmail_noise_label_id]
         else:
             raise ExternalProviderConfigurationError(f"Unsupported Gmail label operation: {operation}")
-        result = (
+        result = _execute_google_request(
             service.users()
             .messages()
-            .modify(userId=self.settings.gmail_account, id=source_message_id, body=body)
-            .execute()
+            .modify(userId=self.settings.gmail_account, id=source_message_id, body=body),
+            provider_label="Gmail label/archive",
         )
         return {"status": "applied", "message_id": result.get("id"), "operation": operation}
 
@@ -127,11 +130,11 @@ class GoogleCalendarClient:
 
     def create_event(self, payload: dict) -> dict:
         service = self._build_service([CALENDAR_WRITE_SCOPE])
-        event_body = _calendar_event_body(payload)
-        result = (
+        event_body = _calendar_event_body(payload, settings=self.settings)
+        result = _execute_google_request(
             service.events()
-            .insert(calendarId=self.settings.google_calendar_id, body=event_body)
-            .execute()
+            .insert(calendarId=self.settings.google_calendar_id, body=event_body),
+            provider_label="Google Calendar event creation",
         )
         return {"status": "created", "event_id": result.get("id"), "html_link": result.get("htmlLink")}
 
@@ -199,7 +202,9 @@ def _build_raw_email(
     return base64.urlsafe_b64encode(message.as_bytes()).decode("ascii")
 
 
-def _calendar_event_body(payload: dict) -> dict:
+def _calendar_event_body(payload: dict, *, settings: Settings | None = None) -> dict:
+    active_settings = settings or get_settings()
+    time_zone = active_settings.google_calendar_time_zone or "America/Vancouver"
     summary = payload.get("summary") or "CommsDesk reminder"
     action_kind = payload.get("action_kind")
     if action_kind == "create_reminder" or payload.get("reminder_at"):
@@ -207,8 +212,8 @@ def _calendar_event_body(payload: dict) -> dict:
         return {
             "summary": summary,
             "description": "Created from an approved CommsDesk review package.",
-            "start": {"dateTime": start},
-            "end": {"dateTime": start},
+            "start": {"dateTime": start, "timeZone": time_zone},
+            "end": {"dateTime": start, "timeZone": time_zone},
             "reminders": {"useDefault": True},
         }
     start = payload.get("proposed_start_at")
@@ -218,6 +223,40 @@ def _calendar_event_body(payload: dict) -> dict:
     return {
         "summary": summary,
         "description": "Created from an approved CommsDesk review package.",
-        "start": {"dateTime": start},
-        "end": {"dateTime": end},
+        "start": {"dateTime": start, "timeZone": time_zone},
+        "end": {"dateTime": end, "timeZone": time_zone},
     }
+
+
+def _execute_google_request(request: Any, *, provider_label: str) -> dict:
+    try:
+        return request.execute()
+    except Exception as exc:
+        if _is_insufficient_scope_error(exc):
+            raise ExternalProviderConfigurationError(GMAIL_SCOPE_REAUTH_MESSAGE) from exc
+        raise ExternalProviderConfigurationError(f"{provider_label} failed: {_google_error_text(exc)}") from exc
+
+
+def _is_insufficient_scope_error(exc: Exception) -> bool:
+    status = getattr(getattr(exc, "resp", None), "status", None)
+    text = _google_error_text(exc).lower()
+    return status == 403 and (
+        "insufficient authentication scopes" in text
+        or "insufficient_permission" in text
+        or "insufficientpermissions" in text
+    )
+
+
+def _google_error_text(exc: Exception) -> str:
+    content = getattr(exc, "content", None)
+    if isinstance(content, bytes):
+        content = content.decode("utf-8", errors="replace")
+    if isinstance(content, str) and content.strip():
+        try:
+            data = json.loads(content)
+            message = ((data.get("error") or {}).get("message")) or data.get("error_description")
+            if message:
+                return str(message)
+        except json.JSONDecodeError:
+            return content
+    return str(exc)
