@@ -74,7 +74,9 @@ Each LLM session should complete one phase only, update the documentation, and s
 2. Save the JSON as `client_secret.json` (or set `GMAIL_CLIENT_SECRETS_FILE` to that path).
 3. Trigger initial auth by calling `POST /api/sync/gmail`.
 4. Gmail read sync uses `https://www.googleapis.com/auth/gmail.readonly`.
-5. Optional Gmail write execution uses separate compose/send/modify scopes only when explicitly enabled.
+5. When any Gmail write flag is enabled, Gmail OAuth requests the combined
+   read/write scope set: `gmail.readonly`, `gmail.compose`, `gmail.send`, and
+   `gmail.modify`.
 6. If credentials are missing, `/api/sync/gmail` returns a clear configuration error.
 
 ## Live AI provider setup
@@ -141,7 +143,9 @@ Calendar execution payloads include `timeZone` on both start and end. `GOOGLE_CA
 
 ## Gmail write-scope reauthorization
 
-If live Gmail draft/send/label execution fails with insufficient authentication scopes, delete the local `gmail_token.json` and re-authorize after enabling the intended Gmail write feature flag. A token created for read-only sync cannot perform compose, send, or modify actions.
+If live Gmail draft/send/label execution needs write access, enable the intended Gmail write flags before the next OAuth flow. A token created for read-only sync cannot perform compose, send, or modify actions. Delete the local `gmail_token.json` and re-authorize after enabling the write flags so Google can prompt for `https://www.googleapis.com/auth/gmail.readonly`, `https://www.googleapis.com/auth/gmail.compose`, `https://www.googleapis.com/auth/gmail.send`, and `https://www.googleapis.com/auth/gmail.modify`.
+
+CommsDesk checks the scopes stored in `gmail_token.json` before reusing it. If the token is missing a required Gmail scope, live execution forces reauthorization or reports exactly which scopes are missing.
 
 ## Microsoft Graph setup
 

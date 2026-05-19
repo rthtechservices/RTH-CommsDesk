@@ -9,9 +9,9 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 from app.connectors.base import BaseConnector, MessagePage, NormalizedMessage
+from app.connectors.gmail.scopes import gmail_required_scopes, missing_gmail_scopes
 from app.core.config import get_settings
 
-GMAIL_READONLY_SCOPE = ["https://www.googleapis.com/auth/gmail.readonly"]
 PRESERVED_HEADERS = {
     "from",
     "subject",
@@ -104,9 +104,16 @@ class GmailConnector(BaseConnector):
             ) from exc
 
         token_file = Path(self.settings.gmail_token_file)
+        scopes = gmail_required_scopes(self.settings)
         creds = None
         if token_file.exists():
-            creds = Credentials.from_authorized_user_file(str(token_file), GMAIL_READONLY_SCOPE)
+            creds = Credentials.from_authorized_user_file(str(token_file), scopes)
+            if missing_gmail_scopes(
+                creds=creds,
+                token_file=token_file,
+                required_scopes=scopes,
+            ):
+                creds = None
 
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
@@ -119,7 +126,7 @@ class GmailConnector(BaseConnector):
                     )
                 flow = InstalledAppFlow.from_client_secrets_file(
                     str(secrets_file),
-                    GMAIL_READONLY_SCOPE,
+                    scopes,
                 )
                 creds = flow.run_local_server(port=0)
             token_file.write_text(creds.to_json(), encoding="utf-8")

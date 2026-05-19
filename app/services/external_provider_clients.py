@@ -2,15 +2,21 @@ from __future__ import annotations
 
 import base64
 import json
+from collections.abc import Iterable
 from email.message import EmailMessage
 from pathlib import Path
 from typing import Any
 
+from app.connectors.gmail.scopes import (
+    GMAIL_DRAFT_SCOPE,
+    GMAIL_MODIFY_SCOPE,
+    GMAIL_SEND_SCOPE,
+    gmail_required_scopes,
+    gmail_scope_reauth_message,
+    missing_gmail_scopes,
+)
 from app.core.config import Settings, get_settings
 
-GMAIL_DRAFT_SCOPE = "https://www.googleapis.com/auth/gmail.compose"
-GMAIL_SEND_SCOPE = "https://www.googleapis.com/auth/gmail.send"
-GMAIL_MODIFY_SCOPE = "https://www.googleapis.com/auth/gmail.modify"
 CALENDAR_READ_SCOPE = "https://www.googleapis.com/auth/calendar.freebusy"
 CALENDAR_WRITE_SCOPE = "https://www.googleapis.com/auth/calendar.events"
 
@@ -19,10 +25,8 @@ class ExternalProviderConfigurationError(RuntimeError):
     """Raised when a live external provider is not intentionally configured."""
 
 
-GMAIL_SCOPE_REAUTH_MESSAGE = (
-    "Gmail OAuth token does not have the required write scope for this action. "
-    "Delete gmail_token.json, then re-authorize after enabling the matching Gmail write "
-    "feature flag and OAuth scope."
+GMAIL_SCOPE_REAUTH_MESSAGE = gmail_scope_reauth_message(
+    [GMAIL_DRAFT_SCOPE, GMAIL_SEND_SCOPE, GMAIL_MODIFY_SCOPE]
 )
 
 
@@ -32,7 +36,7 @@ class GmailWriteClient:
         self._service = service
 
     def create_draft(self, payload: dict) -> dict:
-        service = self._build_service([GMAIL_DRAFT_SCOPE])
+        service = self._build_service()
         raw_message = _build_raw_email(
             to_address=payload.get("to"),
             subject=payload.get("subject") or "CommsDesk draft",
@@ -47,11 +51,12 @@ class GmailWriteClient:
             .drafts()
             .create(userId=self.settings.gmail_account, body={"message": message_body}),
             provider_label="Gmail draft creation",
+            required_scopes=[GMAIL_DRAFT_SCOPE],
         )
         return {"status": "created", "draft_id": result.get("id")}
 
     def send_reply(self, payload: dict) -> dict:
-        service = self._build_service([GMAIL_SEND_SCOPE])
+        service = self._build_service()
         raw_message = _build_raw_email(
             to_address=payload.get("to"),
             subject=payload.get("subject") or "Re:",
@@ -64,11 +69,12 @@ class GmailWriteClient:
         result = _execute_google_request(
             service.users().messages().send(userId=self.settings.gmail_account, body=body),
             provider_label="Gmail send reply",
+            required_scopes=[GMAIL_SEND_SCOPE],
         )
         return {"status": "sent", "message_id": result.get("id")}
 
     def apply_label_archive(self, payload: dict) -> dict:
-        service = self._build_service([GMAIL_MODIFY_SCOPE])
+        service = self._build_service()
         source_message_id = payload.get("source_message_id")
         if not source_message_id:
             raise ExternalProviderConfigurationError("Gmail source message id is required")
@@ -89,10 +95,11 @@ class GmailWriteClient:
             .messages()
             .modify(userId=self.settings.gmail_account, id=source_message_id, body=body),
             provider_label="Gmail label/archive",
+            required_scopes=[GMAIL_MODIFY_SCOPE],
         )
         return {"status": "applied", "message_id": result.get("id"), "operation": operation}
 
-    def _build_service(self, scopes: list[str]) -> Any:
+    def _build_service(self) -> Any:
         if self._service is not None:
             return self._service
         try:
@@ -106,16 +113,26 @@ class GmailWriteClient:
             ) from exc
 
         token_file = Path(self.settings.gmail_token_file)
+        scopes = gmail_required_scopes(self.settings)
         creds = Credentials.from_authorized_user_file(str(token_file), scopes) if token_file.exists() else None
+        missing_scopes = missing_gmail_scopes(
+            creds=creds,
+            token_file=token_file,
+            required_scopes=scopes,
+        )
+        if missing_scopes:
+            creds = None
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
                 creds.refresh(Request())
             else:
                 secrets_file = Path(self.settings.gmail_client_secrets_file)
                 if not secrets_file.exists():
-                    raise ExternalProviderConfigurationError(
-                        "Gmail OAuth client secrets file is missing"
-                    )
+                    if missing_scopes:
+                        raise ExternalProviderConfigurationError(
+                            gmail_scope_reauth_message(missing_scopes)
+                        )
+                    raise ExternalProviderConfigurationError("Gmail OAuth client secrets file is missing")
                 flow = InstalledAppFlow.from_client_secrets_file(str(secrets_file), scopes)
                 creds = flow.run_local_server(port=0)
             token_file.write_text(creds.to_json(), encoding="utf-8")
@@ -228,12 +245,22 @@ def _calendar_event_body(payload: dict, *, settings: Settings | None = None) -> 
     }
 
 
-def _execute_google_request(request: Any, *, provider_label: str) -> dict:
+def _execute_google_request(
+    request: Any,
+    *,
+    provider_label: str,
+    required_scopes: Iterable[str] | None = None,
+) -> dict:
     try:
         return request.execute()
     except Exception as exc:
         if _is_insufficient_scope_error(exc):
-            raise ExternalProviderConfigurationError(GMAIL_SCOPE_REAUTH_MESSAGE) from exc
+            message = (
+                gmail_scope_reauth_message(required_scopes)
+                if required_scopes is not None
+                else GMAIL_SCOPE_REAUTH_MESSAGE
+            )
+            raise ExternalProviderConfigurationError(message) from exc
         raise ExternalProviderConfigurationError(f"{provider_label} failed: {_google_error_text(exc)}") from exc
 
 

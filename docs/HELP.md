@@ -332,6 +332,8 @@ When `EXECUTION_PROVIDER=mock`, confirmation records a mock result. When `EXECUT
 
 If a live Gmail execution says the token has insufficient authentication scopes, delete `gmail_token.json` and re-authorize after enabling the required Gmail write flag. Read-only sync tokens do not automatically gain compose, send, or modify scopes.
 
+When any Gmail write flag is enabled, CommsDesk asks Google for the combined Gmail scope set: `https://www.googleapis.com/auth/gmail.readonly`, `https://www.googleapis.com/auth/gmail.compose`, `https://www.googleapis.com/auth/gmail.send`, and `https://www.googleapis.com/auth/gmail.modify`. CommsDesk checks the stored token scopes before reuse. If `gmail_token.json` is missing one of those scopes, it forces reauthorization or reports the exact missing scopes.
+
 ### Prepare execution from review package
 
 From Review Package detail, click **Prepare execution from this review package**. The execution payload is generated from the package action type and any calendar proposal data.
