@@ -45,9 +45,26 @@ Phase 17 Outlook read needs only:
 
 The current app registration has additional delegated permissions granted, including mail send/read-write, calendar, and chat/channel permissions. CommsDesk still keeps Outlook send, Outlook calendar, and Teams disabled by feature flags and implementation boundaries. Extra Entra permissions do not enable those features unless code and local feature flags also allow them.
 
-## Public client/device-code note
+## Public client/device-code setting
 
-The local delegated flow uses device-code authorization. If `POST /api/graph/test` fails with a public-client or device-code client error, check the app registration under Authentication and enable the public client/native client flow setting for local testing.
+The local delegated flow uses device-code authorization. The Entra app must allow public client/native client flows.
+
+In the Azure/Entra portal:
+
+1. Open App registrations.
+2. Open `RTH-CommsDesk`.
+3. Open Authentication.
+4. Scroll to Advanced settings.
+5. Set Allow public client flows to Yes.
+6. Save.
+
+If this setting is not enabled, the first `/api/graph/test` call can start device-code authorization, but the retry after login may fail with:
+
+```text
+AADSTS7000218: The request body must contain the following parameter: 'client_assertion' or 'client_secret'.
+```
+
+That error means Microsoft is treating the application as a confidential client. Enable public client flows, delete `microsoft_graph_token.json`, then retry to generate a fresh device code.
 
 ## Token file
 
