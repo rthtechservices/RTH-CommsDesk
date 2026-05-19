@@ -74,10 +74,14 @@ from app.services.execution_service import (
     approve_execution,
     audit_entries_for_execution,
     cancel_execution,
+    clone_execution,
     confirm_execution,
+    execution_attempt_history,
     list_execution_records,
     prepare_execution_for_draft,
     prepare_execution_for_review_package,
+    prepare_new_execution_from_existing,
+    rerun_execution,
 )
 from app.services.external_connectors_service import sync_outlook_messages, sync_teams_messages
 from app.services.gmail_sync_service import get_sync_state, sync_gmail_messages
@@ -1054,6 +1058,7 @@ def execution_detail(execution_id: int, request: Request, db: Session = Depends(
         {
             "record": record,
             "audit": audit_entries_for_execution(db, execution_id) if record else [],
+            "attempts": execution_attempt_history(db, record) if record else [],
         },
         status_code=200 if record else 404,
     )
@@ -1093,3 +1098,30 @@ def web_cancel_execution(execution_id: int, db: Session = Depends(get_db)):
     except ValueError:
         pass
     return RedirectResponse(url=f"/executions/{execution_id}", status_code=303)
+
+
+@web_router.post("/executions/{execution_id}/rerun")
+def web_rerun_execution(execution_id: int, db: Session = Depends(get_db)):
+    try:
+        prepared = rerun_execution(db, execution_id, actor="local-user")
+        return RedirectResponse(url=f"/executions/{prepared.record.id}", status_code=303)
+    except ValueError:
+        return RedirectResponse(url=f"/executions/{execution_id}", status_code=303)
+
+
+@web_router.post("/executions/{execution_id}/clone")
+def web_clone_execution(execution_id: int, db: Session = Depends(get_db)):
+    try:
+        prepared = clone_execution(db, execution_id, actor="local-user")
+        return RedirectResponse(url=f"/executions/{prepared.record.id}", status_code=303)
+    except ValueError:
+        return RedirectResponse(url=f"/executions/{execution_id}", status_code=303)
+
+
+@web_router.post("/executions/{execution_id}/prepare-new")
+def web_prepare_new_execution(execution_id: int, db: Session = Depends(get_db)):
+    try:
+        prepared = prepare_new_execution_from_existing(db, execution_id, actor="local-user")
+        return RedirectResponse(url=f"/executions/{prepared.record.id}", status_code=303)
+    except ValueError:
+        return RedirectResponse(url=f"/executions/{execution_id}", status_code=303)

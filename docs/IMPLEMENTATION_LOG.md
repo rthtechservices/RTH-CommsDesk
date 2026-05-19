@@ -2,9 +2,62 @@
 
 Record completed work here at the end of every phase. Newest entries should be added at the top.
 
+## 2026-05-19 — Phase 17: Microsoft Graph Delegated OAuth and Outlook Mail Smoke
+
+### Summary
+- Added delegated Microsoft Graph OAuth support for local development with `MICROSOFT_GRAPH_AUTH_MODE=delegated`, configurable scopes, and a local `MICROSOFT_GRAPH_TOKEN_FILE`.
+- Preserved the existing app-only Microsoft Graph client-credentials seam.
+- Added sanitized `POST /api/graph/test` diagnostics for auth mode, account, configured booleans, success/failure, HTTP status, and sanitized error category/message.
+- Implemented read-only Outlook mail sync through Graph `/me/messages` or `/users/{MICROSOFT_ACCOUNT}/messages`, using `$select` and safe paging.
+- Updated provider status rows so Microsoft Graph delegated auth and Outlook mail read are visible while Outlook send, Outlook Calendar, and Teams remain disabled/not implemented.
+
+### Files changed
+- `app/core/config.py`
+- `app/services/microsoft_graph_client.py`
+- `app/services/provider_status_service.py`
+- `app/api/routes.py`
+- `.env.example`
+- `.gitignore`
+- `tests/test_microsoft_graph_client.py`
+- `tests/test_provider_status.py`
+- `README.md`
+- `docs/HELP.md`
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/PHASE_PLAN.md`
+- `docs/PHASE_STATUS.md`
+- `docs/phases/PHASE_17_MICROSOFT_GRAPH_DELEGATED_OAUTH_OUTLOOK_MAIL.md`
+
+### Tests run
+- `python -m ruff check .` — passed.
+- `python -m pytest -q` — passed.
+- `python -m pytest tests/test_microsoft_graph_client.py tests/test_provider_status.py tests/test_external_connectors.py -q` — passed, 14 tests.
+
+### Smoke tests
+- No live Microsoft Graph call was run during automated validation.
+- Mocked Graph HTTP tests cover delegated `/me/messages` paging, app-only `/users/{account}/messages`, device-code startup, sanitized test output, and the `/api/graph/test` route.
+
+### Documentation updated
+- `.env.example`
+- `README.md`
+- `docs/HELP.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/PHASE_PLAN.md`
+- `docs/PHASE_STATUS.md`
+- `docs/phases/PHASE_17_MICROSOFT_GRAPH_DELEGATED_OAUTH_OUTLOOK_MAIL.md`
+
+### Known issues
+- Live delegated authorization requires tenant app registration settings and manual completion of the Microsoft device-code login.
+- Outlook send, Outlook Calendar, and Teams remain disabled/not implemented by design.
+
+### Recommended next actions
+- Configure delegated Graph locally and run `POST /api/graph/test`; after success, run Outlook sync and inspect source `outlook` messages before opening any Microsoft write phase.
+
 ## 2026-05-19 — Live External Gmail/Calendar Execution Fixes
 
 ### Summary
+- Replaced one-record-per-source execution behavior with immutable attempt records, including attempt numbers and prepare-new/rerun/clone controls.
+- Added send-ready draft fields and execution payload sanitization so review notes stay in CommsDesk and external Gmail drafts receive only the clean subject/body.
 - Fixed live Google Calendar execution payloads so reminder and scheduled-event writes include `timeZone` on both `start` and `end`, defaulting to `America/Vancouver`.
 - Added configurable `GOOGLE_CALENDAR_TIME_ZONE` and documented it in setup/deployment help.
 - Improved live Gmail insufficient-scope handling so execution failures record a clear `gmail_token.json` reauthorization instruction instead of a generic provider error.
@@ -13,6 +66,14 @@ Record completed work here at the end of every phase. Newest entries should be a
 ### Files changed
 - `app/core/config.py`
 - `app/services/external_provider_clients.py`
+- `app/services/draft_service.py`
+- `app/models/entities.py`
+- `app/web/routes.py`
+- `app/web/templates/execution_detail.html`
+- `app/web/templates/executions.html`
+- `app/web/templates/draft_review.html`
+- `app/api/routes.py`
+- `alembic/versions/0013_execution_attempts_send_ready_drafts.py`
 - `.env.example`
 - `tests/conftest.py`
 - `tests/test_external_provider_clients.py`
@@ -25,8 +86,8 @@ Record completed work here at the end of every phase. Newest entries should be a
 
 ### Tests run
 - `python -m ruff check .` — passed.
-- `python -m pytest -q` — passed, 101 tests.
-- `python -m pytest tests/test_external_provider_clients.py tests/test_execution_service.py -q` — passed, 11 tests.
+- `python -m pytest -q` — passed, 113 tests.
+- `python -m pytest tests/test_execution_service.py tests/test_external_provider_clients.py tests/test_draft_generation.py -q` — passed, 20 tests.
 
 ### Smoke tests
 - Not run against live external writes after the fix; no real email or calendar write was executed during this patch.

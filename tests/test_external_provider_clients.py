@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import base64
+from email import message_from_bytes
+
 from app.core.config import Settings
 from app.services.external_provider_clients import (
     GMAIL_SCOPE_REAUTH_MESSAGE,
     ExternalProviderConfigurationError,
+    GmailWriteClient,
     _calendar_event_body,
     _execute_google_request,
 )
@@ -66,12 +70,58 @@ def test_google_insufficient_scope_error_is_actionable():
         raise AssertionError("Expected insufficient-scope configuration error")
 
 
+def test_gmail_create_draft_prefers_clean_send_ready_body() -> None:
+    service = _CapturingGmailService()
+    client = GmailWriteClient(Settings(_env_file=None), service=service)
+
+    result = client.create_draft(
+        {
+            "to": "person@example.com",
+            "send_ready_subject": "Re: Time to Meet",
+            "send_ready_body": "Hi Pat,\n\nTuesday at 2 works for me.\n\nBest",
+            "draft_text": (
+                "Review-only draft suggestion. This has not been sent.\n\n"
+                "Subject: Re: Time to Meet\n\n"
+                "Hi Pat,\n\nTuesday at 2 works for me.\n\nBest"
+            ),
+        }
+    )
+    raw = service.created_body["message"]["raw"]
+    message = message_from_bytes(base64.urlsafe_b64decode(raw.encode("ascii")))
+    body = message.get_payload(decode=True).decode("utf-8")
+
+    assert result == {"status": "created", "draft_id": "draft-1"}
+    assert message["Subject"] == "Re: Time to Meet"
+    assert "Hi Pat,\n\nTuesday at 2 works for me.\n\nBest" in body
+    assert "Review-only draft suggestion" not in body
+    assert "This has not been sent" not in body
+    assert "Subject:" not in body
+
+
 class _FailingRequest:
     def __init__(self, exc: Exception) -> None:
         self.exc = exc
 
     def execute(self) -> dict:
         raise self.exc
+
+
+class _CapturingGmailService:
+    def __init__(self) -> None:
+        self.created_body: dict = {}
+
+    def users(self) -> "_CapturingGmailService":
+        return self
+
+    def drafts(self) -> "_CapturingGmailService":
+        return self
+
+    def create(self, **kwargs) -> "_CapturingGmailService":
+        self.created_body = kwargs["body"]
+        return self
+
+    def execute(self) -> dict:
+        return {"id": "draft-1"}
 
 
 class _FakeResponse:

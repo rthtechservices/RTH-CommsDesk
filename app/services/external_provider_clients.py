@@ -39,8 +39,8 @@ class GmailWriteClient:
         service = self._build_service()
         raw_message = _build_raw_email(
             to_address=payload.get("to"),
-            subject=payload.get("subject") or "CommsDesk draft",
-            body=payload.get("draft_text") or payload.get("body") or "",
+            subject=payload.get("send_ready_subject") or payload.get("subject") or "CommsDesk draft",
+            body=payload.get("send_ready_body") or payload.get("body") or payload.get("draft_text") or "",
             thread_id=payload.get("source_message_id") or payload.get("thread_id"),
         )
         message_body = {"raw": raw_message}
@@ -59,8 +59,8 @@ class GmailWriteClient:
         service = self._build_service()
         raw_message = _build_raw_email(
             to_address=payload.get("to"),
-            subject=payload.get("subject") or "Re:",
-            body=payload.get("body") or "",
+            subject=payload.get("send_ready_subject") or payload.get("subject") or "Re:",
+            body=payload.get("send_ready_body") or payload.get("body") or "",
             thread_id=payload.get("source_message_id") or payload.get("thread_id"),
         )
         body = {"raw": raw_message}

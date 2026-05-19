@@ -58,7 +58,7 @@ Expected result:
 - Final confirmation shows the exact email and calendar payload.
 - After confirmation, the app sends the email and creates/sends the calendar event.
 - Audit log records the execution.
-- The same package cannot be executed twice.
+- The same execution attempt cannot be executed twice. A package or draft may have later retry/clone/regenerated attempts, each with its own approval, confirmation, payload, result, and audit trail.
 
 ## Out of scope
 
@@ -78,7 +78,7 @@ Expected result:
 - [x] `pytest -q` passes.
 - [x] Mock execution tests pass for supported action types.
 - [x] Final confirmation UI is present for external writes.
-- [x] Approved actions execute once and only once.
+- [x] Approved execution attempts execute once and only once; retries use new attempts.
 - [x] Audit trail is visible.
 - [x] Real provider write scopes are documented before use.
 

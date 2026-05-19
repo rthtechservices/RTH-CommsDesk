@@ -18,7 +18,8 @@
 | 14 | Live AI Provider Integration and Prompt Quality | ✅ Completed | 2026-05-17 |
 | 15 | Real Provider Wiring for Gmail, Calendar, and Microsoft Graph | ✅ Completed | 2026-05-18 |
 | 16 | Product UX and Workflow Consolidation | ✅ Completed | 2026-05-18 |
+| 17 | Microsoft Graph Delegated OAuth and Outlook Mail Smoke | ✅ Completed | 2026-05-19 |
 
 ## Current recommendation
 
-Stop for human review. Phase 15 completed provider status, guarded external execution provider wiring, safe dry-run mode, Google Calendar read/write seams, Microsoft Graph Outlook mail OAuth/client setup, fail-closed Microsoft/Teams prerequisites, and `.env.example` provider flags. Phase 16 consolidated the dashboard into a command center, added provider warnings, highlighted proposed actions and approval queues, and expanded review package detail with item position, timeline, contact context, and voice guidance.
+Stop for human review. Phase 17 added delegated Microsoft Graph OAuth for local development, sanitized `POST /api/graph/test` diagnostics, read-only Outlook mail sync through delegated or app-only Graph, and provider status rows that keep Outlook send, Outlook Calendar, and Teams disabled/not implemented.

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -42,6 +43,20 @@ SUPPORTED_DRAFT_AUDIENCES = [
 
 
 @dataclass(frozen=True)
+class DraftContent:
+    review_text: str
+    send_ready_subject: str
+    send_ready_body: str
+    caveats: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class SendReadyEmail:
+    subject: str
+    body: str
+
+
+@dataclass(frozen=True)
 class DraftContext:
     message_id: int
     thread_id: int
@@ -71,7 +86,7 @@ class DraftContext:
 class DraftProvider(Protocol):
     name: str
 
-    def generate(self, context: DraftContext, voice_profile: VoiceProfile) -> str:
+    def generate(self, context: DraftContext, voice_profile: VoiceProfile) -> str | DraftContent:
         """Return a local review-only draft suggestion."""
 
 
@@ -148,12 +163,20 @@ class MockDraftProvider:
             body = body.replace("I wanted to acknowledge this directly. ", "")
 
         note = "Review-only draft suggestion. This has not been sent."
+        caveats = []
         if context.classification_label in {"Newsletter", "Marketing", "Noise"}:
-            note += " This message may not need a reply."
+            caveats.append("This message may not need a reply.")
         if context.learned_tone_notes:
-            note += f" Learned tone guidance: {context.learned_tone_notes}."
+            caveats.append(f"Learned tone guidance: {context.learned_tone_notes}.")
+        if caveats:
+            note = f"{note} {' '.join(caveats)}"
 
-        return f"{note}\n\nSubject: {subject_line}\n\n{body}"
+        return DraftContent(
+            review_text=f"{note}\n\nSubject: {subject_line}\n\n{body}",
+            send_ready_subject=subject_line,
+            send_ready_body=body,
+            caveats=tuple(caveats),
+        )
 
 
 class OpenAIDraftProvider:
@@ -171,6 +194,7 @@ class OpenAIDraftProvider:
         if not draft_body:
             raise AIProviderError("AI draft output did not include draft_body")
         note = "Review-only draft suggestion. This has not been sent."
+        cleaned: list[str] = []
         caveats = payload.get("caveats")
         if isinstance(caveats, list):
             cleaned = [sanitize_ai_text(item, max_length=180) for item in caveats[:2]]
@@ -178,7 +202,12 @@ class OpenAIDraftProvider:
             if cleaned:
                 note = f"{note} Caveats: {'; '.join(cleaned)}."
         subject_line = f"Re: {context.subject}" if context.subject else "Re: your note"
-        return f"{note}\n\nSubject: {subject_line}\n\n{draft_body}"
+        return DraftContent(
+            review_text=f"{note}\n\nSubject: {subject_line}\n\n{draft_body}",
+            send_ready_subject=subject_line,
+            send_ready_body=draft_body,
+            caveats=tuple(cleaned),
+        )
 
 
 class FallbackDraftProvider:
@@ -187,15 +216,23 @@ class FallbackDraftProvider:
         self.fallback = fallback or MockDraftProvider()
         self.name = f"{self.primary.name}->mock_fallback"
 
-    def generate(self, context: DraftContext, voice_profile: VoiceProfile) -> str:
+    def generate(self, context: DraftContext, voice_profile: VoiceProfile) -> str | DraftContent:
         try:
             return self.primary.generate(context, voice_profile)
         except (AIProviderError, ValueError, TimeoutError):
-            fallback_text = self.fallback.generate(context, voice_profile)
-            return (
-                "Live AI was unavailable or returned invalid output; mock fallback generated "
-                "this local draft.\n\n"
-                f"{fallback_text}"
+            fallback = normalize_draft_content(
+                self.fallback.generate(context, voice_profile),
+                fallback_subject=_reply_subject(context.subject),
+            )
+            return DraftContent(
+                review_text=(
+                    "Live AI was unavailable or returned invalid output; mock fallback generated "
+                    "this local draft.\n\n"
+                    f"{fallback.review_text}"
+                ),
+                send_ready_subject=fallback.send_ready_subject,
+                send_ready_body=fallback.send_ready_body,
+                caveats=fallback.caveats,
             )
 
 
@@ -274,12 +311,20 @@ def create_draft_reply(
     )
     draft_provider = provider or get_default_draft_provider()
     context = build_draft_context(db, message)
+    content = normalize_draft_content(
+        draft_provider.generate(context, voice_profile or _fallback_voice_profile()),
+        fallback_subject=_reply_subject(context.subject),
+    )
     draft = DraftReply(
         thread_id=message.thread_id,
         message_id=message.id,
         voice_profile_id=voice_profile.id if voice_profile else None,
         status=DraftStatus.GENERATED,
-        draft_text=draft_provider.generate(context, voice_profile or _fallback_voice_profile()),
+        draft_text=content.review_text,
+        review_text=content.review_text,
+        caveats_json=json.dumps(list(content.caveats), sort_keys=True),
+        send_ready_subject=content.send_ready_subject,
+        send_ready_body=content.send_ready_body,
         provider_name=draft_provider.name,
     )
     db.add(draft)
@@ -376,6 +421,42 @@ def recent_drafts_for_message(db: Session, message_id: int, limit: int = 5) -> l
     )
 
 
+def send_ready_email_for_draft(draft: DraftReply) -> SendReadyEmail:
+    if draft.send_ready_subject and draft.send_ready_body:
+        return SendReadyEmail(
+            subject=draft.send_ready_subject.strip(),
+            body=draft.send_ready_body.strip(),
+        )
+    fallback_subject = _reply_subject(draft.message.subject if draft.message else "")
+    return sanitize_send_ready_email_text(draft.draft_text, fallback_subject=fallback_subject)
+
+
+def sanitize_send_ready_email_text(text: str | None, *, fallback_subject: str) -> SendReadyEmail:
+    content = normalize_draft_content(text or "", fallback_subject=fallback_subject)
+    return SendReadyEmail(subject=content.send_ready_subject, body=content.send_ready_body)
+
+
+def normalize_draft_content(value: str | DraftContent, *, fallback_subject: str) -> DraftContent:
+    if isinstance(value, DraftContent):
+        subject = (value.send_ready_subject or fallback_subject).strip() or fallback_subject
+        body = _strip_review_only_lines(value.send_ready_body or "")
+        return DraftContent(
+            review_text=value.review_text,
+            send_ready_subject=subject,
+            send_ready_body=body,
+            caveats=value.caveats,
+        )
+
+    review_text = str(value or "").strip()
+    subject, body = _extract_subject_and_body(review_text, fallback_subject=fallback_subject)
+    return DraftContent(
+        review_text=review_text,
+        send_ready_subject=subject,
+        send_ready_body=body,
+        caveats=(),
+    )
+
+
 def _resolve_contact(db: Session, message: Message) -> Contact | None:
     if message.thread and message.thread.contact_id:
         return db.get(Contact, message.thread.contact_id)
@@ -459,6 +540,63 @@ def _specific_reply_detail(context: DraftContext) -> str:
     if not source:
         return "this"
     return source[:180]
+
+
+def _reply_subject(subject: str | None) -> str:
+    cleaned = (subject or "").strip()
+    if not cleaned:
+        return "Re:"
+    return cleaned if cleaned.lower().startswith("re:") else f"Re: {cleaned}"
+
+
+def _extract_subject_and_body(text: str, *, fallback_subject: str) -> tuple[str, str]:
+    normalized = (text or "").replace("\r\n", "\n").replace("\r", "\n").strip()
+    if not normalized:
+        return fallback_subject, ""
+    lines = normalized.split("\n")
+    subject_index = None
+    for index, line in enumerate(lines):
+        if line.strip().lower().startswith("subject:"):
+            subject_index = index
+
+    subject = fallback_subject
+    if subject_index is not None:
+        candidate = lines[subject_index].split(":", 1)[1].strip()
+        if candidate:
+            subject = candidate
+        body = "\n".join(lines[subject_index + 1 :]).strip()
+    else:
+        paragraphs = normalized.split("\n\n")
+        while paragraphs and _is_review_only_text(paragraphs[0]):
+            paragraphs.pop(0)
+        body = "\n\n".join(paragraphs).strip()
+    return subject, _strip_review_only_lines(body)
+
+
+def _strip_review_only_lines(text: str) -> str:
+    lines = []
+    for line in (text or "").replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+        stripped = line.strip()
+        if stripped.lower().startswith("subject:"):
+            continue
+        if _is_review_only_text(stripped):
+            continue
+        lines.append(line)
+    return "\n".join(lines).strip()
+
+
+def _is_review_only_text(text: str) -> bool:
+    normalized = " ".join((text or "").strip().lower().split())
+    if not normalized:
+        return False
+    return (
+        normalized.startswith("review-only draft suggestion")
+        or normalized.startswith("this has not been sent")
+        or normalized.startswith("caveats:")
+        or normalized.startswith("learned tone guidance:")
+        or normalized.startswith("live ai was unavailable or returned invalid output")
+        or ("mock fallback generated" in normalized and "this local draft" in normalized)
+    )
 
 
 def _fallback_voice_profile() -> VoiceProfile:

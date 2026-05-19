@@ -132,6 +132,8 @@ Assigned file: `docs/phases/PHASE_15_REAL_PROVIDER_WIRING.md`.
 
 ## Phase 16 — Product UX and workflow consolidation
 
+Status: completed.
+
 Primary outcome: turn the expanded feature set into a coherent command center.
 
 Scope:
@@ -144,6 +146,23 @@ Scope:
 - Add empty states, error states, and batch-friendly controls.
 
 Assigned file: `docs/phases/PHASE_16_PRODUCT_UX_AND_WORKFLOW_CONSOLIDATION.md`.
+
+## Phase 17 — Microsoft Graph delegated OAuth and Outlook mail smoke
+
+Status: completed.
+
+Primary outcome: prove read-only Outlook mail ingestion works through delegated Microsoft Graph OAuth before any Microsoft send, calendar, or Teams write/read expansion.
+
+Scope:
+
+- Add delegated Microsoft Graph OAuth for local development with a local token file.
+- Preserve the existing app-only Graph client seam.
+- Add sanitized `POST /api/graph/test` diagnostics.
+- Sync Outlook mail read-only through Graph `/me/messages` or `/users/{MICROSOFT_ACCOUNT}/messages`.
+- Normalize Outlook messages into the existing message/thread model.
+- Keep Outlook send, Outlook Calendar, and Teams disabled/not implemented.
+
+Assigned file: `docs/phases/PHASE_17_MICROSOFT_GRAPH_DELEGATED_OAUTH_OUTLOOK_MAIL.md`.
 
 ## Later backlog ideas
 

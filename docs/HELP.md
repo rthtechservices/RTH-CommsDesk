@@ -19,6 +19,7 @@ Current MVP features:
 - Show current provider/storage status on the dashboard: AI analysis provider, live/mock mode, calendar provider, execution provider, and Gmail full-body sync state.
 - Open the Provider Status page to see live, mock, disabled, missing configuration, dry-run, and failed states for each provider/action.
 - Store message metadata and snippets by default.
+- Test delegated Microsoft Graph configuration with sanitized `POST /api/graph/test` output.
 - Fetch and store full Gmail conversation content manually from a message detail page.
 - Show a chronological Gmail conversation timeline on message detail pages.
 - Preserve sender, recipients, CC, dates, subject, and message order when full thread context is available.
@@ -62,7 +63,8 @@ Current MVP features:
 RTH CommsDesk does not currently:
 
 - Execute any outbound action without explicit approve + confirm steps.
-- Perform live Microsoft Graph mailbox/chat sync without connector service configuration and permissions.
+- Perform live Microsoft Graph mailbox/chat sync without connector service configuration, delegated authorization, and permissions.
+- Send Outlook mail, write Outlook calendar events, or sync Teams through live Graph.
 - Run non-mock production outbound provider calls by default in local development.
 - Perform live external writes unless `EXECUTION_PROVIDER=external`, the specific feature flag is enabled, execution is approved/confirmed, and dry-run has been deliberately disabled.
 - Fully live-wire Microsoft Graph Teams or Outlook Calendar without tenant-specific permissions and setup.
@@ -212,11 +214,25 @@ The dashboard is organized around the daily workflow:
 
 ### Sync Outlook
 
-Runs Outlook ingestion through the Microsoft connector adapter. Records are normalized into the same local thread/message model used by Gmail and appear with source `outlook`.
+Runs Outlook ingestion through the Microsoft connector adapter. With delegated Microsoft Graph configured, Outlook mail read uses `GET /me/messages` for `MICROSOFT_ACCOUNT=me` or `/users/{MICROSOFT_ACCOUNT}/messages` for a configured mailbox. Records are normalized into the same local thread/message model used by Gmail and appear with source `outlook`.
+
+Delegated local setup uses:
+
+- `MICROSOFT_GRAPH_ENABLED=true`
+- `MICROSOFT_GRAPH_OUTLOOK_MAIL_ENABLED=true`
+- `MICROSOFT_GRAPH_AUTH_MODE=delegated`
+- `MICROSOFT_GRAPH_SCOPES=User.Read Mail.Read offline_access`
+- `MICROSOFT_GRAPH_TOKEN_FILE=./microsoft_graph_token.json`
+- `MICROSOFT_TENANT_ID`
+- `MICROSOFT_CLIENT_ID`
+
+Use `POST /api/graph/test` before syncing Outlook. The test returns only sanitized status: auth mode, account, configured booleans, success/failure, HTTP status if available, and sanitized error category/message. It never returns access tokens, refresh tokens, or client secrets. If delegated authorization is required, complete the Microsoft device login and retry the test.
+
+Outlook sync is read-only. It uses Graph `$select` to request only the fields needed for local triage and follows pages safely up to the requested limit.
 
 ### Sync Teams
 
-Runs Teams message ingestion through the Microsoft connector adapter. Messages are normalized into local threads with source `teams` and channel metadata so queue filtering and review remain consistent.
+Teams remains disabled/not implemented for live Graph. The adapter shape is preserved for future work, but Phase 17 does not add Teams sync beyond prerequisite notes.
 
 ### Notification webhook ingest
 
@@ -328,6 +344,8 @@ Open Bulk Triage and click **Refresh automation candidates** to regenerate local
 
 From Draft Review, click **Prepare external Gmail draft execution**. Then open the execution record, approve it, and confirm execution from the final confirmation screen.
 
+Review notes stay in CommsDesk; external Gmail drafts must be send-ready. The Draft Review page can show review-only notes, caveats, and explanation text, but the Gmail execution payload uses only the clean subject and user-facing email body. CommsDesk strips review-only labels, caveats, internal reasoning, and duplicated `Subject:` lines before preparing a Gmail draft payload.
+
 When `EXECUTION_PROVIDER=mock`, confirmation records a mock result. When `EXECUTION_PROVIDER=external` and dry-run is on, confirmation records a dry-run result with `external_write_performed=false`.
 
 If a live Gmail execution says the token has insufficient authentication scopes, delete `gmail_token.json` and re-authorize after enabling the required Gmail write flag. Read-only sync tokens do not automatically gain compose, send, or modify scopes.
@@ -339,6 +357,8 @@ When any Gmail write flag is enabled, CommsDesk asks Google for the combined Gma
 From Review Package detail, click **Prepare execution from this review package**. The execution payload is generated from the package action type and any calendar proposal data.
 
 Review package detail shows the item position, conversation timeline, recommendation, explanation, confidence, contact context, matched voice guidance, and local status controls before execution is prepared.
+
+Execution records are immutable attempts. A draft or review package can have multiple attempts, and each attempt keeps its own payload, status, provider result/error, timestamps, and audit trail. From an execution detail page, use **Prepare New Execution** to regenerate from the current source artifact, **Re-run Execution** to create a new attempt with the same payload, or **Clone as New Execution** to copy the payload into a fresh pending-review attempt. Every new attempt still requires approval and final confirmation.
 
 Calendar execution uses `GOOGLE_CALENDAR_TIME_ZONE`, defaulting to `America/Vancouver`, and includes that time zone on both the start and end payload values.
 

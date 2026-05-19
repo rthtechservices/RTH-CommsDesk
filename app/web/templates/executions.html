@@ -39,17 +39,22 @@
           <thead>
             <tr>
               <th>ID</th>
+              <th>Attempt</th>
               <th>Action</th>
               <th>Status</th>
               <th>Source</th>
               <th>Provider</th>
-              <th>Created</th>
+              <th>Prepared</th>
+              <th>Approved</th>
+              <th>Confirmed</th>
+              <th>Result / error</th>
             </tr>
           </thead>
           <tbody>
             {% for record in records %}
             <tr>
               <td><a href="/executions/{{ record.id }}">#{{ record.id }}</a></td>
+              <td>{{ record.attempt_number }}</td>
               <td>{{ record.action_type.value.replace("_", " ").title() }}</td>
               <td>{{ record.status.value.replace("_", " ").title() }}</td>
               <td>
@@ -58,10 +63,13 @@
               </td>
               <td>{{ record.provider_name }}</td>
               <td>{{ record.created_at.strftime("%Y-%m-%d %H:%M") if record.created_at else "" }}</td>
+              <td>{{ record.approved_at.strftime("%Y-%m-%d %H:%M") if record.approved_at else "-" }}</td>
+              <td>{{ record.confirmed_at.strftime("%Y-%m-%d %H:%M") if record.confirmed_at else "-" }}</td>
+              <td>{% if record.error_text %}{{ record.error_text }}{% elif record.result_json %}{{ record.result_json }}{% else %}-{% endif %}</td>
             </tr>
             {% else %}
             <tr>
-              <td colspan="6" class="muted">No execution records yet.</td>
+              <td colspan="10" class="muted">No execution records yet.</td>
             </tr>
             {% endfor %}
           </tbody>

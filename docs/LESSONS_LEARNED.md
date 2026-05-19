@@ -110,10 +110,12 @@ python -m pytest -q
 ## Approved execution lessons
 
 - Execution should be a staged workflow (prepare -> approve -> confirm -> execute) rather than a single-click action.
-- Keep execution idempotent with unique source/action records so re-clicks and refreshes do not duplicate sends.
+- Execution records should be immutable attempts. Use new attempt records for retries, re-runs, clones, and regenerated payloads instead of overwriting a previous result.
 - Store the exact outbound payload and provider result on execution records for auditability and postmortems.
 - Write audit rows for every lifecycle step (prepared, approved, confirm_started, executed, failed, cancelled).
 - Keep destructive actions behind an explicit confirmation token and visible warnings even when mock providers are used.
+- Review notes stay in CommsDesk; external Gmail drafts must be send-ready.
+- Keep review_text/explanation/caveats separate from send_ready_subject and send_ready_body so Gmail never receives internal review narrative or duplicated Subject lines.
 
 ## Connector expansion lessons
 
@@ -121,6 +123,10 @@ python -m pytest -q
 - For notification webhooks, store summary/snippet fidelity with explicit source confidence instead of treating payloads as full messages.
 - Connector sync state should be tracked per source/account even for webhook-like sources so failures and recency remain auditable.
 - UI should always display message source and confidence to avoid over-trusting low-fidelity notification summaries.
+- Microsoft Graph delegated OAuth should be validated with a sanitized status endpoint before attempting mailbox sync.
+- Preserve app-only Microsoft Graph seams while adding delegated local-development auth; the mode switch belongs in configuration, not in the Outlook connector.
+- Outlook mail read should use Graph `$select`, paging limits, and the existing normalized message/thread model.
+- Outlook send, Outlook calendar, and Teams should stay disabled until a future explicit write/read phase opens those scopes.
 
 ## Production hardening lessons
 

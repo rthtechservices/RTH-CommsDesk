@@ -5,6 +5,7 @@ import json
 from dataclasses import dataclass
 from typing import Protocol
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
@@ -21,6 +22,7 @@ from app.models.entities import (
     utcnow,
 )
 from app.services.external_provider_clients import GmailWriteClient, GoogleCalendarClient
+from app.services.draft_service import sanitize_send_ready_email_text, send_ready_email_for_draft
 
 
 class ExecutionProvider(Protocol):
@@ -138,27 +140,23 @@ def prepare_execution_for_draft(
     if not draft:
         raise ValueError("Draft not found")
     action = ExecutionActionType.CREATE_EXTERNAL_GMAIL_DRAFT
-    existing = (
-        db.query(ExecutionRecord)
-        .filter(ExecutionRecord.draft_id == draft.id, ExecutionRecord.action_type == action)
-        .order_by(ExecutionRecord.id.desc())
-        .first()
-    )
-    if existing:
-        return PreparedExecution(record=existing, already_exists=True)
+    send_ready = send_ready_email_for_draft(draft)
     payload = {
         "draft_id": draft.id,
         "thread_id": draft.thread_id,
         "message_id": draft.message_id,
         "source_thread_id": draft.message.thread.source_thread_id if draft.message and draft.message.thread else None,
         "source_message_id": draft.message.source_message_id if draft.message else None,
-        "subject": draft.message.subject if draft.message else None,
         "to": draft.message.sender_email if draft.message else None,
-        "draft_text": draft.draft_text,
+        "subject": send_ready.subject,
+        "body": send_ready.body,
+        "send_ready_subject": send_ready.subject,
+        "send_ready_body": send_ready.body,
     }
     record = ExecutionRecord(
         draft_id=draft.id,
         action_type=action,
+        attempt_number=_next_attempt_number(db, draft_id=draft.id, action_type=action),
         status=ExecutionStatus.PENDING_REVIEW,
         created_by=actor,
         payload_json=_json(payload),
@@ -179,14 +177,6 @@ def prepare_execution_for_review_package(
     if not package:
         raise ValueError("Review package not found")
     action = _map_package_to_execution_action(package.action_type)
-    existing = (
-        db.query(ExecutionRecord)
-        .filter(ExecutionRecord.review_package_id == package.id, ExecutionRecord.action_type == action)
-        .order_by(ExecutionRecord.id.desc())
-        .first()
-    )
-    if existing:
-        return PreparedExecution(record=existing, already_exists=True)
 
     calendar_proposal = package.calendar_proposals[0] if package.calendar_proposals else None
     payload = _build_review_package_payload(package, action, calendar_proposal)
@@ -194,6 +184,12 @@ def prepare_execution_for_review_package(
         review_package_id=package.id,
         calendar_proposal_id=calendar_proposal.id if calendar_proposal else None,
         action_type=action,
+        attempt_number=_next_attempt_number(
+            db,
+            review_package_id=package.id,
+            calendar_proposal_id=calendar_proposal.id if calendar_proposal else None,
+            action_type=action,
+        ),
         status=ExecutionStatus.PENDING_REVIEW,
         created_by=actor,
         payload_json=_json(payload),
@@ -218,7 +214,7 @@ def approve_execution(
         raise ValueError("Execution record not found")
     if record.status == ExecutionStatus.EXECUTED:
         return record
-    if record.status not in {ExecutionStatus.PENDING_REVIEW, ExecutionStatus.FAILED}:
+    if record.status != ExecutionStatus.PENDING_REVIEW:
         raise ValueError("Execution record is not in an approvable state")
     record.status = ExecutionStatus.APPROVED
     record.approved_by = actor
@@ -245,6 +241,56 @@ def cancel_execution(
     db.commit()
     db.refresh(record)
     return record
+
+
+def rerun_execution(
+    db: Session,
+    execution_id: int,
+    *,
+    actor: str = "local-user",
+) -> PreparedExecution:
+    source = _get_execution_record(db, execution_id)
+    payload = _parse_json(source.payload_json)
+    record = _copy_execution_attempt(
+        db,
+        source,
+        payload=payload,
+        actor=actor,
+        event_type="rerun_prepared",
+    )
+    return PreparedExecution(record=record, already_exists=False)
+
+
+def clone_execution(
+    db: Session,
+    execution_id: int,
+    *,
+    actor: str = "local-user",
+) -> PreparedExecution:
+    source = _get_execution_record(db, execution_id)
+    payload = _parse_json(source.payload_json)
+    record = _copy_execution_attempt(
+        db,
+        source,
+        payload=payload,
+        actor=actor,
+        event_type="cloned",
+    )
+    return PreparedExecution(record=record, already_exists=False)
+
+
+def prepare_new_execution_from_existing(
+    db: Session,
+    execution_id: int,
+    *,
+    actor: str = "local-user",
+) -> PreparedExecution:
+    source = _get_execution_record(db, execution_id)
+    if source.draft_id:
+        return prepare_execution_for_draft(db, source.draft_id, actor=actor)
+    if source.review_package_id:
+        return prepare_execution_for_review_package(db, source.review_package_id, actor=actor)
+    raise ValueError("Execution record has no source artifact to prepare from")
 
 
 def confirm_execution(
@@ -294,6 +340,19 @@ def confirm_execution(
     db.commit()
     db.refresh(record)
     return record
+
+
+def execution_attempt_history(db: Session, record: ExecutionRecord) -> list[ExecutionRecord]:
+    query = db.query(ExecutionRecord).filter(ExecutionRecord.action_type == record.action_type)
+    if record.draft_id:
+        query = query.filter(ExecutionRecord.draft_id == record.draft_id)
+    elif record.review_package_id:
+        query = query.filter(ExecutionRecord.review_package_id == record.review_package_id)
+    elif record.calendar_proposal_id:
+        query = query.filter(ExecutionRecord.calendar_proposal_id == record.calendar_proposal_id)
+    else:
+        query = query.filter(ExecutionRecord.id == record.id)
+    return query.order_by(ExecutionRecord.attempt_number.asc(), ExecutionRecord.id.asc()).all()
 
 
 def get_default_execution_provider(settings: Settings | None = None) -> ExecutionProvider:
@@ -348,12 +407,19 @@ def _build_review_package_payload(
         "source_thread_id": message.thread.source_thread_id if message and message.thread else None,
     }
     if action == ExecutionActionType.SEND_GMAIL_REPLY:
+        fallback_subject = f"Re: {message.subject}" if message and message.subject else "Re:"
+        send_ready = sanitize_send_ready_email_text(
+            package.draft_response
+            or "Approved execution from review package with no draft_response text.",
+            fallback_subject=fallback_subject,
+        )
         return {
             **base,
             "to": message.sender_email if message else None,
-            "subject": f"Re: {message.subject}" if message and message.subject else "Re:",
-            "body": package.draft_response
-            or "Approved execution from review package with no draft_response text.",
+            "subject": send_ready.subject,
+            "body": send_ready.body,
+            "send_ready_subject": send_ready.subject,
+            "send_ready_body": send_ready.body,
         }
     if action == ExecutionActionType.CREATE_CALENDAR_EVENT:
         return {
@@ -392,6 +458,74 @@ def _build_review_package_payload(
         ),
         "warning": "Destructive action requires CONFIRM_DESTRUCTIVE",
     }
+
+
+def _get_execution_record(db: Session, execution_id: int) -> ExecutionRecord:
+    record = db.get(ExecutionRecord, execution_id)
+    if not record:
+        raise ValueError("Execution record not found")
+    return record
+
+
+def _copy_execution_attempt(
+    db: Session,
+    source: ExecutionRecord,
+    *,
+    payload: dict,
+    actor: str,
+    event_type: str,
+) -> ExecutionRecord:
+    record = ExecutionRecord(
+        review_package_id=source.review_package_id,
+        draft_id=source.draft_id,
+        calendar_proposal_id=source.calendar_proposal_id,
+        action_type=source.action_type,
+        attempt_number=_next_attempt_number(
+            db,
+            draft_id=source.draft_id,
+            review_package_id=source.review_package_id,
+            calendar_proposal_id=source.calendar_proposal_id,
+            action_type=source.action_type,
+        ),
+        status=ExecutionStatus.PENDING_REVIEW,
+        created_by=actor,
+        payload_json=_json(payload),
+        provider_name="mock",
+    )
+    db.add(record)
+    db.flush()
+    _append_audit(
+        db,
+        record,
+        event_type,
+        actor,
+        {"source_execution_id": source.id, "payload": payload},
+    )
+    db.commit()
+    db.refresh(record)
+    return record
+
+
+def _next_attempt_number(
+    db: Session,
+    *,
+    action_type: ExecutionActionType,
+    draft_id: int | None = None,
+    review_package_id: int | None = None,
+    calendar_proposal_id: int | None = None,
+) -> int:
+    query = db.query(func.max(ExecutionRecord.attempt_number)).filter(
+        ExecutionRecord.action_type == action_type
+    )
+    if draft_id is not None:
+        query = query.filter(ExecutionRecord.draft_id == draft_id)
+    elif review_package_id is not None:
+        query = query.filter(ExecutionRecord.review_package_id == review_package_id)
+    elif calendar_proposal_id is not None:
+        query = query.filter(ExecutionRecord.calendar_proposal_id == calendar_proposal_id)
+    else:
+        return 1
+    return int(query.scalar() or 0) + 1
 
 
 def _execute_with_provider(

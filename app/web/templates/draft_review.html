@@ -137,6 +137,14 @@
         </div>
         <h2>Suggested Reply</h2>
         <pre>{{ draft.draft_text }}</pre>
+        <h2>Send-ready Gmail draft</h2>
+        <div class="facts">
+          <div>
+            <span class="label">Subject</span>
+            <span>{{ draft.send_ready_subject or "Prepared during execution" }}</span>
+          </div>
+        </div>
+        <pre>{{ draft.send_ready_body or "A clean external body will be sanitized during execution preparation." }}</pre>
         <form method="post" action="/drafts/{{ draft.id }}/prepare-execution">
           <button type="submit">Prepare external Gmail draft execution</button>
         </form>

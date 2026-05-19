@@ -149,18 +149,34 @@ CommsDesk checks the scopes stored in `gmail_token.json` before reusing it. If t
 
 ## Microsoft Graph setup
 
-Outlook mail has an app-only Microsoft Graph client seam. Tenant setup must provide an app registration with the required application permissions and admin consent, then configure:
+Outlook mail read supports delegated Microsoft Graph OAuth for local development while preserving the existing app-only client seam.
+
+For local delegated Outlook mail read smoke testing, configure:
 
 ```env
 MICROSOFT_GRAPH_ENABLED=true
 MICROSOFT_GRAPH_OUTLOOK_MAIL_ENABLED=true
+MICROSOFT_GRAPH_AUTH_MODE=delegated
+MICROSOFT_GRAPH_SCOPES=User.Read Mail.Read offline_access
+MICROSOFT_GRAPH_TOKEN_FILE=./microsoft_graph_token.json
 MICROSOFT_TENANT_ID=...
 MICROSOFT_CLIENT_ID=...
+MICROSOFT_ACCOUNT=me
+```
+
+Run `POST /api/graph/test` to verify delegated configuration. If no delegated token exists, CommsDesk starts a local device-code authorization flow and returns a sanitized `authorization_required` result. Complete the Microsoft device login, then retry `POST /api/graph/test`. The delegated token is stored only in `MICROSOFT_GRAPH_TOKEN_FILE`; do not commit it.
+
+Outlook read sync uses `GET /me/messages` for delegated `MICROSOFT_ACCOUNT=me`, or `/users/{MICROSOFT_ACCOUNT}/messages` when a specific account is configured. It requests only the selected fields needed for local triage and follows Graph paging up to the requested sync limit.
+
+For app-only Graph tenants, set:
+
+```env
+MICROSOFT_GRAPH_AUTH_MODE=app_only
 MICROSOFT_CLIENT_SECRET=...
 MICROSOFT_ACCOUNT=user@example.com
 ```
 
-Teams and Outlook Calendar remain adapter-shape/fail-closed until the tenant-specific Graph permissions and endpoint choices are confirmed.
+Teams, Outlook send, and Outlook Calendar remain disabled/not implemented. Phase 17 is read-only for Outlook mail.
 
 ## Running tests
 ```bash
@@ -222,4 +238,4 @@ Do not delete or commit `client_secret.json`, `gmail_token.json`, `.env`, or any
 
 ## Current phase status
 
-Phases 01 through 16 are now implemented in this repository roadmap.
+Phases 01 through 17 are now implemented in this repository roadmap.

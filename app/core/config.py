@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     microsoft_client_secret: str | None = None
     microsoft_account: str = "me"
     microsoft_graph_enabled: bool = False
+    microsoft_graph_auth_mode: str = "app_only"
+    microsoft_graph_scopes: str = "User.Read Mail.Read offline_access"
+    microsoft_graph_token_file: str = "./microsoft_graph_token.json"
     microsoft_graph_outlook_mail_enabled: bool = False
     microsoft_graph_teams_enabled: bool = False
     microsoft_graph_outlook_calendar_read_enabled: bool = False

@@ -35,15 +35,20 @@ from app.services.gmail_sync_service import (
     sync_gmail_messages,
 )
 from app.services.live_ai_client import ai_provider_status, test_live_ai_provider
+from app.services.microsoft_graph_client import test_microsoft_graph_connection
 from app.services.provider_status_service import provider_status_matrix
 from app.services.execution_service import (
     approve_execution,
     audit_entries_for_execution,
     cancel_execution,
+    clone_execution,
     confirm_execution,
+    execution_attempt_history,
     list_execution_records,
     prepare_execution_for_draft,
     prepare_execution_for_review_package,
+    prepare_new_execution_from_existing,
+    rerun_execution,
 )
 from app.services.external_connectors_service import (
     ingest_notification_summary,
@@ -111,6 +116,11 @@ def sync_teams(db: Session = Depends(get_db)) -> dict:
     except RuntimeError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return result.as_dict()
+
+
+@api_router.post("/graph/test")
+def test_graph() -> dict:
+    return test_microsoft_graph_connection()
 
 
 @api_router.post("/notifications/webhook")
@@ -667,6 +677,39 @@ def cancel_execution_endpoint(
     return _execution_dict(record)
 
 
+@api_router.post("/executions/{execution_id}/rerun")
+def rerun_execution_endpoint(
+    execution_id: int, actor: str = Form("local-user"), db: Session = Depends(get_db)
+) -> dict:
+    try:
+        prepared = rerun_execution(db, execution_id, actor=actor)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _execution_dict(prepared.record, already_exists=prepared.already_exists)
+
+
+@api_router.post("/executions/{execution_id}/clone")
+def clone_execution_endpoint(
+    execution_id: int, actor: str = Form("local-user"), db: Session = Depends(get_db)
+) -> dict:
+    try:
+        prepared = clone_execution(db, execution_id, actor=actor)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _execution_dict(prepared.record, already_exists=prepared.already_exists)
+
+
+@api_router.post("/executions/{execution_id}/prepare-new")
+def prepare_new_execution_endpoint(
+    execution_id: int, actor: str = Form("local-user"), db: Session = Depends(get_db)
+) -> dict:
+    try:
+        prepared = prepare_new_execution_from_existing(db, execution_id, actor=actor)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _execution_dict(prepared.record, already_exists=prepared.already_exists)
+
+
 @api_router.get("/executions")
 def get_executions(db: Session = Depends(get_db)) -> list[dict]:
     return [_execution_dict(record) for record in list_execution_records(db)]
@@ -678,6 +721,9 @@ def get_execution(execution_id: int, db: Session = Depends(get_db)) -> dict:
     if not record:
         raise HTTPException(status_code=404, detail="Execution record not found")
     data = _execution_dict(record)
+    data["attempts"] = [
+        _execution_dict(attempt) for attempt in execution_attempt_history(db, record)
+    ]
     data["audit"] = [
         {
             "id": entry.id,
@@ -767,6 +813,7 @@ def _execution_dict(record: ExecutionRecord, *, already_exists: bool = False) ->
         "draft_id": record.draft_id,
         "calendar_proposal_id": record.calendar_proposal_id,
         "action_type": record.action_type.value,
+        "attempt_number": record.attempt_number,
         "status": record.status.value,
         "created_by": record.created_by,
         "approved_by": record.approved_by,
@@ -776,6 +823,8 @@ def _execution_dict(record: ExecutionRecord, *, already_exists: bool = False) ->
         "result_json": record.result_json,
         "error_text": record.error_text,
         "created_at": record.created_at.isoformat() if record.created_at else None,
+        "approved_at": record.approved_at.isoformat() if record.approved_at else None,
+        "confirmed_at": record.confirmed_at.isoformat() if record.confirmed_at else None,
         "executed_at": record.executed_at.isoformat() if record.executed_at else None,
         "already_exists": already_exists,
     }

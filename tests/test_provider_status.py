@@ -52,12 +52,35 @@ def test_provider_status_rows_cover_required_phase15_actions():
         "gmail_label_archive",
         "google_calendar_read",
         "google_calendar_write",
+        "microsoft_graph_delegated_auth",
         "microsoft_graph_outlook_mail",
+        "microsoft_graph_outlook_mail_send",
         "microsoft_graph_teams",
         "outlook_calendar_read",
         "notification_webhook",
         "ai_provider",
     }.issubset(keys)
+
+
+def test_provider_status_reports_delegated_graph_auth(tmp_path):
+    token_file = tmp_path / "microsoft_graph_token.json"
+    token_file.write_text("{}", encoding="utf-8")
+    status = provider_status_matrix(
+        Settings(
+            _env_file=None,
+            microsoft_graph_enabled=True,
+            microsoft_graph_auth_mode="delegated",
+            microsoft_tenant_id="tenant",
+            microsoft_client_id="client",
+            microsoft_graph_token_file=str(token_file),
+            microsoft_graph_outlook_mail_enabled=True,
+        )
+    )
+
+    assert status["microsoft_graph_delegated_auth"]["state"] == "live"
+    assert status["microsoft_graph_outlook_mail"]["mode"] == "delegated Graph"
+    assert status["microsoft_graph_outlook_mail_send"]["state"] == "disabled"
+    assert status["outlook_calendar_read"]["state"] == "disabled"
 
 
 def test_provider_status_route_loads():

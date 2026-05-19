@@ -28,6 +28,7 @@ def provider_status_rows(settings: Settings | None = None) -> list[ProviderStatu
     calendar_configured = _path_exists(active.gmail_client_secrets_file)
     webhook_configured = bool(active.notification_webhook_secret)
     dry_run = active.external_write_dry_run
+    graph_auth_mode = _graph_auth_mode(active)
 
     rows = [
         ProviderStatusRow(
@@ -102,41 +103,53 @@ def provider_status_rows(settings: Settings | None = None) -> list[ProviderStatu
             dry_run=active.google_calendar_write_enabled and dry_run,
         ),
         ProviderStatusRow(
+            key="microsoft_graph_delegated_auth",
+            label="Microsoft Graph delegated auth",
+            classification="live-ready",
+            state=_graph_delegated_auth_state(active),
+            mode=graph_auth_mode,
+            detail="Delegated OAuth stores a local token file and requests User.Read, Mail.Read, and offline_access by default.",
+            next_action=_graph_delegated_next_action(active),
+        ),
+        ProviderStatusRow(
             key="microsoft_graph_outlook_mail",
-            label="Microsoft Graph Outlook mail",
+            label="Outlook mail read",
             classification="partially wired" if graph_configured else "adapter-shape-only",
             state=_enabled_state(
                 active.microsoft_graph_enabled and active.microsoft_graph_outlook_mail_enabled,
                 graph_configured,
                 dry_run=False,
             ),
-            mode="app-only Graph" if active.microsoft_graph_outlook_mail_enabled else "disabled",
-            detail="Outlook mail can use Microsoft Graph app credentials where tenant permissions allow Mail.Read.",
+            mode=f"{graph_auth_mode} Graph" if active.microsoft_graph_outlook_mail_enabled else "disabled",
+            detail="Outlook mail read can use Microsoft Graph delegated OAuth or the existing app-only client seam with Mail.Read.",
             next_action=_graph_next_action(active, "MICROSOFT_GRAPH_OUTLOOK_MAIL_ENABLED"),
+        ),
+        ProviderStatusRow(
+            key="microsoft_graph_outlook_mail_send",
+            label="Outlook mail send",
+            classification="not implemented",
+            state="disabled",
+            mode="disabled",
+            detail="Outlook send actions are intentionally not implemented in Phase 17.",
+            next_action="Keep disabled until a future explicit approved-execution write phase.",
         ),
         ProviderStatusRow(
             key="microsoft_graph_teams",
             label="Microsoft Graph Teams",
-            classification="adapter-shape-only",
-            state="disabled" if not active.microsoft_graph_teams_enabled else "missing_configuration",
-            mode="adapter",
-            detail="Teams ingestion keeps the normalized adapter seam; live Graph setup is tenant-permission dependent.",
-            next_action="Configure tenant app permissions for Teams export/chat reads before enabling.",
+            classification="not implemented",
+            state="disabled",
+            mode="disabled",
+            detail="Teams remains disabled; Phase 17 only documents prerequisites and keeps the adapter seam fail-closed.",
+            next_action="Confirm tenant permissions and a future read scope before implementing Teams.",
         ),
         ProviderStatusRow(
             key="outlook_calendar_read",
-            label="Outlook Calendar read",
-            classification="adapter-shape-only",
-            state=_enabled_state(
-                active.microsoft_graph_enabled
-                and active.microsoft_graph_outlook_calendar_read_enabled
-                and active.outlook_calendar_read_enabled,
-                graph_configured,
-                dry_run=False,
-            ),
-            mode="adapter",
-            detail="Outlook calendar read remains fail-closed until tenant calendar permissions are confirmed.",
-            next_action=_graph_next_action(active, "MICROSOFT_GRAPH_OUTLOOK_CALENDAR_READ_ENABLED"),
+            label="Outlook Calendar",
+            classification="not implemented",
+            state="disabled",
+            mode="disabled",
+            detail="Outlook calendar read/write remains fail-closed and is not implemented in Phase 17.",
+            next_action="Keep disabled until a future calendar-specific Graph phase.",
         ),
         ProviderStatusRow(
             key="notification_webhook",
@@ -230,16 +243,47 @@ def _graph_next_action(settings: Settings, flag_name: str) -> str:
     if not settings.microsoft_graph_enabled:
         return "Set MICROSOFT_GRAPH_ENABLED=true only after tenant app registration is complete."
     if not _graph_configured(settings):
+        if _graph_auth_mode(settings) == "delegated":
+            return "Set MICROSOFT_TENANT_ID and MICROSOFT_CLIENT_ID, then run POST /api/graph/test."
         return "Set MICROSOFT_TENANT_ID, MICROSOFT_CLIENT_ID, and MICROSOFT_CLIENT_SECRET."
     return f"Set {flag_name}=true after confirming tenant permissions."
 
 
 def _graph_configured(settings: Settings) -> bool:
+    if _graph_auth_mode(settings) == "delegated":
+        return bool(settings.microsoft_tenant_id and settings.microsoft_client_id)
     return bool(
         settings.microsoft_tenant_id
         and settings.microsoft_client_id
         and settings.microsoft_client_secret
     )
+
+
+def _graph_auth_mode(settings: Settings) -> str:
+    raw = (settings.microsoft_graph_auth_mode or "app_only").strip().lower()
+    return raw if raw in {"delegated", "app_only"} else "invalid"
+
+
+def _graph_delegated_auth_state(settings: Settings) -> str:
+    if _graph_auth_mode(settings) != "delegated":
+        return "disabled"
+    if not settings.microsoft_graph_enabled:
+        return "disabled"
+    if not settings.microsoft_tenant_id or not settings.microsoft_client_id:
+        return "missing_configuration"
+    return "live" if _path_exists(settings.microsoft_graph_token_file) else "missing_configuration"
+
+
+def _graph_delegated_next_action(settings: Settings) -> str:
+    if _graph_auth_mode(settings) != "delegated":
+        return "Set MICROSOFT_GRAPH_AUTH_MODE=delegated to use local delegated OAuth."
+    if not settings.microsoft_graph_enabled:
+        return "Set MICROSOFT_GRAPH_ENABLED=true for local delegated Graph testing."
+    if not settings.microsoft_tenant_id or not settings.microsoft_client_id:
+        return "Set MICROSOFT_TENANT_ID and MICROSOFT_CLIENT_ID."
+    if not _path_exists(settings.microsoft_graph_token_file):
+        return "Run POST /api/graph/test to start delegated authorization."
+    return "Token file exists; run POST /api/graph/test to verify the delegated session."
 
 
 def _path_exists(value: str | None) -> bool:

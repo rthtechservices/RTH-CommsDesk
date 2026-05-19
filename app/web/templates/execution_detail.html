@@ -32,6 +32,9 @@
       .facts div { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
       .facts div:first-child { border-top: 0; padding-top: 0; }
       pre { border: 1px solid var(--line); border-radius: 8px; background: #fbfcfd; padding: 12px; white-space: pre-wrap; overflow: auto; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { border-top: 1px solid var(--line); padding: 8px 6px; text-align: left; vertical-align: top; }
+      th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
       button, input {
         border: 1px solid var(--line);
         border-radius: 6px;
@@ -65,10 +68,14 @@
       <section class="panel">
         <div class="facts">
           <div><strong>Action</strong><span>{{ record.action_type.value.replace("_", " ").title() }}</span></div>
+          <div><strong>Attempt</strong><span>{{ record.attempt_number }}</span></div>
           <div><strong>Status</strong><span>{{ record.status.value.replace("_", " ").title() }}</span></div>
           <div><strong>Review package</strong><span>{{ record.review_package_id or "-" }}</span></div>
           <div><strong>Draft</strong><span>{{ record.draft_id or "-" }}</span></div>
           <div><strong>Provider</strong><span>{{ record.provider_name }}</span></div>
+          <div><strong>Prepared</strong><span>{{ record.created_at.strftime("%Y-%m-%d %H:%M") if record.created_at else "-" }}</span></div>
+          <div><strong>Approved</strong><span>{{ record.approved_at.strftime("%Y-%m-%d %H:%M") if record.approved_at else "-" }}</span></div>
+          <div><strong>Confirmed</strong><span>{{ record.confirmed_at.strftime("%Y-%m-%d %H:%M") if record.confirmed_at else "-" }}</span></div>
           <div><strong>Error</strong><span>{{ record.error_text or "-" }}</span></div>
         </div>
       </section>
@@ -88,13 +95,30 @@
       <section class="panel">
         <h2>Execution controls</h2>
         <div class="row">
+          <form method="post" action="/executions/{{ record.id }}/prepare-new">
+            <button type="submit">Prepare New Execution</button>
+          </form>
+          <form method="post" action="/executions/{{ record.id }}/rerun">
+            <button type="submit">Re-run Execution</button>
+          </form>
+          <form method="post" action="/executions/{{ record.id }}/clone">
+            <button type="submit">Clone as New Execution</button>
+          </form>
+        </div>
+        <p class="muted">New attempts start in pending review and still require approval plus final confirmation.</p>
+        <div class="row">
+          {% if record.status.value == "pending_review" %}
           <form method="post" action="/executions/{{ record.id }}/approve">
             <button type="submit">Approve</button>
           </form>
+          {% endif %}
+          {% if record.status.value not in ["executed", "cancelled"] %}
           <form method="post" action="/executions/{{ record.id }}/cancel">
-            <button type="submit">Cancel</button>
+            <button type="submit">Cancel/Supersede Attempt</button>
           </form>
+          {% endif %}
         </div>
+        {% if record.status.value == "approved" %}
         <form method="post" action="/executions/{{ record.id }}/confirm" style="margin-top: 10px">
           {% if record.action_type.value == "delete_unsubscribe" %}
           <label class="muted">Enter CONFIRM_DESTRUCTIVE for delete/unsubscribe:</label>
@@ -102,6 +126,41 @@
           {% endif %}
           <button class="primary" type="submit">Confirm and execute</button>
         </form>
+        {% endif %}
+      </section>
+
+      <section class="panel">
+        <h2>Attempt history</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Attempt</th>
+              <th>Status</th>
+              <th>Provider</th>
+              <th>Prepared</th>
+              <th>Approved</th>
+              <th>Confirmed</th>
+              <th>Result / error</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for attempt in attempts %}
+            <tr>
+              <td><a href="/executions/{{ attempt.id }}">#{{ attempt.attempt_number }}</a></td>
+              <td>{{ attempt.status.value.replace("_", " ").title() }}</td>
+              <td>{{ attempt.provider_name }}</td>
+              <td>{{ attempt.created_at.strftime("%Y-%m-%d %H:%M") if attempt.created_at else "" }}</td>
+              <td>{{ attempt.approved_at.strftime("%Y-%m-%d %H:%M") if attempt.approved_at else "-" }}</td>
+              <td>{{ attempt.confirmed_at.strftime("%Y-%m-%d %H:%M") if attempt.confirmed_at else "-" }}</td>
+              <td>
+                {% if attempt.error_text %}{{ attempt.error_text }}{% elif attempt.result_json %}{{ attempt.result_json }}{% else %}-{% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="muted">No related attempts found.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </section>
 
       <section class="panel">

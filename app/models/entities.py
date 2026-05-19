@@ -318,6 +318,10 @@ class DraftReply(Base):
     message_id: Mapped[int | None] = mapped_column(ForeignKey("messages.id"))
     voice_profile_id: Mapped[int | None] = mapped_column(ForeignKey("voice_profiles.id"))
     draft_text: Mapped[str] = mapped_column(Text)
+    review_text: Mapped[str | None] = mapped_column(Text)
+    caveats_json: Mapped[str | None] = mapped_column(Text)
+    send_ready_subject: Mapped[str | None] = mapped_column(String(500))
+    send_ready_body: Mapped[str | None] = mapped_column(Text)
     status: Mapped[DraftStatus] = mapped_column(Enum(DraftStatus), default=DraftStatus.GENERATED)
     provider_name: Mapped[str] = mapped_column(String(100), default="mock")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
@@ -531,9 +535,9 @@ class CalendarActionProposal(Base):
 class ExecutionRecord(Base):
     __tablename__ = "execution_records"
     __table_args__ = (
-        UniqueConstraint("review_package_id", "action_type", name="uq_execution_review_action"),
-        UniqueConstraint("draft_id", "action_type", name="uq_execution_draft_action"),
         Index("ix_execution_records_status_created", "status", "created_at"),
+        Index("ix_execution_records_review_attempt", "review_package_id", "action_type", "attempt_number"),
+        Index("ix_execution_records_draft_attempt", "draft_id", "action_type", "attempt_number"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -545,6 +549,7 @@ class ExecutionRecord(Base):
         ForeignKey("calendar_action_proposals.id"), index=True
     )
     action_type: Mapped[ExecutionActionType] = mapped_column(Enum(ExecutionActionType))
+    attempt_number: Mapped[int] = mapped_column(Integer, default=1)
     status: Mapped[ExecutionStatus] = mapped_column(
         Enum(ExecutionStatus), default=ExecutionStatus.PENDING_REVIEW
     )

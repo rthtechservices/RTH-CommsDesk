@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -20,9 +21,12 @@ from app.core.config import Settings
 from app.services.execution_service import (
     GuardedExternalExecutionProvider,
     approve_execution,
+    clone_execution,
     confirm_execution,
+    prepare_new_execution_from_existing,
     prepare_execution_for_draft,
     prepare_execution_for_review_package,
+    rerun_execution,
 )
 from app.services.external_provider_clients import GMAIL_SCOPE_REAUTH_MESSAGE
 
@@ -105,14 +109,59 @@ def test_prepare_and_execute_label_archive_action(db_session):
     assert "operation_id" in (executed.result_json or "")
 
 
-def test_duplicate_prepare_returns_existing_execution_record(db_session):
+def test_prepare_creates_new_immutable_attempts(db_session):
     draft = _seed_draft(db_session)
 
     first = prepare_execution_for_draft(db_session, draft.id, actor="tester")
     second = prepare_execution_for_draft(db_session, draft.id, actor="tester")
 
-    assert second.already_exists is True
-    assert first.record.id == second.record.id
+    assert second.already_exists is False
+    assert first.record.id != second.record.id
+    assert first.record.attempt_number == 1
+    assert second.record.attempt_number == 2
+
+
+def test_rerun_clone_and_prepare_new_create_pending_attempts(db_session):
+    draft = _seed_draft(db_session)
+    prepared = prepare_execution_for_draft(db_session, draft.id, actor="tester")
+    approve_execution(db_session, prepared.record.id, actor="tester")
+    executed = confirm_execution(db_session, prepared.record.id, actor="tester")
+
+    rerun = rerun_execution(db_session, executed.id, actor="tester")
+    clone = clone_execution(db_session, executed.id, actor="tester")
+    prepared_new = prepare_new_execution_from_existing(db_session, executed.id, actor="tester")
+
+    assert [rerun.record.attempt_number, clone.record.attempt_number, prepared_new.record.attempt_number] == [
+        2,
+        3,
+        4,
+    ]
+    for record in [rerun.record, clone.record, prepared_new.record]:
+        assert record.status == ExecutionStatus.PENDING_REVIEW
+        assert record.approved_at is None
+        assert record.confirmed_at is None
+        assert record.executed_at is None
+
+
+def test_gmail_draft_execution_payload_uses_clean_send_ready_body(db_session):
+    draft = _seed_draft(
+        db_session,
+        draft_text=(
+            "Review-only draft suggestion. This has not been sent. Caveats: verify timing.\n\n"
+            "Subject: Re: FW: Time to Meet\n\n"
+            "Hi Pat,\n\nTuesday at 2 works for me.\n\nBest"
+        ),
+    )
+
+    prepared = prepare_execution_for_draft(db_session, draft.id, actor="tester")
+    payload = json.loads(prepared.record.payload_json)
+
+    assert payload["subject"] == "Re: FW: Time to Meet"
+    assert payload["body"] == "Hi Pat,\n\nTuesday at 2 works for me.\n\nBest"
+    assert "Review-only draft suggestion" not in payload["body"]
+    assert "This has not been sent" not in payload["body"]
+    assert "Caveats:" not in payload["body"]
+    assert "Subject:" not in payload["body"]
 
 
 def test_external_execution_provider_dry_run_requires_feature_flags(db_session):
@@ -172,7 +221,11 @@ def test_execution_records_actionable_gmail_scope_error(db_session):
     assert GMAIL_SCOPE_REAUTH_MESSAGE in (audit.details or "")
 
 
-def _seed_draft(db_session) -> DraftReply:
+def _seed_draft(
+    db_session,
+    *,
+    draft_text: str = "Hi,\n\nHere is the update.\n\nBest",
+) -> DraftReply:
     thread = MessageThread(source_type="gmail", source_thread_id="exec-draft-thread")
     db_session.add(thread)
     db_session.flush()
@@ -193,7 +246,7 @@ def _seed_draft(db_session) -> DraftReply:
         thread_id=thread.id,
         message_id=message.id,
         voice_profile_id=profile.id,
-        draft_text="Hi,\n\nHere is the update.\n\nBest",
+        draft_text=draft_text,
     )
     db_session.add(draft)
     db_session.commit()
