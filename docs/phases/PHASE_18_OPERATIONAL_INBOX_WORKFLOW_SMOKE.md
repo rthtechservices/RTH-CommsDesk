@@ -143,3 +143,26 @@ Update:
 ## Codex notes
 
 Keep this phase focused on the operator workflow. Prefer small, obvious UI improvements and smoke-test diagnostics over new back-end surfaces. If a feature is already present but hard to find, improve discoverability instead of rebuilding it.
+
+## Completion notes — 2026-05-19
+
+Status: Completed for human review.
+
+Implemented:
+
+- Added a dashboard operational smoke panel and `/operational-smoke` page for Gmail read config, Outlook delegated Graph readiness, Outlook sync state, Azure/OpenAI status, execution provider mode, dry-run, Gmail write flags, Google Calendar write flag, source counts, queue counts, and blockers.
+- Added source counts and source filters for all, Gmail, Outlook, and notification-derived messages.
+- Added process-next routes for attention items, pending review packages, and execution records waiting for approval or confirmation.
+- Added fast-path links from dashboard, message detail, review package detail, execution list, and execution detail.
+- Preserved the Phase 17 Microsoft Graph boundary: Outlook mail read only; Outlook send, Outlook Calendar, and Teams remain disabled/not implemented.
+- Removed Teams from the dashboard sync actions so it is not presented as part of the Phase 18 operator workflow.
+- Added tests for operational smoke rendering, source filtering, process-next redirects, disabled Microsoft write boundaries, and provider status safety.
+
+Validation:
+
+- `python -m ruff check .` — passed.
+- `python -m pytest -q` — passed, 124 tests.
+- `python -m alembic upgrade head` — passed.
+- Local route smoke on Uvicorn port 8765 — `/`, `/providers`, `/review-packages`, `/bulk-triage`, `/executions`, `/admin`, `/healthz`, and `/operational-smoke` returned HTTP 200.
+- `POST /api/graph/test` — returned delegated `success=true`, HTTP 200, sanitized status fields only.
+- `POST /api/sync/outlook` — returned `source_type=outlook`, fetched 100, inserted 0, skipped duplicates 100, updated threads 1, errors 0.

@@ -142,7 +142,11 @@ def build_attention_queue(
             )
         )
     if source:
-        query = query.filter(Message.source_type == source)
+        normalized_source = source.strip().lower()
+        if normalized_source == "notification":
+            query = query.filter(Message.source_type.like("notification_%"))
+        elif normalized_source != "all":
+            query = query.filter(Message.source_type == normalized_source)
 
     return (
         query.order_by(desc(AttentionItem.attention_score), desc(AttentionItem.updated_at))

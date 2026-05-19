@@ -11,13 +11,14 @@ Current MVP features:
 - Sync recent Gmail inbox messages in read-only mode.
 - Backfill older Gmail inbox pages in read-only mode.
 - Sync Outlook mailbox messages through the Microsoft connector adapter.
-- Sync Teams chat messages through the Microsoft connector adapter.
+- Keep Teams as a disabled future connector seam; it is not exposed as an operator sync action.
 - Ingest notification summaries from SMS/WhatsApp/Messenger-style webhook payloads with confidence metadata.
 - Keep Gmail sync metadata locally so repeat syncs are incremental.
 - Skip duplicate Gmail messages and duplicate attention items on repeat sync.
 - Show the latest sync/backfill counts: fetched, inserted, duplicates skipped, threads updated, and backlog cursor status.
 - Show current provider/storage status on the dashboard: AI analysis provider, live/mock mode, calendar provider, execution provider, and Gmail full-body sync state.
 - Open the Provider Status page to see live, mock, disabled, missing configuration, dry-run, and failed states for each provider/action.
+- Open the Operational Smoke page to see Gmail read config, Outlook Graph status, Outlook sync readiness, Azure/OpenAI readiness, execution mode, dry-run state, write flags, source counts, and blockers.
 - Store message metadata and snippets by default.
 - Test delegated Microsoft Graph configuration with sanitized `POST /api/graph/test` output.
 - Fetch and store full Gmail conversation content manually from a message detail page.
@@ -48,7 +49,7 @@ Current MVP features:
 - Validate structured AI output before storing it and fall back to the mock provider if live AI fails or returns invalid output.
 - Generate local calendar availability recommendations for scheduling requests and due-date reminders.
 - Locally approve, reject, edit, or snooze a review package without changing Gmail or any calendar.
-- Filter the attention queue by active/unreviewed, needs reply, important, noise, reviewed, date range, sender/contact, and source.
+- Filter the attention queue by active/unreviewed, needs reply, important, noise, reviewed, date range, sender/contact, and source: all, Gmail, Outlook, or notification-derived.
 - Use Bulk Triage mode for queue pagination beyond the top dashboard slice.
 - Generate and review local automation candidates for mark_noise, unsubscribe_review, archive_candidate, and delete_candidate.
 - Apply bulk actions and undo recent bulk actions where practical.
@@ -65,6 +66,7 @@ RTH CommsDesk does not currently:
 - Execute any outbound action without explicit approve + confirm steps.
 - Perform live Microsoft Graph mailbox/chat sync without connector service configuration, delegated authorization, and permissions.
 - Send Outlook mail, write Outlook calendar events, or sync Teams through live Graph.
+- Expose Teams as a daily operator sync action.
 - Run non-mock production outbound provider calls by default in local development.
 - Perform live external writes unless `EXECUTION_PROVIDER=external`, the specific feature flag is enabled, execution is approved/confirmed, and dry-run has been deliberately disabled.
 - Fully live-wire Microsoft Graph Teams or Outlook Calendar without tenant-specific permissions and setup.
@@ -211,6 +213,25 @@ The dashboard is organized around the daily workflow:
 - Noise And Unsubscribe Candidates: local automation candidates.
 - Backlog Progress: reviewed count and pending work indicators.
 - Provider Status Warnings: missing config or dry-run states that affect workflow trust.
+- Operational Smoke: Gmail, Outlook, AI, execution, dry-run, and write-flag readiness.
+- Source Counts: all, Gmail, Outlook, and notification-derived counts with unreviewed attention totals.
+- Process next links: open the next attention item, next pending review package, or next execution approval/confirmation.
+
+### Operational Smoke
+
+Open `/operational-smoke` to answer whether the local workflow is ready to use.
+
+It shows:
+
+- Gmail read configuration and latest sync status.
+- Outlook delegated Microsoft Graph authorization and Outlook sync status.
+- Azure/OpenAI analysis status with a test action.
+- Execution provider mode and dry-run state.
+- Gmail write flags and Google Calendar write flag.
+- Source counts for all, Gmail, Outlook, and notification-derived messages.
+- Pending review package and execution queues.
+- Plain-language token/config blockers.
+- Disabled Microsoft write boundaries: Outlook send, Outlook Calendar, and Teams.
 
 ### Sync Outlook
 
@@ -232,7 +253,7 @@ Outlook sync is read-only. It uses Graph `$select` to request only the fields ne
 
 ### Sync Teams
 
-Teams remains disabled/not implemented for live Graph. The adapter shape is preserved for future work, but Phase 17 does not add Teams sync beyond prerequisite notes.
+Teams remains disabled/not implemented for live Graph and is not part of the operational dashboard workflow. The adapter shape is preserved for future work, but Outlook mail read is the only Microsoft Graph sync path currently intended for local smoke testing.
 
 ### Notification webhook ingest
 

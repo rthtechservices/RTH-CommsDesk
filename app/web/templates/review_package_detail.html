@@ -136,6 +136,11 @@
       {% if package_position and package_total %}
       <p class="muted">Item {{ package_position }} of {{ package_total }}</p>
       {% endif %}
+      <p>
+        <a href="/review-packages/next?current_id={{ package.id }}">Process next pending package</a>
+        {% if package.message %} | <a href="/messages/{{ package.message.id }}">Open source message</a>{% endif %}
+        | <a href="/executions/next">Next execution approval</a>
+      </p>
       <p class="notice">Local recommendation only. Approving, rejecting, editing, or snoozing this package does not modify Gmail or any calendar.</p>
 
       <section class="panel">

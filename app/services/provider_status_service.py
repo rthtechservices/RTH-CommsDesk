@@ -130,7 +130,7 @@ def provider_status_rows(settings: Settings | None = None) -> list[ProviderStatu
             classification="not implemented",
             state="disabled",
             mode="disabled",
-            detail="Outlook send actions are intentionally not implemented in Phase 17.",
+            detail="Outlook send actions are intentionally not implemented.",
             next_action="Keep disabled until a future explicit approved-execution write phase.",
         ),
         ProviderStatusRow(
@@ -139,7 +139,7 @@ def provider_status_rows(settings: Settings | None = None) -> list[ProviderStatu
             classification="not implemented",
             state="disabled",
             mode="disabled",
-            detail="Teams remains disabled; Phase 17 only documents prerequisites and keeps the adapter seam fail-closed.",
+            detail="Teams remains disabled and the adapter seam stays fail-closed.",
             next_action="Confirm tenant permissions and a future read scope before implementing Teams.",
         ),
         ProviderStatusRow(
@@ -148,7 +148,7 @@ def provider_status_rows(settings: Settings | None = None) -> list[ProviderStatu
             classification="not implemented",
             state="disabled",
             mode="disabled",
-            detail="Outlook calendar read/write remains fail-closed and is not implemented in Phase 17.",
+            detail="Outlook calendar read/write remains fail-closed and is not implemented.",
             next_action="Keep disabled until a future calendar-specific Graph phase.",
         ),
         ProviderStatusRow(

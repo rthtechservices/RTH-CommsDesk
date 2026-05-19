@@ -61,6 +61,11 @@
       <a href="/executions">Back to executions</a>
       {% if record %}
       <h1>Execution #{{ record.id }}</h1>
+      <p>
+        <a href="/executions/next?current_id={{ record.id }}">Process next execution</a>
+        {% if record.review_package_id %} | <a href="/review-packages/{{ record.review_package_id }}">Source review package</a>{% endif %}
+        {% if record.draft_id %} | <a href="/drafts/{{ record.draft_id }}">Source draft</a>{% endif %}
+      </p>
       <p class="warning">Final confirmation is required before execution. Refreshing or re-opening this page does not execute anything.</p>
       {% if record.action_type.value == "delete_unsubscribe" %}
       <p class="warning">Destructive execution: delete/unsubscribe requires explicit confirmation token.</p>

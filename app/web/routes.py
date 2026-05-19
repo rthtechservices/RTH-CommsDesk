@@ -91,6 +91,11 @@ from app.services.gmail_sync_service import (
     sync_gmail_backfill,
 )
 from app.services.live_ai_client import ai_provider_status
+from app.services.operational_status_service import (
+    operational_smoke_status,
+    source_filter_options,
+    source_operational_counts,
+)
 from app.services.provider_status_service import provider_status_rows
 from app.services.voice_learning_service import (
     run_sent_mail_learning,
@@ -336,6 +341,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     }
     ai_status = ai_provider_status(settings)
     provider_rows = provider_status_rows(settings)
+    smoke_status = operational_smoke_status(db, settings)
     return templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -368,10 +374,13 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                 "ai_fallback_provider": ai_status.fallback_provider,
                 "ai_detail": ai_status.detail,
                 "calendar_provider": settings.calendar_provider,
-                "execution_provider": "mock",
+                "execution_provider": settings.execution_provider,
                 "gmail_full_body": settings.gmail_store_full_body,
             },
             "provider_rows": provider_rows,
+            "source_filter_options": source_filter_options(),
+            "source_counts": source_operational_counts(db),
+            "smoke_status": smoke_status,
             "provider_warnings": [
                 row
                 for row in provider_rows
@@ -396,6 +405,75 @@ def providers_page(request: Request):
             },
         },
     )
+
+
+@web_router.get("/operational-smoke")
+def operational_smoke_page(request: Request, db: Session = Depends(get_db)):
+    return templates.TemplateResponse(
+        request,
+        "operational_smoke.html",
+        {"smoke_status": operational_smoke_status(db, get_settings())},
+    )
+
+
+@web_router.get("/process-next")
+def process_next_attention(request: Request, db: Session = Depends(get_db)):
+    filters = _queue_filters(request)
+    filters["status_filter"] = request.query_params.get("queue_filter", "active")
+    item = next((row for row in build_attention_queue(db, **filters) if row.message_id), None)
+    if not item:
+        return RedirectResponse(url="/?next_empty=attention", status_code=303)
+    return RedirectResponse(
+        url=request.url_for("message_detail", message_id=item.message_id),
+        status_code=303,
+    )
+
+
+@web_router.get("/review-packages/next")
+def next_review_package(request: Request, db: Session = Depends(get_db)):
+    current_id = _parse_int(request.query_params.get("current_id"))
+    query = db.query(ProposedActionReviewPackage).filter(
+        ProposedActionReviewPackage.status == ReviewPackageStatus.PENDING
+    )
+    if current_id:
+        query = query.filter(ProposedActionReviewPackage.id != current_id)
+    package = (
+        query.order_by(
+            ProposedActionReviewPackage.updated_at.desc(),
+            ProposedActionReviewPackage.id.desc(),
+        )
+        .first()
+    )
+    if not package:
+        return RedirectResponse(url="/review-packages?next_empty=1", status_code=303)
+    return RedirectResponse(
+        url=request.url_for("review_package_detail", package_id=package.id),
+        status_code=303,
+    )
+
+
+@web_router.get("/executions/next")
+def next_execution(request: Request, db: Session = Depends(get_db)):
+    current_id = _parse_int(request.query_params.get("current_id"))
+    query = db.query(ExecutionRecord).filter(
+        ExecutionRecord.status.in_([ExecutionStatus.PENDING_REVIEW, ExecutionStatus.APPROVED])
+    )
+    if current_id:
+        query = query.filter(ExecutionRecord.id != current_id)
+    record = query.order_by(ExecutionRecord.updated_at.desc(), ExecutionRecord.id.desc()).first()
+    if not record:
+        return RedirectResponse(url="/executions?next_empty=1", status_code=303)
+    return RedirectResponse(
+        url=request.url_for("execution_detail", execution_id=record.id),
+        status_code=303,
+    )
+
+
+def _parse_int(value: str | None) -> int | None:
+    try:
+        return int(value) if value else None
+    except ValueError:
+        return None
 
 
 @web_router.post("/sync/gmail")

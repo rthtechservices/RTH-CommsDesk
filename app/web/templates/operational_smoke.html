@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Operational Smoke | RTH CommsDesk</title>
+    <style>
+      :root {
+        --bg: #f6f7f9;
+        --surface: #ffffff;
+        --line: #d9dee6;
+        --text: #17202a;
+        --muted: #607080;
+        --brand: #246b5a;
+        --warn: #8a4b12;
+        --bad: #8a1f1f;
+        --ok: #246b5a;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 15px;
+        line-height: 1.45;
+      }
+      a { color: var(--brand); font-weight: 700; text-decoration: none; }
+      .wrap { width: min(1100px, calc(100% - 32px)); margin: 0 auto; padding: 22px 0 42px; }
+      .panel { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 16px; margin-bottom: 16px; }
+      .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .facts { display: grid; gap: 8px; }
+      .facts div { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 12px; border-top: 1px solid var(--line); padding-top: 8px; }
+      .facts div:first-child { border-top: 0; padding-top: 0; }
+      .muted { color: var(--muted); }
+      .state { display: inline-block; border-radius: 999px; padding: 2px 8px; font-size: 12px; font-weight: 800; background: #eef1f4; }
+      .state.live { color: var(--ok); }
+      .state.mock, .state.dry_run { color: var(--warn); }
+      .state.disabled { color: var(--muted); }
+      .state.missing_configuration, .state.failed { color: var(--bad); }
+      button, .button {
+        min-height: 34px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--surface);
+        color: var(--text);
+        font: inherit;
+        font-weight: 700;
+        padding: 7px 10px;
+        cursor: pointer;
+      }
+      .button.primary, button.primary { border-color: var(--brand); background: var(--brand); color: #fff; }
+      @media (max-width: 760px) {
+        .grid, .facts div { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <a href="/">Back to dashboard</a>
+      <h1>Operational Smoke</h1>
+      <p class="muted">Readiness for the local Gmail, Outlook, Azure/OpenAI analysis, review package, and execution-audit workflow.</p>
+
+      <section class="panel">
+        <h2>Test Links</h2>
+        <a class="button primary" href="/providers">Provider matrix</a>
+        <a class="button" href="/review-packages">Review packages</a>
+        <a class="button" href="/executions">Executions</a>
+        <form method="post" action="/api/graph/test" style="display: inline">
+          <button type="submit">Test Microsoft Graph</button>
+        </form>
+        <form method="post" action="/api/ai/test" style="display: inline">
+          <button type="submit">Test AI provider</button>
+        </form>
+      </section>
+
+      <div class="grid">
+        <section class="panel">
+          <h2>Read Providers</h2>
+          <div class="facts">
+            <div>
+              <strong>Gmail read config</strong>
+              <span><span class="state {{ smoke_status.gmail_read.state }}">{{ smoke_status.gmail_read.state.replace("_", " ").title() }}</span> {{ smoke_status.gmail_read.next_action }}</span>
+            </div>
+            <div>
+              <strong>Outlook delegated Graph</strong>
+              <span><span class="state {{ smoke_status.graph_auth.state }}">{{ smoke_status.graph_auth.state.replace("_", " ").title() }}</span> {{ smoke_status.graph_auth.next_action }}</span>
+            </div>
+            <div>
+              <strong>Outlook sync</strong>
+              <span><span class="state {{ smoke_status.outlook_read.state }}">{{ smoke_status.outlook_read.state.replace("_", " ").title() }}</span> {{ smoke_status.outlook_read.next_action }}</span>
+            </div>
+            <div>
+              <strong>Azure/OpenAI analysis</strong>
+              <span><span class="state {{ smoke_status.ai_provider.state }}">{{ smoke_status.ai_provider.state.replace("_", " ").title() }}</span> {{ smoke_status.ai_provider.next_action }}</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Execution Safety</h2>
+          <div class="facts">
+            <div><strong>Execution provider mode</strong><span>{{ smoke_status.execution_provider_mode }}</span></div>
+            <div><strong>Dry-run state</strong><span>{% if smoke_status.external_write_dry_run %}On{% else %}Off{% endif %}</span></div>
+            <div><strong>Google Calendar write flag</strong><span>{% if smoke_status.google_calendar_write_enabled %}On{% else %}Off{% endif %}</span></div>
+            {% for flag, enabled in smoke_status.gmail_write_flags.items() %}
+            <div><strong>{{ flag }}</strong><span>{% if enabled %}On{% else %}Off{% endif %}</span></div>
+            {% endfor %}
+          </div>
+        </section>
+      </div>
+
+      <section class="panel">
+        <h2>Source Counts</h2>
+        <div class="facts">
+          {% for row in smoke_status.source_counts %}
+          <div>
+            <strong>{{ row.label }}</strong>
+            <span>{{ row.message_count }} messages | {{ row.unreviewed_attention_count }} unreviewed attention items</span>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Workflow Queue</h2>
+        <div class="facts">
+          <div><strong>Pending review packages</strong><span>{{ smoke_status.pending_review_packages }} | <a href="/review-packages/next">Process next package</a></span></div>
+          <div><strong>Ready execution records</strong><span>{{ smoke_status.ready_execution_records }} | <a href="/executions/next">Process next execution</a></span></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Blockers</h2>
+        <div class="facts">
+          {% for row in smoke_status.blockers %}
+          <div>
+            <strong>{{ row.label }}</strong>
+            <span><span class="state {{ row.state }}">{{ row.state.replace("_", " ").title() }}</span> {{ row.next_action }}</span>
+          </div>
+          {% else %}
+          <div><strong>Status</strong><span>No token or configuration blockers are currently reported.</span></div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Disabled Microsoft Write Boundaries</h2>
+        <div class="facts">
+          {% for row in smoke_status.disabled_boundaries %}
+          <div>
+            <strong>{{ row.label }}</strong>
+            <span><span class="state {{ row.state }}">{{ row.state.replace("_", " ").title() }}</span> {{ row.detail }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

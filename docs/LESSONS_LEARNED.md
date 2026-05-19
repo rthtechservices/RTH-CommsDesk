@@ -169,6 +169,9 @@ python -m pytest -q
 - Provider warnings belong near the top of the daily dashboard because they change what actions the user should trust.
 - Review packages work best as the central unit of work when they show item position, recommendation, evidence, timeline, contact context, draft/action payload, and local review controls together.
 - Keep existing specialized pages, but make the dashboard point to the next useful workflow: attention items, proposed actions, approval queue, calendar candidates, noise candidates, or provider setup.
+- Operational smoke should aggregate readiness across sync, AI, execution mode, dry-run, write flags, and disabled connector boundaries so the operator does not have to infer readiness from several pages.
+- Process-next links are useful glue for smoke testing because they preserve the existing detail pages while removing repeated dashboard/list navigation.
+- Do not surface disabled future connectors as primary dashboard actions. A disabled provider row is enough until the phase explicitly opens that connector.
 
 ## UI lessons
 

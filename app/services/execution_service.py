@@ -110,7 +110,7 @@ class GuardedExternalExecutionProvider:
         return self.gmail_client.apply_label_archive(payload)
 
     def delete_or_unsubscribe(self, payload: dict) -> dict:
-        raise RuntimeError("Delete/unsubscribe execution is not live-wired in Phase 15")
+        raise RuntimeError("Delete/unsubscribe execution is not live-wired")
 
     @staticmethod
     def _dry_run_result(action: str, payload: dict) -> dict:
@@ -335,8 +335,8 @@ def confirm_execution(
         _append_audit(db, record, "executed", actor, result)
     except Exception as exc:  # pragma: no cover - defensive path
         record.status = ExecutionStatus.FAILED
-        record.error_text = str(exc)
-        _append_audit(db, record, "failed", actor, {"error": str(exc)})
+        record.error_text = _sanitize_execution_error(str(exc))
+        _append_audit(db, record, "failed", actor, {"error": record.error_text})
     db.commit()
     db.refresh(record)
     return record
@@ -575,3 +575,10 @@ def _mock_id(prefix: str, payload: dict) -> str:
     seed = json.dumps(payload, sort_keys=True)
     digest = hashlib.sha256(seed.encode("utf-8")).hexdigest()[:12]
     return f"{prefix}_{digest}"
+
+
+def _sanitize_execution_error(value: str) -> str:
+    text = " ".join((value or "Provider failure").split())
+    for marker in ("access_token", "refresh_token", "client_secret", "authorization"):
+        text = text.replace(marker, "[redacted]")
+    return text[:500]

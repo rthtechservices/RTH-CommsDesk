@@ -233,6 +233,11 @@
           {% if message.sender_email %}&lt;{{ message.sender_email }}&gt;{% endif %}
           {% if message.received_at %} | {{ message.received_at.strftime("%Y-%m-%d %H:%M") }}{% endif %}
         </div>
+        <p style="margin-top: 10px">
+          <a href="/process-next?source={{ message.source_type }}">Process next {{ message.source_type }} item</a>
+          | <a href="/review-packages/next">Next review package</a>
+          | <a href="/executions/next">Next execution approval</a>
+        </p>
       </header>
 
       <div class="layout">

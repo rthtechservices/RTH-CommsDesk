@@ -19,10 +19,10 @@
 | 15 | Real Provider Wiring for Gmail, Calendar, and Microsoft Graph | ✅ Completed | 2026-05-18 |
 | 16 | Product UX and Workflow Consolidation | ✅ Completed | 2026-05-18 |
 | 17 | Microsoft Graph Delegated OAuth and Outlook Mail Smoke | ✅ Completed | 2026-05-19 |
-| 18 | Operational Inbox Workflow Smoke and Fast-Path UX | Planned | TBD |
+| 18 | Operational Inbox Workflow Smoke and Fast-Path UX | ✅ Completed | 2026-05-19 |
 | 19 | Test Email Execution Enablement | Planned | TBD |
 | 20 | Inbox Intelligence Quality Pass | Planned | TBD |
 
 ## Current recommendation
 
-Proceed to Phase 18 after local Microsoft Graph delegated configuration is tested. Phase 18 should make the current Gmail, Outlook, AI review-package, draft/action-prep, and audit workflow usable as one practical operator flow before adding more connectors.
+Stop for human review of Phase 18. Next recommended phase is Phase 19: Test Email Execution Enablement, after the operator workflow and smoke page are accepted.

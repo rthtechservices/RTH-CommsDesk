@@ -53,6 +53,16 @@
       <a href="/">Back to dashboard</a>
       <h1>Provider Status</h1>
       <p class="muted">External providers fail closed. Live writes require feature flags, approval, final confirmation, and dry-run must be turned off deliberately.</p>
+      <p>
+        <a href="/operational-smoke">Operational smoke</a>
+        | <a href="/api/providers/status">Provider status JSON</a>
+      </p>
+      <form method="post" action="/api/graph/test" style="display: inline">
+        <button type="submit">Test Microsoft Graph</button>
+      </form>
+      <form method="post" action="/api/ai/test" style="display: inline">
+        <button type="submit">Test AI provider</button>
+      </form>
 
       <section class="panel stats">
         {% for state, count in state_counts.items() %}

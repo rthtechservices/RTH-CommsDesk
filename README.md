@@ -20,7 +20,7 @@ Before assigning work to Codex, Copilot, or another LLM session, have the sessio
 Each LLM session should complete one phase only, update documentation, and stop for human review.
 
 ## MVP scope
-- Gmail-first connector workflow with optional Outlook/Teams ingestion and notification-summary webhook intake
+- Gmail-first connector workflow with optional Outlook mail read and notification-summary webhook intake
 - Metadata/snippet storage by default
 - Deterministic classification and attention scoring
 - Local review-only draft suggestions with voice profiles (no auto-send)
@@ -28,6 +28,7 @@ Each LLM session should complete one phase only, update documentation, and stop 
 
 ## Known MVP limitations
 - Outlook mail read now supports delegated Microsoft Graph OAuth for local smoke testing; Outlook send, Outlook Calendar, and Teams remain disabled/not implemented.
+- The dashboard now includes an operational smoke workflow for Gmail sync, Outlook sync, source counts, provider blockers, review packages, and execution approvals.
 - Provider status is visible at `/providers`; Microsoft Graph Teams and Outlook Calendar remain fail-closed until tenant-specific permissions are configured.
 - AI classifier is provider-neutral but runs with deterministic logic/mock fallback by default.
 - Gmail sync is read-only and duplicate-safe. Recent sync handles the active inbox window, and manual backfill can page farther through the Gmail backlog.
@@ -109,6 +110,8 @@ Use `GET /api/ai/status` for sanitized configuration status and `POST /api/ai/te
 
 Open `http://127.0.0.1:8000/providers` or call `GET /api/providers/status` to see each provider/action classified as live-ready, mock-only, adapter-shape-only, or partially wired, with runtime state such as live, mock, disabled, missing configuration, dry-run, or failed.
 
+Open `http://127.0.0.1:8000/operational-smoke` for the daily readiness panel. It shows Gmail read config, Outlook delegated Graph status, Outlook sync readiness, Azure/OpenAI test links, execution provider mode, dry-run state, Gmail write flags, Google Calendar write status, Microsoft write boundaries, source counts, and pending workflow queues.
+
 External writes are disabled by default:
 
 ```env
@@ -182,7 +185,7 @@ MICROSOFT_ACCOUNT=user@example.com
 
 Detailed local instructions are in `docs/MICROSOFT_GRAPH_LOCAL_SMOKE.md`.
 
-Teams, Outlook send, and Outlook Calendar remain disabled/not implemented. Phase 17 is read-only for Outlook mail.
+Teams, Outlook send, and Outlook Calendar remain disabled/not implemented. The current Microsoft Graph boundary is Outlook mail read only.
 
 ## Running tests
 ```bash
@@ -245,4 +248,4 @@ Do not delete or commit `client_secret.json`, `gmail_token.json`, `.env`, or any
 
 ## Current phase status
 
-Phases 01 through 17 are implemented. Phases 18 through 20 are documented as the next operational workflow, test-email execution, and inbox-intelligence quality passes.
+Phases 01 through 18 are implemented. Phases 19 through 20 are documented as the next test-email execution and inbox-intelligence quality passes.

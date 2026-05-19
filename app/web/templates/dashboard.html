@@ -274,7 +274,7 @@
         <div>
           <h1>RTH CommsDesk</h1>
           <div class="muted">
-            Communication attention queue | <a href="/contacts">Contacts</a> | <a href="/drafts">Drafts</a> | <a href="/review-packages">Review packages</a> | <a href="/voice-calibration">Voice calibration</a> | <a href="/bulk-triage">Bulk triage</a> | <a href="/executions">Executions</a> | <a href="/providers">Providers</a> | <a href="/admin">Admin</a>
+            Communication attention queue | <a href="/contacts">Contacts</a> | <a href="/drafts">Drafts</a> | <a href="/review-packages">Review packages</a> | <a href="/voice-calibration">Voice calibration</a> | <a href="/bulk-triage">Bulk triage</a> | <a href="/executions">Executions</a> | <a href="/providers">Providers</a> | <a href="/operational-smoke">Operational smoke</a> | <a href="/admin">Admin</a>
           </div>
         </div>
         <div class="sync-actions">
@@ -290,9 +290,6 @@
           </form>
           <form method="post" action="/sync/outlook">
             <button type="submit">Sync Outlook</button>
-          </form>
-          <form method="post" action="/sync/teams">
-            <button type="submit">Sync Teams</button>
           </form>
           <form method="post" action="/logout">
             <button type="submit">Sign out</button>
@@ -382,6 +379,39 @@
           <strong><a href="/providers">Provider matrix</a></strong>
           <span class="muted">Live, mock, disabled, missing config, dry-run, and failed states</span>
         </div>
+        <div class="sync-stat">
+          <strong><a href="/operational-smoke">Operational smoke</a></strong>
+          <span class="muted">Gmail, Outlook, AI, execution flags, and blockers</span>
+        </div>
+      </section>
+      <section class="panel">
+        <h2>Operational Smoke</h2>
+        <div class="runtime-status" style="margin-bottom: 0">
+          <div class="sync-stat">
+            <strong>{{ smoke_status.gmail_read.state.replace("_", " ").title() }}</strong>
+            <span class="muted">Gmail read config</span>
+          </div>
+          <div class="sync-stat">
+            <strong>{{ smoke_status.graph_auth.state.replace("_", " ").title() }}</strong>
+            <span class="muted">Outlook delegated Graph</span>
+          </div>
+          <div class="sync-stat">
+            <strong>{{ smoke_status.outlook_read.state.replace("_", " ").title() }}</strong>
+            <span class="muted">Outlook sync</span>
+          </div>
+          <div class="sync-stat">
+            <strong>{{ smoke_status.ai_provider.state.replace("_", " ").title() }}</strong>
+            <span class="muted">Azure/OpenAI analysis</span>
+          </div>
+          <div class="sync-stat">
+            <strong>{% if smoke_status.external_write_dry_run %}On{% else %}Off{% endif %}</strong>
+            <span class="muted">External dry-run</span>
+          </div>
+          <div class="sync-stat">
+            <strong>{{ smoke_status.execution_provider_mode }}</strong>
+            <span class="muted">Execution provider mode</span>
+          </div>
+        </div>
       </section>
       {% if provider_warnings %}
       <section class="panel">
@@ -415,6 +445,21 @@
             <strong>{{ backlog_stats.reviewed_total }} / {{ backlog_stats.attention_total }}</strong>
             <span class="muted">Backlog progress</span>
           </div>
+          <div class="sync-stat">
+            <strong><a href="/process-next?queue_filter={{ queue_filter }}{% if filter_source %}&source={{ filter_source }}{% endif %}">Process next</a></strong>
+            <span class="muted">Open the next attention item in this view</span>
+          </div>
+        </div>
+      </section>
+      <section class="panel">
+        <h2>Source Counts</h2>
+        <div class="runtime-status" style="margin-bottom: 0">
+          {% for row in source_counts %}
+          <div class="sync-stat">
+            <strong>{{ row.unreviewed_attention_count }}</strong>
+            <span class="muted">{{ row.label }} unreviewed | {{ row.message_count }} messages</span>
+          </div>
+          {% endfor %}
         </div>
       </section>
       <div class="grid">
@@ -447,13 +492,9 @@
             <label>
               Source
               <select name="source">
-                <option value="">Any</option>
-                <option value="gmail" {% if filter_source == "gmail" %}selected{% endif %}>Gmail</option>
-                <option value="outlook" {% if filter_source == "outlook" %}selected{% endif %}>Outlook</option>
-                <option value="teams" {% if filter_source == "teams" %}selected{% endif %}>Teams</option>
-                <option value="notification_sms" {% if filter_source == "notification_sms" %}selected{% endif %}>Notification SMS</option>
-                <option value="notification_whatsapp" {% if filter_source == "notification_whatsapp" %}selected{% endif %}>Notification WhatsApp</option>
-                <option value="notification_messenger" {% if filter_source == "notification_messenger" %}selected{% endif %}>Notification Messenger</option>
+                {% for option in source_filter_options %}
+                <option value="{{ option.value }}" {% if filter_source == option.value or (not filter_source and option.value == "all") %}selected{% endif %}>{{ option.label }}</option>
+                {% endfor %}
               </select>
             </label>
             <button class="primary" type="submit">Apply</button>
@@ -511,6 +552,7 @@
         <aside>
           <section class="panel">
             <h2>Proposed Actions</h2>
+            <p><a href="/review-packages/next">Process next pending package</a></p>
             <ul class="mini-list">
               {% for package in review_packages %}
               <li>
@@ -529,6 +571,7 @@
 
           <section class="panel">
             <h2>Ready For Approval</h2>
+            <p><a href="/executions/next">Process next execution</a></p>
             <ul class="mini-list">
               {% for record in ready_executions %}
               <li>
