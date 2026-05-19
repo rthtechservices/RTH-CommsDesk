@@ -1,157 +1,47 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Draft Review | RTH CommsDesk</title>
-    <style>
-      :root {
-        --bg: #f6f7f9;
-        --surface: #ffffff;
-        --line: #d9dee6;
-        --text: #17202a;
-        --muted: #607080;
-        --brand: #246b5a;
-        --warn-bg: #fff7ed;
-        --warn-line: #e4b47f;
-      }
-      * {
-        box-sizing: border-box;
-      }
-      body {
-        margin: 0;
-        background: var(--bg);
-        color: var(--text);
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 15px;
-        line-height: 1.45;
-      }
-      a {
-        color: var(--brand);
-        font-weight: 700;
-        text-decoration: none;
-      }
-      .wrap {
-        width: min(980px, calc(100% - 32px));
-        margin: 0 auto;
-        padding: 22px 0 42px;
-      }
-      .panel,
-      .notice {
-        border-radius: 8px;
-        padding: 16px;
-      }
-      .panel {
-        border: 1px solid var(--line);
-        background: var(--surface);
-      }
-      .notice {
-        border: 1px solid var(--warn-line);
-        background: var(--warn-bg);
-        font-weight: 700;
-      }
-      .facts {
-        display: grid;
-        gap: 8px;
-        margin-bottom: 18px;
-      }
-      .facts div {
-        display: grid;
-        grid-template-columns: 150px minmax(0, 1fr);
-        gap: 12px;
-        border-top: 1px solid var(--line);
-        padding-top: 8px;
-      }
-      .facts div:first-child {
-        border-top: 0;
-        padding-top: 0;
-      }
-      .label,
-      .muted {
-        color: var(--muted);
-      }
-      .label {
-        font-weight: 700;
-      }
-      pre {
-        overflow: auto;
-        white-space: pre-wrap;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: #fbfcfd;
-        padding: 14px;
-        font-family: Arial, Helvetica, sans-serif;
-      }
-      .empty {
-        border: 1px dashed var(--line);
-        border-radius: 8px;
-        background: #fbfcfd;
-        color: var(--muted);
-        padding: 18px;
-      }
-      @media (max-width: 700px) {
-        .facts div {
-          grid-template-columns: 1fr;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <main class="wrap">
-      <a href="/drafts">Back to drafts</a>
-      {% if draft %}
-      <h1>Draft Review</h1>
-      <p class="notice">Review-only local suggestion. This draft has not been sent and was not created in Gmail.</p>
-      <section class="panel">
-        <div class="facts">
-          <div>
-            <span class="label">Status</span>
-            <span>{{ draft.status.value if draft.status.value is defined else draft.status }}</span>
-          </div>
-          <div>
-            <span class="label">Voice profile</span>
-            <span>{{ draft.voice_profile.name if draft.voice_profile else "Local mock voice" }}</span>
-          </div>
-          <div>
-            <span class="label">Provider</span>
-            <span>{{ draft.provider_name }}</span>
-          </div>
-          <div>
-            <span class="label">Source message</span>
-            <span>
-              {% if draft.message %}
-              <a href="/messages/{{ draft.message.id }}">{{ draft.message.subject or "(No subject)" }}</a>
-              {% else %}
-              Unknown
-              {% endif %}
-            </span>
-          </div>
-          <div>
-            <span class="label">Sender</span>
-            <span>{{ draft.message.sender_email if draft.message and draft.message.sender_email else "Unknown" }}</span>
-          </div>
-          <div>
-            <span class="label">Created</span>
-            <span>{{ draft.created_at.strftime("%Y-%m-%d %H:%M") if draft.created_at else "" }}</span>
-          </div>
-        </div>
-        <h2>Suggested Reply</h2>
-        <pre>{{ draft.draft_text }}</pre>
-        <h2>Send-ready Gmail draft</h2>
-        <div class="facts">
-          <div>
-            <span class="label">Subject</span>
-            <span>{{ draft.send_ready_subject or "Prepared during execution" }}</span>
-          </div>
-        </div>
-        <pre>{{ draft.send_ready_body or "A clean external body will be sanitized during execution preparation." }}</pre>
-        <form method="post" action="/drafts/{{ draft.id }}/prepare-execution">
-          <button type="submit">Prepare external Gmail draft execution</button>
-        </form>
-      </section>
-      {% else %}
-      <div class="empty">Draft not found.</div>
-      {% endif %}
-    </main>
-  </body>
-</html>
+{% extends "base.html" %}
+{% block title %}Draft Review | RTH CommsDesk{% endblock %}
+
+{% block main_class %}wrap page-pad{% endblock %}
+
+{% block content %}
+  <a href="/drafts">Back to drafts</a>
+  {% if draft %}
+  <div class="workflow" aria-label="Workflow">
+    <span>Sync</span><span>Triage</span><span>Analyze</span><span>Review</span><span class="active">Prepare</span><span>Execute</span><span>Audit</span>
+  </div>
+  <h1>Draft #{{ draft.id }}</h1>
+  <p class="help-text">What this page is for: review a locally generated draft before deciding whether to prepare it for execution. Nothing is sent from here.</p>
+  <p class="notice">Review-only local suggestion. This draft was not created in Gmail, no message is sent, and no labels are applied from this page.</p>
+  <p class="warning">Preparing this draft for execution will create an execution record requiring approval and final confirmation before any outbound action occurs.</p>
+
+  <section class="panel">
+    <h2>Draft details</h2>
+    <div class="facts">
+      <div><strong class="label">Status</strong><span><span class="badge {% if draft.status == 'approved' %}ok{% elif draft.status == 'rejected' %}bad{% endif %}">{{ draft.status or "pending" }}</span></span></div>
+      <div><strong class="label">To</strong><span class="muted">{{ draft.to_address }}</span></div>
+      <div><strong class="label">Subject</strong><span>{{ draft.subject or "(no subject)" }}</span></div>
+      <div><strong class="label">Voice profile</strong><span class="muted">{{ draft.voice_profile_name or "-" }}</span></div>
+      <div><strong class="label">Provider</strong><span class="muted">{{ draft.provider_name or "-" }}</span></div>
+      <div><strong class="label">Created</strong><span class="muted">{{ draft.created_at.strftime("%Y-%m-%d %H:%M") if draft.created_at else "-" }}</span></div>
+      {% if draft.message_id %}<div><strong class="label">Source message</strong><span><a href="/messages/{{ draft.message_id }}">View message</a></span></div>{% endif %}
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Draft body</h2>
+    <pre>{{ draft.body }}</pre>
+  </section>
+
+  <section class="panel">
+    <h2>Actions</h2>
+    <div style="display:grid;gap:7px;max-width:280px">
+      <form method="post" action="/drafts/{{ draft.id }}/prepare-execution">
+        <button class="primary" style="width:100%" type="submit">Prepare external Gmail draft execution</button>
+      </form>
+      <p class="muted" style="font-size:12px">This creates an execution record. Approval and final confirmation are still required before anything is sent.</p>
+    </div>
+  </section>
+  {% else %}
+  <div class="empty">Draft not found.</div>
+  {% endif %}
+{% endblock %}

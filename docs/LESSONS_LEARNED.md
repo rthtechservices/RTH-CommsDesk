@@ -2,6 +2,30 @@
 
 Document durable project knowledge here. Keep entries concise and actionable.
 
+## Jinja2 template writing via PowerShell
+
+- PowerShell `python -c "..."` inline scripts break when template content contains semicolons, CSS properties, or special characters — PowerShell interprets semicolons as statement separators.
+- Solution: write templates to disk using the `create_file` tool as `.py` script files, then run `python script.py`, then delete the script.
+- `execution_subagent` has the same PowerShell inline limitation.
+
+## Jinja2 template variable alignment
+
+- Always verify the exact variable names passed by the route before writing a template. The route context dict is the source of truth.
+- `providers.html` must use `provider_rows` (not `rows`) and `row.label`, `row.state`, `row.mode`, `row.detail` (not `row.provider`, `row.capability`, `row.status`).
+- `operational_smoke.html` must use a single `smoke_status` dict, not separate variables like `gmail_status`, `graph_status`.
+- `admin.html` uses `message_body_count`, `sent_excerpt_count`, `audit_count`, `retention_result`, `cache_result` — not `system_info`.
+
+## Test helper generators as context managers
+
+- A generator function (using `yield`) cannot be used as a context manager with `with` unless decorated with `@contextmanager` from `contextlib`.
+- Always import and apply `@contextmanager` when writing test helpers that yield a client inside a `with` block.
+
+## Model field names
+
+- `MessageThread` and `Message` both use `source_type` (not `source_system`).
+- `DraftReply` uses `draft_text` (not `body`) and `provider_name` (not `provider`).
+- Check `app/models/entities.py` when writing test fixtures or templates.
+
 ## Local Python environment
 
 - Use a project virtual environment. Installing into the user-level Python site-packages can create dependency conflicts with other Google/Gemini tooling.

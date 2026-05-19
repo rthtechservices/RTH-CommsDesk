@@ -1,92 +1,59 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Execution Detail | RTH CommsDesk</title>
-    <link rel="stylesheet" href="/static/ui.css" />
-    <style>
-      :root {
-        --bg: #f6f7f9;
-        --surface: #ffffff;
-        --line: #d9dee6;
-        --text: #17202a;
-        --muted: #607080;
-        --brand: #246b5a;
-        --warn-bg: #fff7ed;
-        --warn-line: #e4b47f;
-      }
-      * { box-sizing: border-box; }
-      body {
-        margin: 0;
-        background: var(--bg);
-        color: var(--text);
-        font-family: Arial, Helvetica, sans-serif;
-      }
-      a { color: var(--brand); font-weight: 700; text-decoration: none; }
-      .wrap { width: min(980px, calc(100% - 32px)); margin: 0 auto; padding: 20px 0 40px; }
-      .panel, .warning { border-radius: 8px; padding: 14px; margin-bottom: 12px; }
-      .panel { border: 1px solid var(--line); background: var(--surface); }
-      .warning { border: 1px solid var(--warn-line); background: var(--warn-bg); font-weight: 700; }
-      .muted { color: var(--muted); }
-      .facts { display: grid; gap: 8px; }
-      .facts div { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
-      .facts div:first-child { border-top: 0; padding-top: 0; }
-      pre { border: 1px solid var(--line); border-radius: 8px; background: #fbfcfd; padding: 12px; white-space: pre-wrap; overflow: auto; }
-      table { width: 100%; border-collapse: collapse; }
-      th, td { border-top: 1px solid var(--line); padding: 8px 6px; text-align: left; vertical-align: top; }
-      th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
-      button, input {
-        border: 1px solid var(--line);
-        border-radius: 6px;
-        font: inherit;
-      }
-      button {
-        min-height: 34px;
-        background: var(--surface);
-        font-weight: 700;
-        padding: 7px 10px;
-        cursor: pointer;
-      }
-      button.primary {
-        border-color: var(--brand);
-        background: var(--brand);
-        color: #fff;
-      }
-      input { min-height: 34px; width: 100%; padding: 7px; }
-      .row { display: flex; flex-wrap: wrap; gap: 8px; }
-    </style>
-  </head>
-  <body>
-    <main class="wrap">
-      <a href="/executions">Back to executions</a>
-      {% if record %}
-      <div class="workflow" aria-label="Workflow">
-        <span>Sync</span><span>Triage</span><span>Analyze</span><span>Review</span><span>Prepare</span><span class="active">Execute</span><span class="active">Audit</span>
-      </div>
-      <h1>Execution #{{ record.id }}</h1>
-      <p class="help-text">What this page is for: inspect one immutable execution attempt, approve or confirm when safe, and review the provider result and audit trail.</p>
-      <p>
-        <a href="/executions/next?current_id={{ record.id }}">Process next execution</a>
-        {% if record.review_package_id %} | <a href="/review-packages/{{ record.review_package_id }}">Source review package</a>{% endif %}
-        {% if record.draft_id %} | <a href="/drafts/{{ record.draft_id }}">Source draft</a>{% endif %}
-      </p>
-      <p class="warning">Final confirmation is required before execution. Refreshing or re-opening this page does not execute anything.</p>
-      {% if record.action_type.value == "delete_unsubscribe" %}
-      <p class="warning">Destructive execution: delete/unsubscribe requires explicit confirmation token.</p>
-      {% endif %}
+{% extends "base.html" %}
+{% block title %}Execution Detail | RTH CommsDesk{% endblock %}
+
+{% block styles %}
+<style>
+  .exec-grid {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) 280px;
+    gap: 14px;
+    align-items: start;
+  }
+  @media (max-width: 860px) {
+    .exec-grid { grid-template-columns: 1fr; }
+    table, thead, tbody, tr, th, td { display: block; }
+    thead { display: none; }
+    tr { border-top: 1px solid var(--line); padding: 10px 0; }
+    td { border-top: 0; padding: 4px 0; }
+  }
+</style>
+{% endblock %}
+
+{% block main_class %}wrap page-pad{% endblock %}
+
+{% block content %}
+  <a href="/executions">Back to executions</a>
+  {% if record %}
+  <div class="workflow" aria-label="Workflow" style="margin-top:12px">
+    <span>Sync</span><span>Triage</span><span>Analyze</span><span>Review</span><span>Prepare</span><span class="active">Execute</span><span class="active">Audit</span>
+  </div>
+  <h1>Execution #{{ record.id }}</h1>
+  <p class="help-text">What this page is for: inspect one immutable execution attempt, approve or confirm when safe, and review the provider result and audit trail.</p>
+  <div class="button-row" style="margin-bottom:10px">
+    <a href="/executions/next?current_id={{ record.id }}">Process next execution</a>
+    {% if record.review_package_id %} | <a href="/review-packages/{{ record.review_package_id }}">Source review package</a>{% endif %}
+    {% if record.draft_id %} | <a href="/drafts/{{ record.draft_id }}">Source draft</a>{% endif %}
+  </div>
+  <p class="warning">Final confirmation is required before execution. Refreshing or re-opening this page does not execute anything.</p>
+  {% if record.action_type.value == "delete_unsubscribe" %}
+  <p class="warning">Destructive execution: delete/unsubscribe requires explicit confirmation token.</p>
+  {% endif %}
+
+  <div class="exec-grid">
+    <div style="display:grid;gap:12px">
       <section class="panel">
+        <h2>Execution Details</h2>
         <div class="facts">
-          <div><strong>Action</strong><span>{{ record.action_type.value.replace("_", " ").title() }}</span></div>
-          <div><strong>Attempt</strong><span>{{ record.attempt_number }}</span></div>
-          <div><strong>Status</strong><span>{{ record.status.value.replace("_", " ").title() }}</span></div>
-          <div><strong>Review package</strong><span>{{ record.review_package_id or "-" }}</span></div>
-          <div><strong>Draft</strong><span>{{ record.draft_id or "-" }}</span></div>
-          <div><strong>Provider</strong><span>{{ record.provider_name }}</span></div>
-          <div><strong>Prepared</strong><span>{{ record.created_at.strftime("%Y-%m-%d %H:%M") if record.created_at else "-" }}</span></div>
-          <div><strong>Approved</strong><span>{{ record.approved_at.strftime("%Y-%m-%d %H:%M") if record.approved_at else "-" }}</span></div>
-          <div><strong>Confirmed</strong><span>{{ record.confirmed_at.strftime("%Y-%m-%d %H:%M") if record.confirmed_at else "-" }}</span></div>
-          <div><strong>Error</strong><span>{{ record.error_text or "-" }}</span></div>
+          <div><strong class="label">Action</strong><span>{{ record.action_type.value.replace("_", " ").title() }}</span></div>
+          <div><strong class="label">Attempt</strong><span>{{ record.attempt_number }}</span></div>
+          <div><strong class="label">Status</strong><span><span class="badge {% if record.status.value == 'executed' %}ok{% elif record.status.value in ['cancelled', 'failed'] %}bad{% elif record.status.value == 'approved' %}warn{% endif %}">{{ record.status.value.replace("_", " ").title() }}</span></span></div>
+          <div><strong class="label">Review package</strong><span>{{ record.review_package_id or "-" }}</span></div>
+          <div><strong class="label">Draft</strong><span>{{ record.draft_id or "-" }}</span></div>
+          <div><strong class="label">Provider</strong><span>{{ record.provider_name }}</span></div>
+          <div><strong class="label">Prepared</strong><span>{{ record.created_at.strftime("%Y-%m-%d %H:%M") if record.created_at else "-" }}</span></div>
+          <div><strong class="label">Approved</strong><span>{{ record.approved_at.strftime("%Y-%m-%d %H:%M") if record.approved_at else "-" }}</span></div>
+          <div><strong class="label">Confirmed</strong><span>{{ record.confirmed_at.strftime("%Y-%m-%d %H:%M") if record.confirmed_at else "-" }}</span></div>
+          <div><strong class="label">Error</strong><span class="muted">{{ record.error_text or "-" }}</span></div>
         </div>
       </section>
 
@@ -103,54 +70,11 @@
       {% endif %}
 
       <section class="panel">
-        <h2>Execution controls</h2>
-        <div class="row">
-          <form method="post" action="/executions/{{ record.id }}/prepare-new">
-            <button type="submit">Prepare New Execution</button>
-          </form>
-          <form method="post" action="/executions/{{ record.id }}/rerun">
-            <button type="submit">Re-run Execution</button>
-          </form>
-          <form method="post" action="/executions/{{ record.id }}/clone">
-            <button type="submit">Clone as New Execution</button>
-          </form>
-        </div>
-        <p class="muted">New attempts start in pending review and still require approval plus final confirmation.</p>
-        <div class="row">
-          {% if record.status.value == "pending_review" %}
-          <form method="post" action="/executions/{{ record.id }}/approve">
-            <button type="submit">Approve</button>
-          </form>
-          {% endif %}
-          {% if record.status.value not in ["executed", "cancelled"] %}
-          <form method="post" action="/executions/{{ record.id }}/cancel">
-            <button type="submit">Cancel/Supersede Attempt</button>
-          </form>
-          {% endif %}
-        </div>
-        {% if record.status.value == "approved" %}
-        <form method="post" action="/executions/{{ record.id }}/confirm" style="margin-top: 10px">
-          {% if record.action_type.value == "delete_unsubscribe" %}
-          <label class="muted">Enter CONFIRM_DESTRUCTIVE for delete/unsubscribe:</label>
-          <input name="destructive_confirm_token" />
-          {% endif %}
-          <button class="primary" type="submit">Confirm and execute</button>
-        </form>
-        {% endif %}
-      </section>
-
-      <section class="panel">
         <h2>Attempt history</h2>
         <table>
           <thead>
             <tr>
-              <th>Attempt</th>
-              <th>Status</th>
-              <th>Provider</th>
-              <th>Prepared</th>
-              <th>Approved</th>
-              <th>Confirmed</th>
-              <th>Result / error</th>
+              <th>Attempt</th><th>Status</th><th>Provider</th><th>Prepared</th><th>Approved</th><th>Confirmed</th><th>Result / error</th>
             </tr>
           </thead>
           <tbody>
@@ -162,9 +86,7 @@
               <td>{{ attempt.created_at.strftime("%Y-%m-%d %H:%M") if attempt.created_at else "" }}</td>
               <td>{{ attempt.approved_at.strftime("%Y-%m-%d %H:%M") if attempt.approved_at else "-" }}</td>
               <td>{{ attempt.confirmed_at.strftime("%Y-%m-%d %H:%M") if attempt.confirmed_at else "-" }}</td>
-              <td>
-                {% if attempt.error_text %}{{ attempt.error_text }}{% elif attempt.result_json %}{{ attempt.result_json }}{% else %}-{% endif %}
-              </td>
+              <td class="muted" style="font-size:12px">{% if attempt.error_text %}{{ attempt.error_text }}{% elif attempt.result_json %}{{ attempt.result_json }}{% else %}-{% endif %}</td>
             </tr>
             {% else %}
             <tr><td colspan="7" class="muted">No related attempts found.</td></tr>
@@ -175,7 +97,7 @@
 
       <section class="panel">
         <h2>Audit trail</h2>
-        <ul>
+        <ul class="history">
           {% for entry in audit %}
           <li>
             <strong>{{ entry.event_type }}</strong>
@@ -188,9 +110,46 @@
           {% endfor %}
         </ul>
       </section>
-      {% else %}
-      <div class="panel">Execution record not found.</div>
-      {% endif %}
-    </main>
-  </body>
-</html>
+    </div>
+
+    <aside style="display:grid;gap:12px">
+      <section class="panel">
+        <h2>Execution controls</h2>
+        <div style="display:grid;gap:7px">
+          <form method="post" action="/executions/{{ record.id }}/prepare-new">
+            <button style="width:100%" type="submit">Prepare New Execution</button>
+          </form>
+          <form method="post" action="/executions/{{ record.id }}/rerun">
+            <button style="width:100%" type="submit">Re-run Execution</button>
+          </form>
+          <form method="post" action="/executions/{{ record.id }}/clone">
+            <button style="width:100%" type="submit">Clone as New Execution</button>
+          </form>
+          {% if record.status.value == "pending_review" %}
+          <form method="post" action="/executions/{{ record.id }}/approve">
+            <button class="primary" style="width:100%" type="submit">Approve</button>
+          </form>
+          {% endif %}
+          {% if record.status.value not in ["executed", "cancelled"] %}
+          <form method="post" action="/executions/{{ record.id }}/cancel">
+            <button class="danger" style="width:100%" type="submit">Cancel/Supersede</button>
+          </form>
+          {% endif %}
+          {% if record.status.value == "approved" %}
+          <form method="post" action="/executions/{{ record.id }}/confirm" style="display:grid;gap:7px">
+            {% if record.action_type.value == "delete_unsubscribe" %}
+            <label class="muted" style="font-size:12px">Enter CONFIRM_DESTRUCTIVE for delete/unsubscribe:</label>
+            <input name="destructive_confirm_token" />
+            {% endif %}
+            <button class="primary" type="submit">Confirm and execute</button>
+          </form>
+          {% endif %}
+          <p class="muted" style="font-size:12px">New attempts start in pending review and still require approval plus final confirmation.</p>
+        </div>
+      </section>
+    </aside>
+  </div>
+  {% else %}
+  <div class="empty">Execution record not found.</div>
+  {% endif %}
+{% endblock %}

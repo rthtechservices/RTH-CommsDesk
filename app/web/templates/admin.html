@@ -1,117 +1,50 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Admin | RTH CommsDesk</title>
-    <style>
-      body {
-        margin: 0;
-        font-family: Arial, Helvetica, sans-serif;
-        background: #f6f7f9;
-        color: #17202a;
-      }
-      main {
-        width: min(920px, calc(100% - 32px));
-        margin: 24px auto;
-      }
-      .card {
-        background: #fff;
-        border: 1px solid #d9dee6;
-        border-radius: 10px;
-        padding: 18px;
-        margin-bottom: 16px;
-      }
-      h1,
-      h2 {
-        margin-top: 0;
-      }
-      .muted {
-        color: #607080;
-      }
-      .stat-grid {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 12px;
-      }
-      .stat {
-        border: 1px solid #d9dee6;
-        border-radius: 8px;
-        padding: 12px;
-      }
-      button {
-        border: 0;
-        border-radius: 6px;
-        padding: 8px 12px;
-        background: #246b5a;
-        color: #fff;
-        font-weight: 700;
-      }
-      form {
-        margin-top: 10px;
-      }
-      label {
-        display: block;
-        margin: 8px 0;
-      }
-      .result {
-        margin-top: 8px;
-        color: #16483d;
-      }
-    </style>
-  </head>
-  <body>
-    <main>
-      <p><a href="/">← Back to dashboard</a></p>
-      <h1>Admin controls</h1>
-      <p class="muted">Retention and local cache controls. These actions do not modify external accounts.</p>
+{% extends "base.html" %}
+{% block title %}Admin | RTH CommsDesk{% endblock %}
 
-      <section class="card">
-        <h2>Current local data footprint</h2>
-        <div class="stat-grid">
-          <div class="stat">
-            <strong>{{ message_body_count }}</strong>
-            <div class="muted">stored message bodies</div>
-          </div>
-          <div class="stat">
-            <strong>{{ sent_excerpt_count }}</strong>
-            <div class="muted">sent-learning excerpts</div>
-          </div>
-          <div class="stat">
-            <strong>{{ audit_count }}</strong>
-            <div class="muted">execution audit rows</div>
-          </div>
-        </div>
-      </section>
+{% block main_class %}wrap page-pad{% endblock %}
 
-      <section class="card">
-        <h2>Run retention cleanup</h2>
-        <p class="muted">Uses configured retention windows from environment settings.</p>
-        <form method="post" action="/admin/retention/run">
-          <button type="submit">Run retention now</button>
-        </form>
-        {% if retention_result %}
-        <div class="result">Result: {{ retention_result }}</div>
-        {% endif %}
-      </section>
+{% block content %}
+  <a href="/">Back to dashboard</a>
+  <div class="workflow" aria-label="Workflow">
+    <span>Sync</span><span>Triage</span><span>Analyze</span><span>Review</span><span>Prepare</span><span>Execute</span><span>Audit</span>
+  </div>
+  <h1>Admin controls</h1>
+  <p class="help-text">What this page is for: local data retention controls, database maintenance, and system configuration. No external calls are made here.</p>
+  <p class="warning">Admin actions affect local data only. Retention deletes cannot be undone.</p>
 
-      <section class="card">
-        <h2>Clear cached content</h2>
-        <form method="post" action="/admin/cache/clear">
-          <label>
-            <input type="checkbox" name="clear_message_bodies" value="true" checked />
-            Clear stored message bodies
-          </label>
-          <label>
-            <input type="checkbox" name="clear_sent_learning_excerpts" value="true" checked />
-            Clear sent-learning excerpts
-          </label>
-          <button type="submit">Clear selected content</button>
-        </form>
-        {% if cache_result %}
-        <div class="result">Result: {{ cache_result }}</div>
-        {% endif %}
-      </section>
-    </main>
-  </body>
-</html>
+  <section class="panel">
+    <h2>Retention controls</h2>
+    <p class="muted">Delete old messages and related records beyond the retention window.</p>
+    <form method="post" action="/admin/retention" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <label style="display:grid;gap:3px">
+        <span class="label">Delete messages older than (days)</span>
+        <input type="number" name="days" value="90" min="1" max="3650" style="width:120px" />
+      </label>
+      <button class="danger" type="submit">Run retention delete</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2>Attention score recalculation</h2>
+    <p class="muted">Recalculate attention scores for all messages using current rules.</p>
+    <form method="post" action="/admin/recalc-scores">
+      <button type="submit">Recalculate all scores</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2>System info</h2>
+    <div class="facts">
+      <div><strong class="label">Message bodies stored</strong><span class="muted">{{ message_body_count }}</span></div>
+      <div><strong class="label">Sent mail excerpts</strong><span class="muted">{{ sent_excerpt_count }}</span></div>
+      <div><strong class="label">Audit log entries</strong><span class="muted">{{ audit_count }}</span></div>
+    </div>
+  </section>
+
+  {% if retention_result %}
+  <div class="notice" style="margin-top:10px">Retention result: {{ retention_result }}</div>
+  {% endif %}
+  {% if cache_result %}
+  <div class="notice" style="margin-top:10px">Cache clear result: {{ cache_result }}</div>
+  {% endif %}
+{% endblock %}

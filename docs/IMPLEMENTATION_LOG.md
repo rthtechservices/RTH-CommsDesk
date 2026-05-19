@@ -2,6 +2,50 @@
 
 Record completed work here at the end of every phase. Newest entries should be added at the top.
 
+## 2026-05-19 — Phase 18.6: Visual Design System and Dashboard Polish
+
+### Summary
+- Completely rewrote `app/web/ui.css` as a dark "mission control" design system with a retro-futuristic 1990s feel. Color palette: `--bg:#0c1117`, dark surface layers, brand green `#1cba8b`, accent blue `#4a8ff5`, status traffic lights.
+- Created `app/web/templates/base.html` as a shared Jinja2 base template with sticky dark topbar, nav links, and `{% block %}` slots for all pages.
+- Rewrote all 17 page templates to extend `base.html` and use the dark design system, removing all inline CSS and per-page boilerplate.
+- Templates rewritten: dashboard, message_detail, review_packages, review_package_detail, executions, execution_detail, providers, operational_smoke, bulk_triage, contacts, voice_calibration, admin, drafts, login, contact_detail, draft_review.
+- Added connected pill-segment workflow rail on all applicable pages showing the current step in the Sync → Triage → Analyze → Review → Prepare → Execute → Audit flow.
+- Added `tests/test_phase_18_6_visual_design.py` with 20 tests covering dark theme presence, nav structure, grouped action panels, Microsoft write boundary strings, section headers, and route smoke.
+- Fixed admin template to use actual route variables (`message_body_count`, `sent_excerpt_count`, `audit_count`) instead of nonexistent `system_info`.
+- Fixed message_detail to show "Reset contact normal" button for VIP/noise contacts.
+- Fixed multiple template strings to satisfy existing test assertions ("AI analysis provider", "Azure/OpenAI analysis", "Gmail full-body sync", "was not created in Gmail", "Prepare external Gmail draft execution", "Review-only local suggestion", "Edit Contact", "Local recommendation only").
+
+### Files changed
+- `app/web/ui.css` (completely rewritten)
+- `app/web/templates/base.html` (new)
+- `app/web/templates/dashboard.html`
+- `app/web/templates/message_detail.html`
+- `app/web/templates/review_packages.html`
+- `app/web/templates/review_package_detail.html`
+- `app/web/templates/executions.html`
+- `app/web/templates/execution_detail.html`
+- `app/web/templates/providers.html`
+- `app/web/templates/operational_smoke.html`
+- `app/web/templates/bulk_triage.html`
+- `app/web/templates/contacts.html`
+- `app/web/templates/voice_calibration.html`
+- `app/web/templates/admin.html`
+- `app/web/templates/drafts.html`
+- `app/web/templates/login.html`
+- `app/web/templates/contact_detail.html`
+- `app/web/templates/draft_review.html`
+- `tests/test_phase_18_6_visual_design.py` (new)
+- `docs/PHASE_STATUS.md`
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/HELP.md`
+- `docs/phases/PHASE_18_6_VISUAL_DESIGN_SYSTEM_POLISH.md` (new)
+
+### Tests run
+- `python -m pytest -q` — 158 passed, 0 failed.
+- `python -m ruff check .` — passed.
+- `python -m alembic upgrade head` — passed.
+
 ## 2026-05-19 — Phase 18.5: Dashboard and Workflow UI Polish
 
 ### Summary

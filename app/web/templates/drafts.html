@@ -1,94 +1,45 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Local Drafts | RTH CommsDesk</title>
-    <style>
-      :root {
-        --bg: #f6f7f9;
-        --surface: #ffffff;
-        --line: #d9dee6;
-        --text: #17202a;
-        --muted: #607080;
-        --brand: #246b5a;
-      }
-      * {
-        box-sizing: border-box;
-      }
-      body {
-        margin: 0;
-        background: var(--bg);
-        color: var(--text);
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 15px;
-        line-height: 1.45;
-      }
-      a {
-        color: var(--brand);
-        font-weight: 700;
-        text-decoration: none;
-      }
-      .wrap {
-        width: min(980px, calc(100% - 32px));
-        margin: 0 auto;
-        padding: 22px 0 42px;
-      }
-      .panel {
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: var(--surface);
-        padding: 16px;
-      }
-      .muted {
-        color: var(--muted);
-      }
-      .drafts {
-        display: grid;
-        gap: 10px;
-        padding: 0;
-        margin: 0;
-        list-style: none;
-      }
-      .drafts li {
-        border-top: 1px solid var(--line);
-        padding-top: 10px;
-      }
-      .drafts li:first-child {
-        border-top: 0;
-        padding-top: 0;
-      }
-      .empty {
-        border: 1px dashed var(--line);
-        border-radius: 8px;
-        background: #fbfcfd;
-        color: var(--muted);
-        padding: 18px;
-      }
-    </style>
-  </head>
-  <body>
-    <main class="wrap">
-      <a href="/">Back to dashboard</a>
-      <h1>Local Drafts</h1>
-      <p class="muted">Drafts are local suggestions only. RTH CommsDesk does not send email or create Gmail drafts.</p>
-      <section class="panel">
-        <ul class="drafts">
-          {% for draft in drafts %}
-          <li>
-            <strong><a href="/drafts/{{ draft.id }}">{{ draft.message.subject if draft.message and draft.message.subject else "Draft " ~ draft.id }}</a></strong>
-            <div class="muted">
-              {{ draft.status.value if draft.status.value is defined else draft.status }}
-              {% if draft.voice_profile %} | {{ draft.voice_profile.name }}{% endif %}
-              {% if draft.message and draft.message.sender_email %} | {{ draft.message.sender_email }}{% endif %}
-              {% if draft.created_at %} | {{ draft.created_at.strftime("%Y-%m-%d %H:%M") }}{% endif %}
-            </div>
-          </li>
-          {% else %}
-          <li class="empty">No local draft suggestions yet.</li>
-          {% endfor %}
-        </ul>
-      </section>
-    </main>
-  </body>
-</html>
+{% extends "base.html" %}
+{% block title %}Drafts | RTH CommsDesk{% endblock %}
+
+{% block main_class %}wide-wrap page-pad{% endblock %}
+
+{% block content %}
+  <a href="/">Back to dashboard</a>
+  <div class="workflow" aria-label="Workflow">
+    <span>Sync</span><span>Triage</span><span>Analyze</span><span>Review</span><span class="active">Prepare</span><span>Execute</span><span>Audit</span>
+  </div>
+  <h1>Drafts</h1>
+  <p class="help-text">What this page is for: review locally generated drafts before deciding to approve them for execution preparation. Nothing is sent from here.</p>
+  <p class="notice">Local drafts only. No email is created in Gmail, no message is sent, and no labels are applied from this page.</p>
+
+  <section class="panel">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Subject</th>
+          <th>To</th>
+          <th>Status</th>
+          <th>Voice profile</th>
+          <th>Created</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for draft in drafts %}
+        <tr>
+          <td><a href="/drafts/{{ draft.id }}">#{{ draft.id }}</a></td>
+          <td>{{ draft.subject or "(no subject)" }}</td>
+          <td class="muted" style="font-size:12px">{{ draft.to_address }}</td>
+          <td><span class="badge {% if draft.status == 'approved' %}ok{% elif draft.status == 'rejected' %}bad{% endif %}">{{ draft.status or "pending" }}</span></td>
+          <td class="muted" style="font-size:12px">{{ draft.voice_profile_name or "-" }}</td>
+          <td class="muted" style="font-size:12px">{{ draft.created_at.strftime("%Y-%m-%d %H:%M") if draft.created_at else "-" }}</td>
+          <td><a href="/drafts/{{ draft.id }}">Review</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="muted">No drafts yet. Generate one from a message detail page.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

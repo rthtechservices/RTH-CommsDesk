@@ -1,337 +1,100 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Review Package | RTH CommsDesk</title>
-    <link rel="stylesheet" href="/static/ui.css" />
-    <style>
-      :root {
-        --bg: #f6f7f9;
-        --surface: #ffffff;
-        --line: #d9dee6;
-        --text: #17202a;
-        --muted: #607080;
-        --brand: #246b5a;
-        --warn-bg: #fff7ed;
-        --warn-line: #e4b47f;
-      }
-      * {
-        box-sizing: border-box;
-      }
-      body {
-        margin: 0;
-        background: var(--bg);
-        color: var(--text);
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 15px;
-        line-height: 1.45;
-      }
-      a {
-        color: var(--brand);
-        font-weight: 700;
-        text-decoration: none;
-      }
-      .wrap {
-        width: min(980px, calc(100% - 32px));
-        margin: 0 auto;
-        padding: 22px 0 42px;
-      }
-      .panel,
-      .notice {
-        border-radius: 8px;
-        padding: 16px;
-      }
-      .panel {
-        border: 1px solid var(--line);
-        background: var(--surface);
-        margin-bottom: 16px;
-      }
-      .notice {
-        border: 1px solid var(--warn-line);
-        background: var(--warn-bg);
-        font-weight: 700;
-      }
-      .facts {
-        display: grid;
-        gap: 8px;
-      }
-      .facts div {
-        display: grid;
-        grid-template-columns: 180px minmax(0, 1fr);
-        gap: 12px;
-        border-top: 1px solid var(--line);
-        padding-top: 8px;
-      }
-      .facts div:first-child {
-        border-top: 0;
-        padding-top: 0;
-      }
-      .label,
-      .muted {
-        color: var(--muted);
-      }
-      .label {
-        font-weight: 700;
-      }
-      button,
-      select,
-      textarea {
-        border: 1px solid var(--line);
-        border-radius: 6px;
-        font: inherit;
-      }
-      button {
-        min-height: 36px;
-        background: var(--surface);
-        cursor: pointer;
-        font-weight: 700;
-        padding: 7px 11px;
-      }
-      button.primary {
-        border-color: var(--brand);
-        background: var(--brand);
-        color: #ffffff;
-      }
-      select,
-      textarea {
-        width: 100%;
-        padding: 8px;
-      }
-      textarea {
-        min-height: 120px;
-        resize: vertical;
-      }
-      pre {
-        overflow: auto;
-        white-space: pre-wrap;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: #fbfcfd;
-        padding: 14px;
-        font-family: Arial, Helvetica, sans-serif;
-      }
-      .actions {
-        display: grid;
-        gap: 10px;
-      }
-      .empty {
-        border: 1px dashed var(--line);
-        border-radius: 8px;
-        background: #fbfcfd;
-        color: var(--muted);
-        padding: 18px;
-      }
-      @media (max-width: 700px) {
-        .facts div {
-          grid-template-columns: 1fr;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <main class="wrap">
-      <a href="/review-packages">Back to review packages</a>
-      {% if package %}
-      <div class="workflow" aria-label="Workflow">
-        <span>Sync</span><span>Triage</span><span>Analyze</span><span class="active">Review</span><span>Prepare</span><span>Execute</span><span>Audit</span>
-      </div>
-      <h1>Review Package</h1>
-      <p class="help-text">What this page is for: evaluate a local recommendation, edit its review state, and move it to execution preparation only when appropriate.</p>
-      {% if package_position and package_total %}
-      <p class="muted">Item {{ package_position }} of {{ package_total }}</p>
-      {% endif %}
-      <p>
-        <a href="/review-packages/next?current_id={{ package.id }}">Process next pending package</a>
-        {% if package.message %} | <a href="/messages/{{ package.message.id }}">Open source message</a>{% endif %}
-        | <a href="/executions/next">Next execution approval</a>
-      </p>
-      <p class="notice">Local recommendation only. Approving, rejecting, editing, or snoozing this package does not modify Gmail or any calendar.</p>
+{% extends "base.html" %}
+{% block title %}Review Package Detail | RTH CommsDesk{% endblock %}
 
+{% block styles %}
+<style>
+  .rpd-grid {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) 260px;
+    gap: 14px;
+    align-items: start;
+  }
+  @media (max-width: 860px) { .rpd-grid { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block main_class %}wrap page-pad{% endblock %}
+
+{% block content %}
+  <a href="/review-packages">Back to review packages</a>
+  {% if package %}
+  <div class="workflow" aria-label="Workflow" style="margin-top:12px">
+    <span>Sync</span><span>Triage</span><span>Analyze</span><span class="active">Review</span><span>Prepare</span><span>Execute</span><span>Audit</span>
+  </div>
+  <h1>Review Package #{{ package.id }}</h1>
+  <p class="help-text">What this page is for: review one local AI recommendation, edit the draft or parameters, then approve or reject. Nothing is sent from here.</p>
+  <p class="notice">Local recommendation only. This page does not modify Gmail or any calendar, send email, or create any external record.</p>
+
+  <div class="rpd-grid">
+    <div style="display:grid;gap:12px">
       <section class="panel">
+        <h2>Package details</h2>
         <div class="facts">
-          <div>
-            <span class="label">Communication summary</span>
-            <span>{{ package.conversation_summary.summary_text if package.conversation_summary else "No summary stored." }}</span>
-          </div>
-          <div>
-            <span class="label">Recommended action</span>
-            <span>{{ package.action_type.value.replace("_", " ").title() }}</span>
-          </div>
-          <div>
-            <span class="label">Explanation</span>
-            <span>{{ package.explanation }}</span>
-          </div>
-          <div>
-            <span class="label">Confidence</span>
-            <span>{{ "%.0f"|format((package.confidence or 0) * 100) }}%</span>
-          </div>
-          <div>
-            <span class="label">Status</span>
-            <span>{{ package.status.value if package.status.value is defined else package.status }}</span>
-          </div>
-          <div>
-            <span class="label">Source message</span>
-            <span>
-              {% if package.message %}
-              <a href="/messages/{{ package.message.id }}">{{ package.message.subject or "(No subject)" }}</a>
-              {% else %}
-              Unknown
-              {% endif %}
-            </span>
-          </div>
-          <div>
-            <span class="label">Contact context</span>
-            <span>
-              {% if contact %}
-              {{ contact.display_name or contact.primary_email or "Known contact" }}
-              | {{ contact.relationship_type }}
-              | importance {{ contact.importance_tier }}
-              {% if contact.is_vip %} | VIP{% endif %}
-              {% if contact.is_noise %} | Noise{% endif %}
-              {% else %}
-              No matched contact profile.
-              {% endif %}
-            </span>
-          </div>
-          <div>
-            <span class="label">Provider</span>
-            <span>{{ package.provider_name }}</span>
-          </div>
-          <div>
-            <span class="label">External action</span>
-            <span>No external system is modified by this package.</span>
-          </div>
+          <div><strong class="label">Action type</strong><span>{{ package.action_type.value.replace("_", " ").title() }}</span></div>
+          <div><strong class="label">Status</strong><span><span class="badge {% if package.status.value == 'approved' %}ok{% elif package.status.value == 'rejected' %}bad{% endif %}">{{ package.status.value.replace("_", " ").title() }}</span></span></div>
+          <div><strong class="label">Confidence</strong><span>{{ "%.0f"|format((package.confidence or 0) * 100) }}%</span></div>
+          {% if package.message %}
+          <div><strong class="label">Message</strong><span><a href="/messages/{{ package.message_id }}">{{ package.message.subject or "(no subject)" }}</a></span></div>
+          <div><strong class="label">From</strong><span>{{ package.message.sender_email }}</span></div>
+          {% endif %}
+          <div><strong class="label">Created</strong><span>{{ package.created_at.strftime("%Y-%m-%d %H:%M") if package.created_at else "-" }}</span></div>
+          <div><strong class="label">Updated</strong><span>{{ package.updated_at.strftime("%Y-%m-%d %H:%M") if package.updated_at else "-" }}</span></div>
         </div>
       </section>
 
-      {% if package.draft_response %}
+      {% if package.conversation_summary %}
       <section class="panel">
-        <h2>Draft Response</h2>
-        <pre>{{ package.draft_response }}</pre>
+        <h2>Conversation summary</h2>
+        <p>{{ package.conversation_summary.summary_text }}</p>
       </section>
       {% endif %}
 
       <section class="panel">
-        <h2>Conversation Timeline</h2>
-        <div class="facts">
-          {% for row in timeline %}
-          <div>
-            <span class="label">
-              {% if row.message.received_at %}{{ row.message.received_at.strftime("%Y-%m-%d %H:%M") }}{% else %}Message{% endif %}
-            </span>
-            <span>
-              <strong>{{ row.message.sender_display_name or row.message.sender_email or "Unknown sender" }}</strong>
-              {% if row.is_selected %}<span class="muted"> | selected item</span>{% endif %}
-              <br />
-              {{ row.message.body_text or row.message.snippet or "No local body/snippet stored." }}
-            </span>
-          </div>
-          {% else %}
-          <div>
-            <span class="label">Timeline</span>
-            <span>No conversation timeline is available. Fetch full Gmail conversation from the source message when appropriate.</span>
-          </div>
-          {% endfor %}
-        </div>
+        <h2>AI reasoning</h2>
+        <pre>{{ package.reasoning_json or "No reasoning stored." }}</pre>
       </section>
 
       <section class="panel">
-        <h2>Voice Guidance Used</h2>
-        <div class="facts">
-          {% for guidance in active_guidance %}
-          <div>
-            <span class="label">{{ guidance.source }}</span>
-            <span>
-              {{ guidance.salutation_style or "default salutation" }}
-              {% if guidance.preferred_name %} | {{ guidance.preferred_name }}{% endif %}
-              {% if guidance.tone_notes %} | {{ guidance.tone_notes }}{% endif %}
-            </span>
-          </div>
-          {% else %}
-          <div>
-            <span class="label">Guidance</span>
-            <span>No approved voice guidance matched this contact or relationship.</span>
-          </div>
-          {% endfor %}
-        </div>
-      </section>
-
-      {% if package.calendar_proposals %}
-      {% set proposal = package.calendar_proposals[0] %}
-      <section class="panel">
-        <h2>Calendar Availability Proposal</h2>
-        <div class="facts">
-          <div>
-            <span class="label">Action kind</span>
-            <span>{{ proposal.action_kind.replace("_", " ").title() }}</span>
-          </div>
-          <div>
-            <span class="label">Reasoning</span>
-            <span>{{ proposal.availability_reasoning or "No availability reasoning recorded." }}</span>
-          </div>
-          <div>
-            <span class="label">Conflict summary</span>
-            <span>{{ proposal.conflict_summary or "No conflict detected." }}</span>
-          </div>
-          <div>
-            <span class="label">Proposed time</span>
-            <span>
-              {% if proposal.proposed_start_at %}
-              {{ proposal.proposed_start_at.strftime("%Y-%m-%d %H:%M") }}
-              {% if proposal.proposed_end_at %} to {{ proposal.proposed_end_at.strftime("%Y-%m-%d %H:%M") }}{% endif %}
-              {% else %}
-              Not set
-              {% endif %}
-            </span>
-          </div>
-          <div>
-            <span class="label">Reminder time</span>
-            <span>
-              {% if proposal.reminder_at %}
-              {{ proposal.reminder_at.strftime("%Y-%m-%d %H:%M") }}
-              {% else %}
-              Not set
-              {% endif %}
-            </span>
-          </div>
-          <div>
-            <span class="label">Provider</span>
-            <span>{{ proposal.provider_name }}</span>
-          </div>
-        </div>
-      </section>
-      {% endif %}
-
-      <section class="panel">
-        <h2>Local Review Status</h2>
-        <form method="post" action="/review-packages/{{ package.id }}/status" class="actions">
-          <label>
-            <span class="label">Status</span>
-            <select name="status">
-              {% for status in status_options %}
-              <option value="{{ status.value }}" {% if status == package.status %}selected{% endif %}>{{ status.value.replace("_", " ").title() }}</option>
-              {% endfor %}
-            </select>
+        <h2>Draft content</h2>
+        <form method="post" action="/review-packages/{{ package.id }}/update-draft" style="display:grid;gap:10px">
+          <label style="display:grid;gap:4px">
+            <span class="label">Subject</span>
+            <input name="draft_subject" value="{{ package.draft_subject or '' }}" />
           </label>
-          <label>
-            <span class="label">Draft response or edit note</span>
-            <textarea name="draft_response">{{ package.draft_response or "" }}</textarea>
+          <label style="display:grid;gap:4px">
+            <span class="label">Body</span>
+            <textarea name="draft_body" rows="10">{{ package.draft_body or '' }}</textarea>
           </label>
-          <label>
-            <span class="label">Local review note</span>
-            <textarea name="user_note">{{ package.user_note or "" }}</textarea>
-          </label>
-          <button class="primary" type="submit">Save local status</button>
+          <div>
+            <button type="submit">Save draft changes</button>
+          </div>
         </form>
-        <form method="post" action="/review-packages/{{ package.id }}/prepare-execution" style="margin-top: 10px">
-          <button type="submit">Prepare execution from this review package</button>
-        </form>
-        <p class="muted">External actions move to the execution queue and still require approve plus final confirm.</p>
       </section>
-      {% else %}
-      <div class="empty">Review package not found.</div>
-      {% endif %}
-    </main>
-  </body>
-</html>
+    </div>
+
+    <aside style="display:grid;gap:12px">
+      <section class="panel">
+        <h2>Review actions</h2>
+        <div style="display:grid;gap:7px">
+          {% if package.status.value not in ["approved"] %}
+          <form method="post" action="/review-packages/{{ package.id }}/approve">
+            <button class="primary" style="width:100%" type="submit">Approve</button>
+          </form>
+          {% endif %}
+          {% if package.status.value not in ["rejected"] %}
+          <form method="post" action="/review-packages/{{ package.id }}/reject">
+            <button class="danger" style="width:100%" type="submit">Reject</button>
+          </form>
+          {% endif %}
+          <form method="post" action="/review-packages/{{ package.id }}/reset">
+            <button style="width:100%" type="submit">Reset to pending</button>
+          </form>
+          <p class="muted" style="font-size:12px">Approving marks this record ready for execution preparation. Nothing is sent automatically.</p>
+        </div>
+      </section>
+    </aside>
+  </div>
+  {% else %}
+  <div class="empty">Review package not found.</div>
+  {% endif %}
+{% endblock %}

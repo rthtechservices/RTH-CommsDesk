@@ -1,73 +1,45 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Sign in | RTH CommsDesk</title>
-    <style>
-      body {
-        margin: 0;
-        font-family: Arial, Helvetica, sans-serif;
-        background: #f6f7f9;
-        color: #17202a;
-      }
-      main {
-        max-width: 420px;
-        margin: 8vh auto;
-        padding: 20px;
-      }
-      .card {
-        background: #fff;
-        border: 1px solid #d9dee6;
-        border-radius: 10px;
-        padding: 20px;
-      }
-      label {
-        display: block;
-        margin: 12px 0;
-      }
-      input {
-        width: 100%;
-        padding: 10px;
-        border: 1px solid #c6ccd5;
-        border-radius: 6px;
-      }
-      button {
-        margin-top: 8px;
-        width: 100%;
-        padding: 10px;
-        border: 0;
-        border-radius: 6px;
-        background: #246b5a;
-        color: #fff;
-        font-weight: 700;
-      }
-      .error {
-        color: #a5411f;
-        margin: 0 0 12px;
-      }
-    </style>
-  </head>
-  <body>
-    <main>
-      <div class="card">
-        <h1>Sign in</h1>
-        {% if error %}
-        <p class="error">Invalid credentials. Try again.</p>
-        {% endif %}
-        <form method="post" action="/login">
-          <input type="hidden" name="next_path" value="{{ next_path }}" />
-          <label>
-            Username
-            <input type="text" name="username" required autocomplete="username" />
-          </label>
-          <label>
-            Password
-            <input type="password" name="password" required autocomplete="current-password" />
-          </label>
-          <button type="submit">Sign in</button>
-        </form>
-      </div>
-    </main>
-  </body>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sign in | RTH CommsDesk</title>
+  <link rel="stylesheet" href="/static/ui.css" />
+  <style>
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .login-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 36px 40px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: var(--shadow);
+    }
+    .login-card h1 { font-size: 1.2rem; margin: 0 0 8px; color: var(--brand); letter-spacing: .04em; }
+    .login-card p { font-size: 13px; color: var(--muted); margin: 0 0 24px; }
+    .login-card label { display: grid; gap: 4px; margin-bottom: 14px; font-size: 13px; color: var(--muted); }
+    .login-card button { width: 100%; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <h1>RTH CommsDesk</h1>
+    <p>Sign in to continue</p>
+    {% if error %}
+    <p class="warning">{{ error }}</p>
+    {% endif %}
+    <form method="post" action="/login">
+      <label>
+        Username
+        <input type="text" name="username" autocomplete="username" required />
+      </label>
+      <label>
+        Password
+        <input type="password" name="password" autocomplete="current-password" required />
+      </label>
+      <button class="primary" type="submit">Sign in</button>
+    </form>
+  </div>
+</body>
 </html>

@@ -1,136 +1,63 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Provider Status | RTH CommsDesk</title>
-    <link rel="stylesheet" href="/static/ui.css" />
-    <style>
-      @media (max-width: 860px) {
-        table,
-        thead,
-        tbody,
-        tr,
-        th,
-        td {
-          display: block;
-        }
-        thead {
-          display: none;
-        }
-        tr {
-          border-top: 1px solid var(--line);
-          padding: 10px 0;
-        }
-        td {
-          border-top: 0;
-          padding: 4px 0;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <main class="wide-wrap page-pad">
-      <a href="/">Back to dashboard</a>
-      <div class="workflow" aria-label="Workflow">
-        <span class="active">Sync</span><span>Triage</span><span>Analyze</span><span>Review</span><span>Prepare</span><span>Execute</span><span>Audit</span>
-      </div>
-      <h1>Provider Status</h1>
-      <p class="help-text">What this page is for: confirm provider readiness and find the exact environment settings needed. This page observes configuration only; it does not edit `.env` or enable writes.</p>
-      <p class="notice">Microsoft write boundaries remain disabled/not implemented: Outlook send, Outlook Calendar, and Teams are not execution surfaces.</p>
-      <p class="button-row">
-        <a class="button" href="/operational-smoke">Operational smoke</a>
-        <a class="button" href="/api/providers/status">Provider status JSON</a>
-        <form method="post" action="/api/graph/test" style="display: inline"><button type="submit">Test Microsoft Graph</button></form>
-        <form method="post" action="/api/ai/test" style="display: inline"><button type="submit">Test AI provider</button></form>
-      </p>
+{% extends "base.html" %}
+{% block title %}Provider Status | RTH CommsDesk{% endblock %}
 
-      <section class="panel">
-        <h2>Status Summary</h2>
-        <div class="config-grid">
-          {% for state, count in state_counts.items() %}
-          <div class="subtle-panel">
-            <strong><span class="status-dot {{ state }}"></span>{{ count }}</strong>
-            <div class="muted">{{ state.replace("_", " ").title() }}</div>
-          </div>
-          {% endfor %}
-        </div>
-      </section>
+{% block main_class %}wide-wrap page-pad{% endblock %}
 
-      <section class="panel">
-        <h2>Configuration Guidance</h2>
-        <div class="config-grid">
-          <div class="config-card subtle-panel">
-            <h3>Gmail read and optional Gmail writes</h3>
-            <p class="muted">Current state is shown in the Gmail rows below. Restart is recommended after changing environment variables.</p>
-            <pre>GMAIL_CLIENT_SECRETS_FILE=./client_secret.json
-EXECUTION_PROVIDER=mock
-EXTERNAL_WRITE_DRY_RUN=true
-GMAIL_WRITE_ENABLED=false
-GMAIL_DRAFT_CREATE_ENABLED=false
-GMAIL_SEND_ENABLED=false
-GMAIL_LABEL_ARCHIVE_ENABLED=false</pre>
-          </div>
-          <div class="config-card subtle-panel">
-            <h3>Azure/OpenAI analysis</h3>
-            <p class="muted">Live AI is optional. Mock remains the local fallback if these are unset or fail validation.</p>
-            <pre>AI_PROVIDER=azure_openai
-AZURE_OPENAI_ENDPOINT=https://&lt;resource&gt;.cognitiveservices.azure.com
-AZURE_OPENAI_API_KEY=...
-AZURE_OPENAI_DEPLOYMENT=...
-AZURE_OPENAI_API_VERSION=2025-04-01-preview</pre>
-          </div>
-          <div class="config-card subtle-panel">
-            <h3>Microsoft Graph read-only Outlook</h3>
-            <p class="muted">Restart after edits, then run the Microsoft Graph test. Outlook send, Outlook Calendar, and Teams stay disabled.</p>
-            <pre>MICROSOFT_GRAPH_ENABLED=true
-MICROSOFT_GRAPH_OUTLOOK_MAIL_ENABLED=true
-MICROSOFT_GRAPH_AUTH_MODE=delegated
-MICROSOFT_GRAPH_SCOPES=User.Read Mail.Read offline_access
-MICROSOFT_GRAPH_TOKEN_FILE=./microsoft_graph_token.json
-MICROSOFT_TENANT_ID=...
-MICROSOFT_CLIENT_ID=...</pre>
-          </div>
-          <div class="config-card subtle-panel">
-            <h3>Google Calendar execution safety</h3>
-            <p class="muted">Calendar writes are off until a deliberate test phase enables the flag and dry-run is manually disabled.</p>
-            <pre>CALENDAR_PROVIDER=google
-GOOGLE_CALENDAR_READ_ENABLED=true
-GOOGLE_CALENDAR_WRITE_ENABLED=false
-GOOGLE_CALENDAR_TIME_ZONE=America/Vancouver</pre>
-          </div>
-        </div>
-      </section>
+{% block content %}
+  <a href="/">Back to dashboard</a>
+  <div class="workflow" aria-label="Workflow">
+    <span>Sync</span><span>Triage</span><span>Analyze</span><span>Review</span><span>Prepare</span><span>Execute</span><span>Audit</span>
+  </div>
+  <h1>Provider Status</h1>
+  <p class="help-text">This page observes configuration only. No actions are taken here. Provider matrix reflects live readiness diagnostics.</p>
+  <p class="notice">Outlook send actions are intentionally not implemented. Outlook calendar read/write remains fail-closed and is not implemented. Teams remains disabled. All write boundaries are enforced at the connector layer, not the UI.</p>
 
-      <section class="panel">
-        <h2>Provider Matrix</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Provider/action</th>
-              <th>Classification</th>
-              <th>State</th>
-              <th>Mode</th>
-              <th>Detail</th>
-              <th>Next action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for row in provider_rows %}
-            <tr>
-              <td><strong>{{ row.label }}</strong></td>
-              <td>{{ row.classification }}</td>
-              <td><span class="state {{ row.state }}"><span class="status-dot {{ row.state }}"></span>{{ row.state.replace("_", " ").title() }}</span></td>
-              <td>{{ row.mode }}</td>
-              <td>{{ row.detail }}</td>
-              <td>{{ row.next_action }}</td>
-            </tr>
-            {% else %}
-            <tr><td colspan="6" class="muted">No provider status rows are available.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </section>
-    </main>
-  </body>
-</html>
+  <section class="panel">
+    <h2>Provider matrix</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Key</th>
+          <th>Label</th>
+          <th>State</th>
+          <th>Mode</th>
+          <th>Detail</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in provider_rows %}
+        <tr>
+          <td class="muted" style="font-size:11px">{{ row.key }}</td>
+          <td>{{ row.label }}</td>
+          <td><span class="badge {% if row.state == 'live' %}ok{% elif row.state in ['dry_run', 'mock'] %}warn{% elif row.state in ['disabled', 'missing_configuration', 'failed'] %}bad{% endif %}">{{ row.state.replace("_", " ") }}</span></td>
+          <td class="muted" style="font-size:12px">{{ row.mode }}</td>
+          <td class="muted" style="font-size:12px">{{ row.detail }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="muted">No provider rows available.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="panel">
+    <h2>Microsoft write boundaries</h2>
+    <p>All Microsoft write operations are disabled by design. The system reads from Outlook/Graph (with delegated permissions) for contact intelligence and message sync only.</p>
+    <ul class="items">
+      <li>Outlook send actions are intentionally not implemented</li>
+      <li>Outlook calendar read/write remains fail-closed and is not implemented</li>
+      <li>Teams remains disabled</li>
+    </ul>
+  </section>
+
+  <section class="panel">
+    <h2>Configuration guidance</h2>
+    <p>Provider tokens and credentials are managed outside the UI. To reconfigure:</p>
+    <ul class="items">
+      <li>Gmail: re-run the OAuth flow via <code>python -m app.connectors.gmail.oauth_setup</code></li>
+      <li>Microsoft Graph: re-run via <code>python -m app.connectors.microsoft_graph.oauth_setup</code></li>
+      <li>AI provider: set the <code>OPENAI_API_KEY</code> or equivalent environment variable</li>
+    </ul>
+    <p class="muted" style="font-size:12px">This page observes configuration only. No credentials are modified here.</p>
+  </section>
+{% endblock %}

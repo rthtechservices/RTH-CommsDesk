@@ -1,38 +1,37 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Review Packages | RTH CommsDesk</title>
-    <link rel="stylesheet" href="/static/ui.css" />
-  </head>
-  <body>
-    <main class="wrap page-pad">
-      <a href="/">Back to dashboard</a>
-      <div class="workflow" aria-label="Workflow">
-        <span>Sync</span><span>Triage</span><span>Analyze</span><span class="active">Review</span><span>Prepare</span><span>Execute</span><span>Audit</span>
-      </div>
-      <h1>Review Packages</h1>
-      <p class="help-text">What this page is for: review local AI recommendations, approve/edit/reject them, and decide whether an item should move to draft or execution preparation.</p>
-      <p class="notice">Local recommendations only. Nothing here sends email, creates Gmail drafts, changes labels, archives, deletes, unsubscribes, or creates calendar events.</p>
-      <section class="panel">
-        <ul class="items">
-          {% for package in packages %}
-          <li>
+{% extends "base.html" %}
+{% block title %}Review Packages | RTH CommsDesk{% endblock %}
+
+{% block main_class %}wrap page-pad{% endblock %}
+
+{% block content %}
+  <a href="/">Back to dashboard</a>
+  <div class="workflow" aria-label="Workflow">
+    <span>Sync</span><span>Triage</span><span>Analyze</span><span class="active">Review</span><span>Prepare</span><span>Execute</span><span>Audit</span>
+  </div>
+  <h1>Review Packages</h1>
+  <p class="help-text">What this page is for: review local AI recommendations, approve/edit/reject them, and decide whether an item should move to draft or execution preparation.</p>
+  <p class="notice">Local recommendations only. Nothing here sends email, creates Gmail drafts, changes labels, archives, deletes, unsubscribes, or creates calendar events.</p>
+  <section class="panel">
+    <ul class="items">
+      {% for package in packages %}
+      <li>
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div>
             <strong><a href="/review-packages/{{ package.id }}">{{ package.action_type.value.replace("_", " ").title() }}</a></strong>
-            <div class="muted">
-              {{ package.status.value if package.status.value is defined else package.status }}
-              | {{ "%.0f"|format((package.confidence or 0) * 100) }}% confidence
+            <div class="muted" style="margin-top:3px">
+              <span class="badge {% if package.status.value in ['approved'] %}ok{% elif package.status.value in ['rejected'] %}bad{% endif %}">{{ package.status.value if package.status.value is defined else package.status }}</span>
+              {{ "%.0f"|format((package.confidence or 0) * 100) }}% confidence
               {% if package.message and package.message.sender_email %} | {{ package.message.sender_email }}{% endif %}
               {% if package.updated_at %} | {{ package.updated_at.strftime("%Y-%m-%d %H:%M") }}{% endif %}
             </div>
-            <div>{{ package.conversation_summary.summary_text if package.conversation_summary else "No summary stored." }}</div>
-          </li>
-          {% else %}
-          <li class="empty">No local review packages yet. Open a message and analyze the conversation.</li>
-          {% endfor %}
-        </ul>
-      </section>
-    </main>
-  </body>
-</html>
+            <div class="muted" style="font-size:12px;margin-top:4px">{{ package.conversation_summary.summary_text if package.conversation_summary else "No summary stored." }}</div>
+          </div>
+          <a class="button primary" href="/review-packages/{{ package.id }}" style="flex-shrink:0">Review</a>
+        </div>
+      </li>
+      {% else %}
+      <li class="empty">No local review packages yet. Open a message and analyze the conversation.</li>
+      {% endfor %}
+    </ul>
+  </section>
+{% endblock %}

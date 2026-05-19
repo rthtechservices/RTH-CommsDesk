@@ -2,6 +2,16 @@
 
 This file is the user-facing help guide. Keep it simple, practical, and current as features are added.
 
+## UI / Design
+
+RTH CommsDesk uses a dark "mission control / operations console" design. All pages share a single stylesheet (`app/web/ui.css`) and a common Jinja2 base template (`base.html`) which provides:
+
+- Sticky dark topbar with brand name and navigation links.
+- Connected pill-segment **workflow rail** showing the current step: Sync → Triage → Analyze → Review → Prepare → Execute → Audit.
+- Status dots with green/amber/red glow for provider states.
+- Dark panel cards, badges, and button variants.
+- Responsive layout at 1280px (`.wrap`) and 1720px (`.wide-wrap`).
+
 ## What RTH CommsDesk does today
 
 RTH CommsDesk helps review communication messages by showing likely important items in an Attention Queue.

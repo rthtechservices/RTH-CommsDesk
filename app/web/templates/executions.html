@@ -1,79 +1,63 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Executions | RTH CommsDesk</title>
-    <link rel="stylesheet" href="/static/ui.css" />
-    <style>
-      @media (max-width: 860px) {
-        table,
-        thead,
-        tbody,
-        tr,
-        th,
-        td {
-          display: block;
-        }
-        thead {
-          display: none;
-        }
-        tr {
-          border-top: 1px solid var(--line);
-          padding: 10px 0;
-        }
-        td {
-          border-top: 0;
-          padding: 4px 0;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <main class="wide-wrap page-pad">
-      <a href="/">Back to dashboard</a>
-      <div class="workflow" aria-label="Workflow">
-        <span>Sync</span><span>Triage</span><span>Analyze</span><span>Review</span><span>Prepare</span><span class="active">Execute</span><span class="active">Audit</span>
-      </div>
-      <h1>Execution Queue</h1>
-      <p class="help-text">What this page is for: inspect immutable outbound execution attempts and continue only records that already passed preparation. Approval and final confirmation remain required.</p>
-      <p><a class="button primary" href="/executions/next">Process next pending approval or confirmation</a></p>
-      <section class="panel">
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Attempt</th>
-              <th>Action</th>
-              <th>Status</th>
-              <th>Source</th>
-              <th>Provider</th>
-              <th>Prepared</th>
-              <th>Approved</th>
-              <th>Confirmed</th>
-              <th>Result / error</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for record in records %}
-            <tr>
-              <td><a href="/executions/{{ record.id }}">#{{ record.id }}</a></td>
-              <td>{{ record.attempt_number }}</td>
-              <td>{{ record.action_type.value.replace("_", " ").title() }}</td>
-              <td><span class="badge">{{ record.status.value.replace("_", " ").title() }}</span></td>
-              <td>{% if record.review_package_id %}Review package {{ record.review_package_id }}{% endif %}{% if record.draft_id %}Draft {{ record.draft_id }}{% endif %}</td>
-              <td>{{ record.provider_name }}</td>
-              <td>{{ record.created_at.strftime("%Y-%m-%d %H:%M") if record.created_at else "" }}</td>
-              <td>{{ record.approved_at.strftime("%Y-%m-%d %H:%M") if record.approved_at else "-" }}</td>
-              <td>{{ record.confirmed_at.strftime("%Y-%m-%d %H:%M") if record.confirmed_at else "-" }}</td>
-              <td>{% if record.error_text %}{{ record.error_text }}{% elif record.result_json %}{{ record.result_json }}{% else %}-{% endif %}</td>
-            </tr>
-            {% else %}
-            <tr><td colspan="10" class="muted">No execution records yet.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </section>
-    </main>
-  </body>
-</html>
+{% extends "base.html" %}
+{% block title %}Executions | RTH CommsDesk{% endblock %}
+
+{% block styles %}
+<style>
+  @media (max-width: 860px) {
+    table, thead, tbody, tr, th, td { display: block; }
+    thead { display: none; }
+    tr { border-top: 1px solid var(--line); padding: 10px 0; }
+    td { border-top: 0; padding: 4px 0; }
+  }
+</style>
+{% endblock %}
+
+{% block main_class %}wide-wrap page-pad{% endblock %}
+
+{% block content %}
+  <a href="/">Back to dashboard</a>
+  <div class="workflow" aria-label="Workflow">
+    <span>Sync</span><span>Triage</span><span>Analyze</span><span>Review</span><span>Prepare</span><span class="active">Execute</span><span class="active">Audit</span>
+  </div>
+  <h1>Execution Queue</h1>
+  <p class="help-text">What this page is for: inspect immutable outbound execution attempts and continue only records that already passed preparation. Approval and final confirmation remain required.</p>
+  <div class="button-row" style="margin-bottom:12px">
+    <a class="button primary" href="/executions/next">Process next pending approval or confirmation</a>
+  </div>
+  <section class="panel">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Attempt</th>
+          <th>Action</th>
+          <th>Status</th>
+          <th>Source</th>
+          <th>Provider</th>
+          <th>Prepared</th>
+          <th>Approved</th>
+          <th>Confirmed</th>
+          <th>Result / error</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for record in records %}
+        <tr>
+          <td><a href="/executions/{{ record.id }}">#{{ record.id }}</a></td>
+          <td>{{ record.attempt_number }}</td>
+          <td>{{ record.action_type.value.replace("_", " ").title() }}</td>
+          <td><span class="badge {% if record.status.value == 'executed' %}ok{% elif record.status.value in ['cancelled', 'failed'] %}bad{% elif record.status.value == 'approved' %}warn{% endif %}">{{ record.status.value.replace("_", " ").title() }}</span></td>
+          <td>{% if record.review_package_id %}Review package {{ record.review_package_id }}{% endif %}{% if record.draft_id %}Draft {{ record.draft_id }}{% endif %}</td>
+          <td>{{ record.provider_name }}</td>
+          <td>{{ record.created_at.strftime("%Y-%m-%d %H:%M") if record.created_at else "" }}</td>
+          <td>{{ record.approved_at.strftime("%Y-%m-%d %H:%M") if record.approved_at else "-" }}</td>
+          <td>{{ record.confirmed_at.strftime("%Y-%m-%d %H:%M") if record.confirmed_at else "-" }}</td>
+          <td class="muted" style="font-size:12px">{% if record.error_text %}{{ record.error_text }}{% elif record.result_json %}{{ record.result_json }}{% else %}-{% endif %}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="10" class="muted">No execution records yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

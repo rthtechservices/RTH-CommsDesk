@@ -1,276 +1,65 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Bulk Triage | RTH CommsDesk</title>
-    <style>
-      :root {
-        --bg: #f6f7f9;
-        --surface: #ffffff;
-        --line: #d9dee6;
-        --text: #17202a;
-        --muted: #607080;
-        --brand: #246b5a;
-      }
-      * {
-        box-sizing: border-box;
-      }
-      body {
-        margin: 0;
-        background: var(--bg);
-        color: var(--text);
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 14px;
-        line-height: 1.45;
-      }
-      a {
-        color: var(--brand);
-        font-weight: 700;
-        text-decoration: none;
-      }
-      .wrap {
-        width: min(1200px, calc(100% - 32px));
-        margin: 0 auto;
-        padding: 20px 0 40px;
-      }
-      .panel {
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: var(--surface);
-        padding: 14px;
-        margin-bottom: 14px;
-      }
-      .muted {
-        color: var(--muted);
-      }
-      .row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        align-items: center;
-      }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-      }
-      th,
-      td {
-        border-top: 1px solid var(--line);
-        padding: 8px 6px;
-        text-align: left;
-        vertical-align: top;
-      }
-      th {
-        color: var(--muted);
-        font-size: 12px;
-        text-transform: uppercase;
-      }
-      button,
-      select,
-      input {
-        border: 1px solid var(--line);
-        border-radius: 6px;
-        font: inherit;
-      }
-      button {
-        min-height: 34px;
-        background: var(--surface);
-        font-weight: 700;
-        padding: 7px 10px;
-        cursor: pointer;
-      }
-      button.primary {
-        border-color: var(--brand);
-        background: var(--brand);
-        color: #fff;
-      }
-      select,
-      input {
-        min-height: 34px;
-        padding: 7px;
-      }
-      .pagination {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-      }
-    </style>
-  </head>
-  <body>
-    <main class="wrap">
-      <a href="/">Back to dashboard</a>
-      <h1>Bulk Triage</h1>
-      <p class="muted">Process large backlogs with paginated queue controls and local automation candidates.</p>
-      {% if bulk_error %}
-      <p><strong>Bulk action did not complete.</strong></p>
-      {% endif %}
-      {% if candidate_refresh == "ok" %}
-      <p><strong>Automation candidates refreshed.</strong></p>
-      {% endif %}
+{% extends "base.html" %}
+{% block title %}Bulk Triage | RTH CommsDesk{% endblock %}
 
-      <section class="panel">
-        <div class="row">
-          <div><strong>Total in selected queue:</strong> {{ backlog.total_count }}</div>
-          <div><strong>Reviewed:</strong> {{ backlog.reviewed_count }}</div>
-          <div><strong>Dismissed/noise:</strong> {{ backlog.dismissed_count }}</div>
-          <div><strong>Page:</strong> {{ backlog.page }}</div>
-        </div>
-      </section>
+{% block main_class %}wide-wrap page-pad{% endblock %}
 
-      <section class="panel">
-        <form method="get" action="/bulk-triage" class="row">
-          <label>
-            Queue
-            <select name="queue_filter">
-              <option value="unreviewed" {% if queue_filter == "unreviewed" %}selected{% endif %}>Unreviewed</option>
-              <option value="needs_reply" {% if queue_filter == "needs_reply" %}selected{% endif %}>Needs reply</option>
-              <option value="important" {% if queue_filter == "important" %}selected{% endif %}>Important</option>
-              <option value="proposed_actions" {% if queue_filter == "proposed_actions" %}selected{% endif %}>Proposed actions</option>
-              <option value="noise_candidates" {% if queue_filter == "noise_candidates" %}selected{% endif %}>Noise candidates</option>
-              <option value="unsubscribe_candidates" {% if queue_filter == "unsubscribe_candidates" %}selected{% endif %}>Unsubscribe candidates</option>
-              <option value="reviewed" {% if queue_filter == "reviewed" %}selected{% endif %}>Reviewed</option>
-            </select>
-          </label>
-          <label>
-            Page size
-            <select name="page_size">
-              <option value="50" {% if page_size == 50 %}selected{% endif %}>50</option>
-              <option value="100" {% if page_size == 100 %}selected{% endif %}>100</option>
-              <option value="150" {% if page_size == 150 %}selected{% endif %}>150</option>
-              <option value="200" {% if page_size == 200 %}selected{% endif %}>200</option>
-            </select>
-          </label>
-          <input type="hidden" name="page" value="1" />
-          <button class="primary" type="submit">Apply</button>
-        </form>
-        <form method="post" action="/bulk-triage/generate-candidates" class="row" style="margin-top: 10px">
-          <button type="submit">Refresh automation candidates</button>
-        </form>
-      </section>
+{% block content %}
+  <a href="/">Back to dashboard</a>
+  <div class="workflow" aria-label="Workflow">
+    <span>Sync</span><span class="active">Triage</span><span>Analyze</span><span>Review</span><span>Prepare</span><span>Execute</span><span>Audit</span>
+  </div>
+  <h1>Bulk Triage</h1>
+  <p class="help-text">What this page is for: review and label batches of messages. Triage decisions update local records only — nothing is applied to Gmail or Outlook from here.</p>
+  <p class="notice">Triage is local only. No labels are applied, no emails are archived or deleted, and no Gmail API calls are made from this page.</p>
 
-      <section class="panel">
-        <form method="post" action="/bulk-triage/apply">
-          <input type="hidden" name="queue_filter" value="{{ queue_filter }}" />
-          <div class="row" style="margin-bottom: 8px">
-            <select name="action_type" required>
-              <option value="mark_reviewed">Mark reviewed</option>
-              <option value="mark_noise">Mark noise</option>
-              <option value="mark_important">Mark important</option>
-              <option value="assign_relationship">Assign contact relationship</option>
-              <option value="approve_no_response_needed">Approve no-response-needed review package</option>
-            </select>
-            <input name="relationship_type" placeholder="relationship (used for assign_relationship)" />
-            <button class="primary" type="submit">Apply to selected</button>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Select</th>
-                <th>Score</th>
-                <th>Status</th>
-                <th>Sender</th>
-                <th>Subject</th>
-                <th>Reason</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for item in backlog.items %}
-              <tr>
-                <td><input type="checkbox" name="attention_ids" value="{{ item.id }}" /></td>
-                <td>{{ item.attention_score }}</td>
-                <td>{{ item.status.value if item.status.value is defined else item.status }}</td>
-                <td>{{ item.message.sender_email if item.message and item.message.sender_email else "Unknown sender" }}</td>
-                <td>{% if item.message %}<a href="/messages/{{ item.message.id }}">{{ item.message.subject or "(No subject)" }}</a>{% else %}(No message){% endif %}</td>
-                <td>{{ item.reason or "-" }}</td>
-              </tr>
-              {% else %}
-              <tr>
-                <td colspan="6" class="muted">No items found for the selected queue.</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </form>
-      </section>
-
-      <section class="panel">
-        <h2>Automation candidate dashboard</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Type</th>
-              <th>Confidence</th>
-              <th>Sender</th>
-              <th>Reason</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for candidate in candidate_rows %}
-            <tr>
-              <td>{{ candidate.candidate_type.value.replace("_", " ").title() }}</td>
-              <td>{{ "%.0f"|format((candidate.confidence or 0) * 100) }}%</td>
-              <td>{{ candidate.message.sender_email if candidate.message and candidate.message.sender_email else "Unknown sender" }}</td>
-              <td>{{ candidate.reason }}</td>
-            </tr>
-            {% else %}
-            <tr>
-              <td colspan="4" class="muted">No automation candidates are pending.</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </section>
-
-      <section class="panel">
-        <h2>Recent bulk actions</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Action</th>
-              <th>Items</th>
-              <th>Queue</th>
-              <th>Created</th>
-              <th>Undo</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for log in action_logs %}
-            <tr>
-              <td>{{ log.action_type }}</td>
-              <td>{{ log.item_count }}</td>
-              <td>{{ log.queue_filter or "-" }}</td>
-              <td>{{ log.created_at.strftime("%Y-%m-%d %H:%M") if log.created_at else "" }}</td>
-              <td>
-                {% if not log.is_undone %}
-                <form method="post" action="/bulk-triage/undo/{{ log.id }}">
-                  <button type="submit">Undo</button>
-                </form>
-                {% else %}
-                <span class="muted">Undone</span>
-                {% endif %}
-              </td>
-            </tr>
-            {% else %}
-            <tr>
-              <td colspan="5" class="muted">No bulk actions yet.</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </section>
-
-      <section class="panel pagination">
-        {% set previous_page = backlog.page - 1 %}
-        {% set next_page = backlog.page + 1 %}
-        {% if backlog.page > 1 %}
-        <a href="/bulk-triage?queue_filter={{ queue_filter }}&page_size={{ page_size }}&page={{ previous_page }}">Previous</a>
-        {% endif %}
-        <span class="muted">Showing page {{ backlog.page }}</span>
-        {% if backlog.total_count > backlog.page * backlog.page_size %}
-        <a href="/bulk-triage?queue_filter={{ queue_filter }}&page_size={{ page_size }}&page={{ next_page }}">Next</a>
-        {% endif %}
-      </section>
-    </main>
-  </body>
-</html>
+  {% if candidates %}
+  <form method="post" action="/bulk-triage/submit">
+    <section class="panel" style="margin-bottom:12px">
+      <div class="button-row">
+        <button class="primary" type="submit">Save triage decisions</button>
+        <span class="muted" style="font-size:12px">{{ candidates|length }} candidate(s) shown</span>
+      </div>
+    </section>
+    <section class="panel">
+      <table>
+        <thead>
+          <tr>
+            <th>Score</th>
+            <th>Source</th>
+            <th>From</th>
+            <th>Subject</th>
+            <th>Received</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in candidates %}
+          <tr>
+            <td><span class="score">{{ "%.0f"|format(c.attention_score or 0) }}</span></td>
+            <td><span class="badge">{{ c.source_system }}</span></td>
+            <td class="muted" style="font-size:12px">{{ c.sender_email }}</td>
+            <td><a href="/messages/{{ c.id }}">{{ c.subject or "(no subject)" }}</a></td>
+            <td class="muted" style="font-size:12px">{{ c.received_at.strftime("%Y-%m-%d %H:%M") if c.received_at else "-" }}</td>
+            <td>
+              <select name="action_{{ c.id }}">
+                <option value="">— no change —</option>
+                <option value="keep">Keep</option>
+                <option value="archive">Archive</option>
+                <option value="noise">Mark noise</option>
+                <option value="important">Mark important</option>
+                <option value="needs_reply">Needs reply</option>
+              </select>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div style="margin-top:12px">
+        <button class="primary" type="submit">Save triage decisions</button>
+      </div>
+    </section>
+  </form>
+  {% else %}
+  <div class="empty">No bulk triage candidates available. Sync messages first.</div>
+  {% endif %}
+{% endblock %}

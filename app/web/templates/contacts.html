@@ -1,271 +1,75 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Contacts | RTH CommsDesk</title>
-    <style>
-      :root {
-        --bg: #f6f7f9;
-        --surface: #ffffff;
-        --line: #d9dee6;
-        --text: #17202a;
-        --muted: #607080;
-        --brand: #246b5a;
-        --danger: #8b2f24;
-        --quiet: #eef1f4;
-      }
-      * {
-        box-sizing: border-box;
-      }
-      body {
-        margin: 0;
-        background: var(--bg);
-        color: var(--text);
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 15px;
-        line-height: 1.45;
-      }
-      a {
-        color: var(--brand);
-        font-weight: 700;
-        text-decoration: none;
-      }
-      .wrap {
-        width: min(1180px, calc(100% - 32px));
-        margin: 0 auto;
-        padding: 22px 0 42px;
-      }
-      header {
-        margin-bottom: 18px;
-      }
-      h1,
-      h2,
-      p {
-        margin-top: 0;
-      }
-      h1 {
-        margin: 10px 0 8px;
-        font-size: 26px;
-      }
-      h2 {
-        margin-bottom: 12px;
-        font-size: 18px;
-      }
-      .muted {
-        color: var(--muted);
-      }
-      .layout {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) 340px;
-        gap: 20px;
-        align-items: start;
-      }
-      .panel,
-      .contact-row {
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: var(--surface);
-        padding: 16px;
-      }
-      .contacts {
-        display: grid;
-        gap: 10px;
-      }
-      .contact-row {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 14px;
-        align-items: start;
-      }
-      .badges {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        margin-top: 8px;
-      }
-      .badge {
-        border: 1px solid var(--line);
-        border-radius: 999px;
-        background: #f8fafb;
-        color: #405060;
-        font-size: 12px;
-        font-weight: 700;
-        padding: 2px 8px;
-      }
-      .badge.vip {
-        border-color: var(--brand);
-        color: var(--brand);
-      }
-      .badge.noise {
-        border-color: var(--danger);
-        color: var(--danger);
-      }
-      .actions,
-      form {
-        display: grid;
-        gap: 10px;
-      }
-      label {
-        display: grid;
-        gap: 4px;
-      }
-      button,
-      input,
-      select,
-      textarea,
-      .button {
-        border: 1px solid var(--line);
-        border-radius: 6px;
-        font: inherit;
-      }
-      input,
-      select,
-      textarea {
-        width: 100%;
-        padding: 8px;
-      }
-      textarea {
-        min-height: 74px;
-        resize: vertical;
-      }
-      button,
-      .button {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 36px;
-        background: var(--surface);
-        color: var(--text);
-        cursor: pointer;
-        font-weight: 700;
-        padding: 7px 11px;
-      }
-      button.primary,
-      .button.primary {
-        border-color: var(--brand);
-        background: var(--brand);
-        color: #ffffff;
-      }
-      .error {
-        color: var(--danger);
-        font-weight: 700;
-      }
-      .empty {
-        border: 1px dashed var(--line);
-        border-radius: 8px;
-        background: #fbfcfd;
-        color: var(--muted);
-        padding: 18px;
-      }
-      @media (max-width: 860px) {
-        .layout,
-        .contact-row {
-          grid-template-columns: 1fr;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <main class="wrap">
-      <header>
-        <a href="/">Back to dashboard</a>
-        <h1>Contacts</h1>
-        <p class="muted">Manage sender aliases, relationship context, importance, and noise/VIP status.</p>
-        {% if contact_error %}
-        <p class="error">Contact change was not saved. Check the email, aliases, and relationship type.</p>
-        {% endif %}
-      </header>
+{% extends "base.html" %}
+{% block title %}Contacts | RTH CommsDesk{% endblock %}
 
-      <div class="layout">
-        <section>
-          <h2>Contact Profiles</h2>
-          <div class="contacts">
-            {% for contact in contacts %}
-            {% set aliases = aliases_by_contact.get(contact.id, []) %}
-            <article class="contact-row">
-              <div>
-                <a href="/contacts/{{ contact.id }}">{{ contact.display_name or contact.primary_email or "Unnamed contact" }}</a>
-                <div class="muted">{{ contact.primary_email or "No primary email" }}</div>
-                {% if aliases %}
-                <div class="muted">Aliases: {{ aliases|join(", ") }}</div>
-                {% endif %}
-                <div class="badges">
-                  <span class="badge {% if contact.is_vip %}vip{% elif contact.is_noise %}noise{% endif %}">
-                    {% if contact.is_vip %}VIP{% elif contact.is_noise %}Noise{% else %}Normal{% endif %}
-                  </span>
-                  <span class="badge">{{ contact.relationship_type or "unknown" }}</span>
-                  <span class="badge">Tier {{ contact.importance_tier }}</span>
-                  {% if contact.preferred_channel %}<span class="badge">{{ contact.preferred_channel }}</span>{% endif %}
-                  <span class="badge">{{ feedback_counts.get(contact.id, 0) }} changes</span>
-                </div>
-              </div>
-              <div class="actions">
-                <a class="button primary" href="/contacts/{{ contact.id }}">Edit</a>
-              </div>
-            </article>
-            {% else %}
-            <div class="empty">No contacts yet. Sync Gmail or create a contact profile.</div>
+{% block main_class %}wide-wrap page-pad{% endblock %}
+
+{% block content %}
+  <a href="/">Back to dashboard</a>
+  <div class="workflow" aria-label="Workflow">
+    <span>Sync</span><span>Triage</span><span>Analyze</span><span>Review</span><span>Prepare</span><span>Execute</span><span>Audit</span>
+  </div>
+  <h1>Contacts</h1>
+  <p class="help-text">What this page is for: review contact intelligence, relationship tiers, VIP/noise flags, and channel preferences. All data is local.</p>
+
+  <section class="panel" style="margin-bottom:12px">
+    <form method="get" action="/contacts" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+      <label style="display:grid;gap:3px;flex:1;min-width:180px">
+        <span class="label">Search</span>
+        <input name="q" value="{{ q or '' }}" placeholder="Name or email…" />
+      </label>
+      <label style="display:grid;gap:3px">
+        <span class="label">Tier</span>
+        <select name="tier">
+          <option value="">All tiers</option>
+          <option value="vip" {% if tier == 'vip' %}selected{% endif %}>VIP</option>
+          <option value="important" {% if tier == 'important' %}selected{% endif %}>Important</option>
+          <option value="normal" {% if tier == 'normal' %}selected{% endif %}>Normal</option>
+          <option value="noise" {% if tier == 'noise' %}selected{% endif %}>Noise</option>
+        </select>
+      </label>
+      <button type="submit">Filter</button>
+      {% if q or tier %}<a href="/contacts">Clear</a>{% endif %}
+    </form>
+  </section>
+
+  <section class="panel">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Tier</th>
+          <th>Relationship</th>
+          <th>Channels</th>
+          <th>Messages</th>
+          <th>Last seen</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for contact in contacts %}
+        <tr>
+          <td>
+            <a href="/contacts/{{ contact.id }}">{{ contact.display_name or contact.primary_email }}</a>
+            {% if contact.is_vip %}<span class="badge ok" style="margin-left:4px">VIP</span>{% endif %}
+            {% if contact.is_noise %}<span class="badge bad" style="margin-left:4px">Noise</span>{% endif %}
+          </td>
+          <td class="muted" style="font-size:12px">{{ contact.primary_email }}</td>
+          <td><span class="badge">{{ contact.relationship_tier or "-" }}</span></td>
+          <td class="muted" style="font-size:12px">{{ contact.relationship_type or "-" }}</td>
+          <td class="muted" style="font-size:12px">
+            {% for ch in (contact.channel_preferences or []) %}
+            <span class="badge">{{ ch }}</span>
             {% endfor %}
-          </div>
-        </section>
-
-        <aside class="panel">
-          <h2>New Contact</h2>
-          <form method="post" action="/contacts">
-            <label>
-              Display name
-              <input name="display_name" />
-            </label>
-            <label>
-              Primary email
-              <input name="primary_email" type="email" />
-            </label>
-            <label>
-              Aliases
-              <textarea name="aliases" placeholder="One email per line"></textarea>
-            </label>
-            <label>
-              Relationship
-              <select name="relationship_type">
-                {% for relationship in relationship_types %}
-                <option value="{{ relationship }}" {% if relationship == "unknown" %}selected{% endif %}>{{ relationship.replace("_", " ").title() }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>
-              Importance tier
-              <select name="importance_tier">
-                {% for tier in [0, 1, 2, 3, 4, 5] %}
-                <option value="{{ tier }}" {% if tier == 1 %}selected{% endif %}>{{ tier }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>
-              Status
-              <select name="status">
-                {% for status in status_options %}
-                <option value="{{ status }}">{{ status.title() }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>
-              Preferred channel
-              <select name="preferred_channel">
-                <option value="">Not set</option>
-                {% for channel in preferred_channels %}
-                <option value="{{ channel }}">{{ channel.title() }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>
-              Notes
-              <textarea name="notes"></textarea>
-            </label>
-            <button class="primary" type="submit">Create contact</button>
-          </form>
-        </aside>
-      </div>
-    </main>
-  </body>
-</html>
+          </td>
+          <td>{{ contact.message_count or 0 }}</td>
+          <td class="muted" style="font-size:12px">{{ contact.last_seen_at.strftime("%Y-%m-%d") if contact.last_seen_at else "-" }}</td>
+          <td><a href="/contacts/{{ contact.id }}">View</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="muted">No contacts found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}
