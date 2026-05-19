@@ -7,6 +7,7 @@ from typing import Protocol
 
 from app.core.config import get_settings
 from app.models.entities import ProposedActionType
+from app.services.external_provider_clients import GoogleCalendarClient
 
 
 @dataclass(frozen=True)
@@ -68,10 +69,23 @@ class MockCalendarAvailabilityProvider:
 class GoogleReadOnlyCalendarProvider:
     name = "google-readonly"
 
+    def __init__(self, client: GoogleCalendarClient | None = None) -> None:
+        self.client = client or GoogleCalendarClient()
+
     def evaluate(self, start_at: datetime, end_at: datetime) -> AvailabilityEvaluation:  # pragma: no cover
+        result = self.client.freebusy(start_at.isoformat(), end_at.isoformat())
+        calendar_id = get_settings().google_calendar_id
+        busy = ((result.get("calendars") or {}).get(calendar_id) or {}).get("busy") or []
+        if busy:
+            return AvailabilityEvaluation(
+                available=False,
+                reason="Google Calendar reports a busy block during the requested window.",
+                conflict_summary="Requested time overlaps an existing Google Calendar event.",
+                suggested_windows=(),
+            )
         return AvailabilityEvaluation(
             available=True,
-            reason="Google Calendar read-only provider is not configured; using optimistic availability.",
+            reason="Google Calendar reports the requested window is available.",
             conflict_summary=None,
             suggested_windows=(),
         )
@@ -90,11 +104,12 @@ class OutlookReadOnlyCalendarProvider:
 
 
 def get_default_calendar_provider(provider_name: str | None = None) -> CalendarAvailabilityProvider:
-    configured = provider_name or get_settings().calendar_provider
+    settings = get_settings()
+    configured = provider_name or settings.calendar_provider
     normalized = (configured or "mock").strip().lower()
-    if normalized == "google":
+    if normalized == "google" and settings.google_calendar_read_enabled:
         return GoogleReadOnlyCalendarProvider()
-    if normalized == "outlook":
+    if normalized == "outlook" and settings.outlook_calendar_read_enabled:
         return OutlookReadOnlyCalendarProvider()
     return MockCalendarAvailabilityProvider()
 

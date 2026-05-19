@@ -17,6 +17,7 @@ Current MVP features:
 - Skip duplicate Gmail messages and duplicate attention items on repeat sync.
 - Show the latest sync/backfill counts: fetched, inserted, duplicates skipped, threads updated, and backlog cursor status.
 - Show current provider/storage status on the dashboard: AI analysis provider, live/mock mode, calendar provider, execution provider, and Gmail full-body sync state.
+- Open the Provider Status page to see live, mock, disabled, missing configuration, dry-run, and failed states for each provider/action.
 - Store message metadata and snippets by default.
 - Fetch and store full Gmail conversation content manually from a message detail page.
 - Show a chronological Gmail conversation timeline on message detail pages.
@@ -51,6 +52,7 @@ Current MVP features:
 - Generate and review local automation candidates for mark_noise, unsubscribe_review, archive_candidate, and delete_candidate.
 - Apply bulk actions and undo recent bulk actions where practical.
 - Prepare, approve, and confirm outbound execution records for draft creation, reply send, calendar creation, and label/archive actions.
+- Run guarded external execution providers in dry-run mode when explicitly configured; dry-run records do not modify external systems.
 - View execution audit trails with payload/result history.
 - Enforce web/API authentication when enabled for non-local deployment.
 - Provide admin retention controls to clear cached bodies/excerpts and purge aged audit rows.
@@ -62,6 +64,8 @@ RTH CommsDesk does not currently:
 - Execute any outbound action without explicit approve + confirm steps.
 - Perform live Microsoft Graph mailbox/chat sync without connector service configuration and permissions.
 - Run non-mock production outbound provider calls by default in local development.
+- Perform live external writes unless `EXECUTION_PROVIDER=external`, the specific feature flag is enabled, execution is approved/confirmed, and dry-run has been deliberately disabled.
+- Fully live-wire Microsoft Graph Teams or Outlook Calendar without tenant-specific permissions and setup.
 - Auto-approve or auto-confirm execution actions.
 - Use paid or cloud AI credentials as a requirement for local draft generation.
 - Use live AI by default. Live AI is opt-in through environment variables and uses mock fallback.
@@ -175,13 +179,36 @@ Each click/run fetches one Gmail results page. The maximum page size is controll
 
 ### Provider and storage status
 
-The dashboard shows the current local runtime mode:
+The dashboard shows the current local runtime mode and links to `/providers` for the full provider matrix.
 
 - AI analysis provider: usually `mock` unless live AI is explicitly configured.
 - AI mode/detail: shows whether the app is using the default mock path or a configured live provider with mock fallback.
 - Calendar provider: usually `mock` unless a read provider is configured.
 - Execution provider: `mock` in local development; execution still requires prepare, approve, and final confirm.
 - Gmail full-body sync: `Off` means sync stores metadata/snippets by default and full conversation content is fetched manually from message detail pages.
+
+The Provider Status page distinguishes:
+
+- Live: configured and enabled.
+- Mock: deterministic/local fallback.
+- Disabled: intentionally off by feature flag.
+- Missing configuration: enabled or live-capable but required setup is absent.
+- Dry-run: action will record an execution result without writing externally.
+- Failed: provider check or runtime execution failed.
+
+Provider status also classifies each provider/action as live-ready, mock-only, adapter-shape-only, or partially wired.
+
+### Command center dashboard
+
+The dashboard is organized around the daily workflow:
+
+- Needs My Attention: current filtered attention queue.
+- Proposed Actions: recent review packages.
+- Ready For Approval: execution records waiting for approve or confirm.
+- Calendar Candidates: meeting/reminder recommendations.
+- Noise And Unsubscribe Candidates: local automation candidates.
+- Backlog Progress: reviewed count and pending work indicators.
+- Provider Status Warnings: missing config or dry-run states that affect workflow trust.
 
 ### Sync Outlook
 
@@ -301,9 +328,13 @@ Open Bulk Triage and click **Refresh automation candidates** to regenerate local
 
 From Draft Review, click **Prepare external Gmail draft execution**. Then open the execution record, approve it, and confirm execution from the final confirmation screen.
 
+When `EXECUTION_PROVIDER=mock`, confirmation records a mock result. When `EXECUTION_PROVIDER=external` and dry-run is on, confirmation records a dry-run result with `external_write_performed=false`.
+
 ### Prepare execution from review package
 
 From Review Package detail, click **Prepare execution from this review package**. The execution payload is generated from the package action type and any calendar proposal data.
+
+Review package detail shows the item position, conversation timeline, recommendation, explanation, confidence, contact context, matched voice guidance, and local status controls before execution is prepared.
 
 ### Reset contact normal
 

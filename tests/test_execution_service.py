@@ -16,7 +16,9 @@ from app.models.entities import (
     ReviewPackageStatus,
     VoiceProfile,
 )
+from app.core.config import Settings
 from app.services.execution_service import (
+    GuardedExternalExecutionProvider,
     approve_execution,
     confirm_execution,
     prepare_execution_for_draft,
@@ -110,6 +112,41 @@ def test_duplicate_prepare_returns_existing_execution_record(db_session):
 
     assert second.already_exists is True
     assert first.record.id == second.record.id
+
+
+def test_external_execution_provider_dry_run_requires_feature_flags(db_session):
+    draft = _seed_draft(db_session)
+    prepared = prepare_execution_for_draft(db_session, draft.id, actor="tester")
+    approve_execution(db_session, prepared.record.id, actor="tester")
+    provider = GuardedExternalExecutionProvider(
+        Settings(
+            _env_file=None,
+            execution_provider="external",
+            external_write_dry_run=True,
+            gmail_write_enabled=True,
+            gmail_draft_create_enabled=True,
+        )
+    )
+
+    executed = confirm_execution(db_session, prepared.record.id, actor="tester", provider=provider)
+
+    assert executed.status == ExecutionStatus.EXECUTED
+    assert executed.provider_name == "external-dry-run"
+    assert '"external_write_performed": false' in (executed.result_json or "")
+
+
+def test_external_execution_provider_fails_closed_when_flag_missing(db_session):
+    draft = _seed_draft(db_session)
+    prepared = prepare_execution_for_draft(db_session, draft.id, actor="tester")
+    approve_execution(db_session, prepared.record.id, actor="tester")
+    provider = GuardedExternalExecutionProvider(
+        Settings(_env_file=None, execution_provider="external", external_write_dry_run=True)
+    )
+
+    failed = confirm_execution(db_session, prepared.record.id, actor="tester", provider=provider)
+
+    assert failed.status == ExecutionStatus.FAILED
+    assert "disabled by provider feature flags" in (failed.error_text or "")
 
 
 def _seed_draft(db_session) -> DraftReply:

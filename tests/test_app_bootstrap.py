@@ -22,6 +22,7 @@ def test_dashboard_loads():
     assert response.status_code == 200
     assert "AI analysis provider" in response.text
     assert "Gmail full-body sync" in response.text
+    assert "Provider matrix" in response.text
 
 
 def test_voice_calibration_route_loads():

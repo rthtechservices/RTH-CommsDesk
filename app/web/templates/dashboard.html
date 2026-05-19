@@ -274,7 +274,7 @@
         <div>
           <h1>RTH CommsDesk</h1>
           <div class="muted">
-            Communication attention queue | <a href="/contacts">Contacts</a> | <a href="/drafts">Drafts</a> | <a href="/review-packages">Review packages</a> | <a href="/voice-calibration">Voice calibration</a> | <a href="/bulk-triage">Bulk triage</a> | <a href="/executions">Executions</a> | <a href="/admin">Admin</a>
+            Communication attention queue | <a href="/contacts">Contacts</a> | <a href="/drafts">Drafts</a> | <a href="/review-packages">Review packages</a> | <a href="/voice-calibration">Voice calibration</a> | <a href="/bulk-triage">Bulk triage</a> | <a href="/executions">Executions</a> | <a href="/providers">Providers</a> | <a href="/admin">Admin</a>
           </div>
         </div>
         <div class="sync-actions">
@@ -378,10 +378,48 @@
           <strong>{% if provider_status.gmail_full_body %}On{% else %}Off{% endif %}</strong>
           <span class="muted">Gmail full-body sync</span>
         </div>
+        <div class="sync-stat">
+          <strong><a href="/providers">Provider matrix</a></strong>
+          <span class="muted">Live, mock, disabled, missing config, dry-run, and failed states</span>
+        </div>
+      </section>
+      {% if provider_warnings %}
+      <section class="panel">
+        <h2>Provider Status Warnings</h2>
+        <ul class="mini-list">
+          {% for row in provider_warnings %}
+          <li>
+            <strong>{{ row.label }}: {{ row.state.replace("_", " ").title() }}</strong>
+            <div class="muted">{{ row.next_action }}</div>
+          </li>
+          {% endfor %}
+        </ul>
+      </section>
+      {% endif %}
+      <section class="panel">
+        <h2>Command Center</h2>
+        <div class="runtime-status" style="margin-bottom: 0">
+          <div class="sync-stat">
+            <strong>{{ attention|length }}</strong>
+            <span class="muted">Needs my attention on this view</span>
+          </div>
+          <div class="sync-stat">
+            <strong>{{ backlog_stats.pending_review_packages }}</strong>
+            <span class="muted">Proposed actions pending review</span>
+          </div>
+          <div class="sync-stat">
+            <strong>{{ backlog_stats.ready_executions }}</strong>
+            <span class="muted">Ready for approval or confirmation</span>
+          </div>
+          <div class="sync-stat">
+            <strong>{{ backlog_stats.reviewed_total }} / {{ backlog_stats.attention_total }}</strong>
+            <span class="muted">Backlog progress</span>
+          </div>
+        </div>
       </section>
       <div class="grid">
         <section>
-          <h2>Attention Queue</h2>
+          <h2>Needs My Attention</h2>
           <form class="panel filters" method="get" action="/">
             <label>
               Queue
@@ -465,14 +503,14 @@
               </div>
             </article>
             {% else %}
-            <div class="empty">No attention items yet. Sync Gmail to build the queue.</div>
+            <div class="empty">No attention items match this view. Sync Gmail, change filters, or open Review Packages for proposed actions already generated.</div>
             {% endfor %}
           </div>
         </section>
 
         <aside>
           <section class="panel">
-            <h2>Review Packages</h2>
+            <h2>Proposed Actions</h2>
             <ul class="mini-list">
               {% for package in review_packages %}
               <li>
@@ -484,13 +522,48 @@
                 </div>
               </li>
               {% else %}
-              <li class="muted">No local review packages yet.</li>
+              <li class="muted">No proposed actions yet. Open a message and analyze the conversation.</li>
               {% endfor %}
             </ul>
           </section>
 
           <section class="panel">
-            <h2>Automation Candidates</h2>
+            <h2>Ready For Approval</h2>
+            <ul class="mini-list">
+              {% for record in ready_executions %}
+              <li>
+                <strong><a href="/executions/{{ record.id }}">Execution #{{ record.id }}</a></strong>
+                <div class="muted">
+                  {{ record.action_type.value.replace("_", " ").title() }}
+                  | {{ record.status.value.replace("_", " ").title() }}
+                  | {{ record.provider_name }}
+                </div>
+              </li>
+              {% else %}
+              <li class="muted">No execution records are waiting for approval or confirmation.</li>
+              {% endfor %}
+            </ul>
+          </section>
+
+          <section class="panel">
+            <h2>Calendar Candidates</h2>
+            <ul class="mini-list">
+              {% for package in calendar_candidates %}
+              <li>
+                <strong><a href="/review-packages/{{ package.id }}">{{ package.action_type.value.replace("_", " ").title() }}</a></strong>
+                <div class="muted">
+                  {{ "%.0f"|format((package.confidence or 0) * 100) }}% confidence
+                  {% if package.message and package.message.sender_email %} | {{ package.message.sender_email }}{% endif %}
+                </div>
+              </li>
+              {% else %}
+              <li class="muted">No reminder or meeting candidates are pending.</li>
+              {% endfor %}
+            </ul>
+          </section>
+
+          <section class="panel">
+            <h2>Noise And Unsubscribe Candidates</h2>
             <ul class="mini-list">
               {% for candidate in automation_candidates %}
               <li>

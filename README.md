@@ -27,6 +27,7 @@ Each LLM session should complete one phase only, update the documentation, and s
 
 ## Known MVP limitations
 - Outlook/Teams connectors are implemented as mocked Graph-shape adapters; live Microsoft auth/client wiring is environment-specific.
+- Provider status is visible at `/providers`; Microsoft Graph Teams and Outlook Calendar remain fail-closed until tenant-specific permissions are configured.
 - AI classifier is provider-neutral but runs with deterministic logic/mock fallback by default.
 - Gmail sync is read-only and duplicate-safe. Recent sync handles the active inbox window, and manual backfill can page farther through the Gmail backlog.
 - Gmail conversation context can be fetched on demand so detail pages show a full thread timeline when full content is available.
@@ -36,6 +37,7 @@ Each LLM session should complete one phase only, update the documentation, and s
 - Bulk triage mode supports paginated queue processing, local automation candidate generation, and reversible bulk actions.
 - Local calendar availability recommendations can prepare reminder/scheduling proposals with conflict reasoning for review packages.
 - Approved outbound execution flows now support prepare/approve/confirm lifecycle with audit logs and mock provider execution.
+- External Gmail and Google Calendar execution providers are guarded by `EXECUTION_PROVIDER`, per-action feature flags, and `EXTERNAL_WRITE_DRY_RUN=true` by default.
 - Authentication defaults are local-development-friendly; production deployments must provide explicit auth and secret settings.
 
 ## Safety rules
@@ -99,6 +101,55 @@ Do not put an Azure `/openai/responses?...` or `/chat/completions?...` URL in `A
 
 Use `GET /api/ai/status` for sanitized configuration status and `POST /api/ai/test` for a tiny JSON-only provider test. The test endpoint returns provider, model/deployment, endpoint host, success/failure, HTTP status code, and error category without returning API keys.
 
+## Provider status and external-write dry-run
+
+Open `http://127.0.0.1:8000/providers` or call `GET /api/providers/status` to see each provider/action classified as live-ready, mock-only, adapter-shape-only, or partially wired, with runtime state such as live, mock, disabled, missing configuration, dry-run, or failed.
+
+External writes are disabled by default:
+
+```env
+EXECUTION_PROVIDER=mock
+EXTERNAL_WRITE_DRY_RUN=true
+GMAIL_WRITE_ENABLED=false
+GMAIL_DRAFT_CREATE_ENABLED=false
+GMAIL_SEND_ENABLED=false
+GMAIL_LABEL_ARCHIVE_ENABLED=false
+GOOGLE_CALENDAR_WRITE_ENABLED=false
+```
+
+To test guarded dry-run execution without modifying Gmail or calendars, set `EXECUTION_PROVIDER=external`, keep `EXTERNAL_WRITE_DRY_RUN=true`, and enable only the specific action flag being tested. Execution still requires prepare, approve, and final confirm.
+
+Do not set `EXTERNAL_WRITE_DRY_RUN=false` unless OAuth scopes, feature flags, provider status, and the execution payload have been manually reviewed.
+
+## Google Calendar setup
+
+Google Calendar read/write uses the same local OAuth client secret file plus a separate token file:
+
+```env
+CALENDAR_PROVIDER=google
+GOOGLE_CALENDAR_TOKEN_FILE=./google_calendar_token.json
+GOOGLE_CALENDAR_ID=primary
+GOOGLE_CALENDAR_READ_ENABLED=true
+GOOGLE_CALENDAR_WRITE_ENABLED=false
+```
+
+Calendar write remains disabled unless `GOOGLE_CALENDAR_WRITE_ENABLED=true`, `EXECUTION_PROVIDER=external`, approval/confirmation are completed, and dry-run is deliberately disabled.
+
+## Microsoft Graph setup
+
+Outlook mail has an app-only Microsoft Graph client seam. Tenant setup must provide an app registration with the required application permissions and admin consent, then configure:
+
+```env
+MICROSOFT_GRAPH_ENABLED=true
+MICROSOFT_GRAPH_OUTLOOK_MAIL_ENABLED=true
+MICROSOFT_TENANT_ID=...
+MICROSOFT_CLIENT_ID=...
+MICROSOFT_CLIENT_SECRET=...
+MICROSOFT_ACCOUNT=user@example.com
+```
+
+Teams and Outlook Calendar remain adapter-shape/fail-closed until the tenant-specific Graph permissions and endpoint choices are confirmed.
+
 ## Running tests
 ```bash
 pytest -q
@@ -159,4 +210,4 @@ Do not delete or commit `client_secret.json`, `gmail_token.json`, `.env`, or any
 
 ## Current phase status
 
-Phases 01 through 14 are now implemented in this repository roadmap.
+Phases 01 through 16 are now implemented in this repository roadmap.

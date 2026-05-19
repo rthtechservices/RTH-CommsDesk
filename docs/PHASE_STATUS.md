@@ -16,9 +16,9 @@
 | 12 | Deployment, Authentication, and Production Hardening | ✅ Completed | 2026-05-15 |
 | 13 | Stabilization, Real-Data Smoke Testing, and Regression Cleanup | ✅ Completed | 2026-05-16 |
 | 14 | Live AI Provider Integration and Prompt Quality | ✅ Completed | 2026-05-17 |
-| 15 | Real Provider Wiring for Gmail, Calendar, and Microsoft Graph | Planned | 2026-05-15 |
-| 16 | Product UX and Workflow Consolidation | Planned | 2026-05-15 |
+| 15 | Real Provider Wiring for Gmail, Calendar, and Microsoft Graph | ✅ Completed | 2026-05-18 |
+| 16 | Product UX and Workflow Consolidation | ✅ Completed | 2026-05-18 |
 
 ## Current recommendation
 
-Proceed to Phase 15 next. Phase 14 added configurable live AI provider support behind the existing review-package and draft interfaces, kept mock as the default local/test path, added structured JSON validation and mock fallback behavior, surfaced AI provider status in the UI/API, and added prompt-quality regression fixtures for the core smoke-test examples.
+Stop for human review. Phase 15 completed provider status, guarded external execution provider wiring, safe dry-run mode, Google Calendar read/write seams, Microsoft Graph Outlook mail OAuth/client setup, fail-closed Microsoft/Teams prerequisites, and `.env.example` provider flags. Phase 16 consolidated the dashboard into a command center, added provider warnings, highlighted proposed actions and approval queues, and expanded review package detail with item position, timeline, contact context, and voice guidance.

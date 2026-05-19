@@ -16,15 +16,18 @@ from app.models.entities import (
     BulkTriageActionLog,
     Contact,
     DraftReply,
+    ExecutionStatus,
     ExecutionAuditLog,
     ExecutionRecord,
     InferenceStatus,
     Message,
     MessageClassification,
     ProposedActionReviewPackage,
+    ProposedActionType,
     ReviewPackageStatus,
     SentMailLearningRecord,
     UserFeedback,
+    VoiceGuidance,
 )
 from app.services.admin_service import clear_cached_content, run_retention_cleanup
 from app.services.attention_service import build_attention_queue
@@ -84,6 +87,7 @@ from app.services.gmail_sync_service import (
     sync_gmail_backfill,
 )
 from app.services.live_ai_client import ai_provider_status
+from app.services.provider_status_service import provider_status_rows
 from app.services.voice_learning_service import (
     run_sent_mail_learning,
     update_vip_candidate_status,
@@ -291,8 +295,43 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         .limit(10)
         .all()
     )
+    ready_executions = (
+        db.query(ExecutionRecord)
+        .filter(ExecutionRecord.status.in_([ExecutionStatus.PENDING_REVIEW, ExecutionStatus.APPROVED]))
+        .order_by(ExecutionRecord.updated_at.desc(), ExecutionRecord.id.desc())
+        .limit(8)
+        .all()
+    )
+    calendar_candidates = (
+        db.query(ProposedActionReviewPackage)
+        .filter(
+            ProposedActionReviewPackage.action_type.in_(
+                [ProposedActionType.CREATE_CALENDAR_REMINDER, ProposedActionType.SCHEDULE_MEETING]
+            )
+        )
+        .order_by(ProposedActionReviewPackage.updated_at.desc(), ProposedActionReviewPackage.id.desc())
+        .limit(6)
+        .all()
+    )
     automation_candidates = automation_candidates_for_dashboard(db, limit=12)
+    backlog_stats = {
+        "attention_total": db.query(func.count(AttentionItem.id)).scalar() or 0,
+        "reviewed_total": (
+            db.query(func.count(AttentionItem.id))
+            .filter(AttentionItem.status == AttentionStatus.REVIEWED)
+            .scalar()
+            or 0
+        ),
+        "pending_review_packages": (
+            db.query(func.count(ProposedActionReviewPackage.id))
+            .filter(ProposedActionReviewPackage.status == ReviewPackageStatus.PENDING)
+            .scalar()
+            or 0
+        ),
+        "ready_executions": len(ready_executions),
+    }
     ai_status = ai_provider_status(settings)
+    provider_rows = provider_status_rows(settings)
     return templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -312,7 +351,10 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "filter_date_start": request.query_params.get("date_start", ""),
             "filter_date_end": request.query_params.get("date_end", ""),
             "review_packages": review_packages,
+            "ready_executions": ready_executions,
+            "calendar_candidates": calendar_candidates,
             "automation_candidates": automation_candidates,
+            "backlog_stats": backlog_stats,
             "provider_status": {
                 "ai_provider": ai_status.effective_provider,
                 "ai_requested_provider": ai_status.requested_provider,
@@ -324,6 +366,29 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                 "calendar_provider": settings.calendar_provider,
                 "execution_provider": "mock",
                 "gmail_full_body": settings.gmail_store_full_body,
+            },
+            "provider_rows": provider_rows,
+            "provider_warnings": [
+                row
+                for row in provider_rows
+                if row.state in {"missing_configuration", "failed"}
+                or (row.state == "dry_run" and row.key != "ai_provider")
+            ][:5],
+        },
+    )
+
+
+@web_router.get("/providers")
+def providers_page(request: Request):
+    rows = provider_status_rows(get_settings())
+    return templates.TemplateResponse(
+        request,
+        "providers.html",
+        {
+            "provider_rows": rows,
+            "state_counts": {
+                state: len([row for row in rows if row.state == state])
+                for state in ("live", "mock", "disabled", "missing_configuration", "dry_run", "failed")
             },
         },
     )
@@ -895,12 +960,54 @@ def review_packages_index(request: Request, db: Session = Depends(get_db)):
 @web_router.get("/review-packages/{package_id}")
 def review_package_detail(package_id: int, request: Request, db: Session = Depends(get_db)):
     package = db.get(ProposedActionReviewPackage, package_id)
+    package_position = None
+    package_total = 0
+    timeline = []
+    contact = None
+    active_guidance = []
+    if package:
+        package_total = db.query(func.count(ProposedActionReviewPackage.id)).scalar() or 0
+        package_position = (
+            db.query(func.count(ProposedActionReviewPackage.id))
+            .filter(
+                (ProposedActionReviewPackage.updated_at > package.updated_at)
+                | (
+                    (ProposedActionReviewPackage.updated_at == package.updated_at)
+                    & (ProposedActionReviewPackage.id > package.id)
+                )
+            )
+            .scalar()
+            or 0
+        ) + 1
+        timeline = conversation_timeline(db, package.thread_id, package.message_id)
+        if package.message:
+            if package.message.thread and package.message.thread.contact_id:
+                contact = db.get(Contact, package.message.thread.contact_id)
+            elif package.message.sender_email:
+                contact = find_contact_by_sender_email(db, package.message.sender_email)
+        if contact:
+            active_guidance = (
+                db.query(VoiceGuidance)
+                .filter(
+                    VoiceGuidance.is_active.is_(True),
+                    (VoiceGuidance.contact_id == contact.id)
+                    | (VoiceGuidance.relationship_type == contact.relationship_type),
+                )
+                .order_by(VoiceGuidance.contact_id.desc(), VoiceGuidance.updated_at.desc())
+                .limit(5)
+                .all()
+            )
     return templates.TemplateResponse(
         request,
         "review_package_detail.html",
         {
             "package": package,
             "status_options": list(ReviewPackageStatus),
+            "package_position": package_position,
+            "package_total": package_total,
+            "timeline": timeline,
+            "contact": contact,
+            "active_guidance": active_guidance,
         },
         status_code=200 if package else 404,
     )

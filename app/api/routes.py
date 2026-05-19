@@ -35,6 +35,7 @@ from app.services.gmail_sync_service import (
     sync_gmail_messages,
 )
 from app.services.live_ai_client import ai_provider_status, test_live_ai_provider
+from app.services.provider_status_service import provider_status_matrix
 from app.services.execution_service import (
     approve_execution,
     audit_entries_for_execution,
@@ -197,6 +198,11 @@ def ai_status() -> dict:
 @api_router.post("/ai/test")
 def test_ai_provider_endpoint() -> dict:
     return test_live_ai_provider(get_settings())
+
+
+@api_router.get("/providers/status")
+def providers_status() -> dict:
+    return provider_status_matrix(get_settings())
 
 
 @api_router.get("/attention")

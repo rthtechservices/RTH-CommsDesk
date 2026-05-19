@@ -99,3 +99,49 @@ Out of scope for this partial slice:
 - Calendar read/write provider changes.
 - Microsoft Graph OAuth/client changes.
 - Phase 15 provider status/admin page for all external providers.
+
+## Completion notes — 2026-05-18 remaining provider wiring
+
+Status: completed for Phase 15 scope.
+
+Implemented:
+
+- Added a provider matrix at `/providers` and `/api/providers/status`.
+- Audited required providers/actions and surfaced classification plus runtime state for:
+  - Gmail read
+  - Gmail external draft creation
+  - Gmail send reply
+  - Gmail label/archive
+  - Google Calendar read
+  - Google Calendar write
+  - Microsoft Graph Outlook mail
+  - Microsoft Graph Teams
+  - Outlook Calendar read
+  - notification webhook
+  - Azure OpenAI / OpenAI-compatible AI provider
+- Added states for live, mock, disabled, missing configuration, dry-run, and failed.
+- Added guarded external execution provider mode behind `EXECUTION_PROVIDER=external`.
+- Added `EXTERNAL_WRITE_DRY_RUN=true` default and dry-run results that do not modify external systems.
+- Added live Gmail draft/send/label/archive client methods behind explicit Gmail write flags.
+- Added Google Calendar free/busy read and event/reminder write client methods behind explicit calendar flags.
+- Added Microsoft Graph app-only OAuth/client setup for Outlook mail where tenant app registration and `Mail.Read`-style permissions are available.
+- Kept Microsoft Teams and Outlook Calendar read fail-closed and documented as tenant-permission-dependent.
+- Added skipped live integration seam coverage plus deterministic provider-status and dry-run tests.
+- Updated `.env.example`, README, Help, Deployment, Lessons Learned, and phase/status docs.
+
+Validation:
+
+- `python -m ruff check .` — passed.
+- `python -m pytest -q` — passed, 97 tests.
+- Empty SQLite migration to Alembic head `0012_live_ai_provider_diagnostics` — passed.
+- Temporary Uvicorn route smoke for `/`, `/providers`, `/review-packages`, `/bulk-triage`, `/executions`, `/admin`, and `/healthz` — passed.
+- `POST /api/ai/test` — passed against Azure OpenAI deployment `gpt-4.1-mini` with HTTP 200.
+
+Safeguards:
+
+- Mock providers remain the default.
+- All live external write feature flags default to false.
+- Dry-run defaults to true.
+- Execution still requires prepare, approve, and final confirm.
+- Delete/unsubscribe remains not live-wired.
+- Provider status fails closed when configuration or flags are missing.

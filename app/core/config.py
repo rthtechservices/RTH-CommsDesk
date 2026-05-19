@@ -16,10 +16,20 @@ class Settings(BaseSettings):
     gmail_account: str = "me"
     gmail_read_max_results: int = 100
     gmail_store_full_body: bool = False
+    gmail_write_enabled: bool = False
+    gmail_draft_create_enabled: bool = False
+    gmail_send_enabled: bool = False
+    gmail_label_archive_enabled: bool = False
+    gmail_noise_label_id: str | None = None
     microsoft_tenant_id: str | None = None
     microsoft_client_id: str | None = None
     microsoft_client_secret: str | None = None
     microsoft_account: str = "me"
+    microsoft_graph_enabled: bool = False
+    microsoft_graph_outlook_mail_enabled: bool = False
+    microsoft_graph_teams_enabled: bool = False
+    microsoft_graph_outlook_calendar_read_enabled: bool = False
+    microsoft_graph_base_url: str = "https://graph.microsoft.com/v1.0"
     notification_webhook_secret: str | None = None
 
     ai_provider: str = "mock"
@@ -34,8 +44,13 @@ class Settings(BaseSettings):
     azure_openai_deployment: str | None = None
     azure_openai_api_version: str = "2025-04-01-preview"
     calendar_provider: str = "mock"
+    google_calendar_token_file: str = "./google_calendar_token.json"
+    google_calendar_id: str = "primary"
     google_calendar_read_enabled: bool = False
+    google_calendar_write_enabled: bool = False
     outlook_calendar_read_enabled: bool = False
+    execution_provider: str = "mock"
+    external_write_dry_run: bool = True
 
     app_auth_enabled: bool = False
     app_auth_username: str | None = None
