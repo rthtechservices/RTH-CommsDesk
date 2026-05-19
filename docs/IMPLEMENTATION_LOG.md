@@ -2,6 +2,59 @@
 
 Record completed work here at the end of every phase. Newest entries should be added at the top.
 
+## 2026-05-19 — Phase 18.5: Dashboard and Workflow UI Polish
+
+### Summary
+- Added a shared UI stylesheet with compact panels, workflow breadcrumbs, status lights, badges, responsive layouts, and configuration cards.
+- Consolidated the dashboard into operational status, command-center, and source/runtime cards with clear green/amber/red/grey status cues and next-step links.
+- Reworked the attention queue into denser rows showing score, source, sender/contact, subject, recommended action, status/date, and primary actions.
+- Made right-side dashboard insights denser dashboard widgets.
+- Rebuilt message detail action layout into Message, Conversation/AI, Contact, and Draft/execution sections.
+- Fixed the message detail timeline/body overflow behavior with bounded wrapping and scrolling inside the main content column.
+- Added context-aware contact actions so redundant VIP/noise/reset buttons are hidden based on contact state.
+- Added concise workflow help/breadcrumb text to dashboard, message detail, review packages, executions, provider status, operational smoke, and detail pages.
+- Added provider/operational configuration guidance panels without implementing `.env` editing.
+
+### Files changed
+- `app/web/ui.css`
+- `app/web/templates/dashboard.html`
+- `app/web/templates/message_detail.html`
+- `app/web/templates/review_packages.html`
+- `app/web/templates/review_package_detail.html`
+- `app/web/templates/executions.html`
+- `app/web/templates/execution_detail.html`
+- `app/web/templates/providers.html`
+- `app/web/templates/operational_smoke.html`
+- `tests/test_operational_workflow.py`
+- `README.md`
+- `docs/HELP.md`
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/PHASE_STATUS.md`
+- `docs/phases/PHASE_18_5_DASHBOARD_WORKFLOW_UI_POLISH.md`
+
+### Tests run
+- `python -m pytest tests/test_app_bootstrap.py tests/test_operational_workflow.py tests/test_provider_status.py -q` — passed, 21 tests.
+- Full release-gate commands pending final validation.
+
+### Smoke tests
+- Pending final route smoke.
+
+### Documentation updated
+- `README.md`
+- `docs/HELP.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/PHASE_STATUS.md`
+- `docs/phases/PHASE_18_5_DASHBOARD_WORKFLOW_UI_POLISH.md`
+
+### Known issues
+- This phase does not add or streamline live outbound execution. Phase 19 remains responsible for controlled test-email/calendar execution enablement.
+- Provider and operational pages give copy/paste guidance only; they do not edit `.env` or restart the app.
+
+### Recommended next actions
+- Stop for human review of Phase 18.5.
+- Next recommended phase: Phase 19 — Test Email Execution Enablement.
+
 ## 2026-05-19 — Phase 18: Operational Inbox Workflow Smoke and Fast-Path UX
 
 ### Summary

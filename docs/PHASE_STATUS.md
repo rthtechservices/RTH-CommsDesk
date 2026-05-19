@@ -20,9 +20,10 @@
 | 16 | Product UX and Workflow Consolidation | ✅ Completed | 2026-05-18 |
 | 17 | Microsoft Graph Delegated OAuth and Outlook Mail Smoke | ✅ Completed | 2026-05-19 |
 | 18 | Operational Inbox Workflow Smoke and Fast-Path UX | ✅ Completed | 2026-05-19 |
+| 18.5 | Dashboard and Workflow UI Polish | ✅ Completed | 2026-05-19 |
 | 19 | Test Email Execution Enablement | Planned | TBD |
 | 20 | Inbox Intelligence Quality Pass | Planned | TBD |
 
 ## Current recommendation
 
-Stop for human review of Phase 18. Next recommended phase is Phase 19: Test Email Execution Enablement, after the operator workflow and smoke page are accepted.
+Stop for human review of Phase 18.5. Next recommended phase is Phase 19: Test Email Execution Enablement, after the polished operator workflow is accepted.

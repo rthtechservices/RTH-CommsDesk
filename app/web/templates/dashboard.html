@@ -4,206 +4,11 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>RTH CommsDesk</title>
+    <link rel="stylesheet" href="/static/ui.css" />
     <style>
-      :root {
-        color-scheme: light;
-        --bg: #f6f7f9;
-        --surface: #ffffff;
-        --line: #d9dee6;
-        --text: #17202a;
-        --muted: #607080;
-        --brand: #246b5a;
-        --brand-dark: #16483d;
-        --warn: #a5411f;
-        --quiet: #eef1f4;
-      }
-      * {
-        box-sizing: border-box;
-      }
-      body {
-        margin: 0;
-        background: var(--bg);
-        color: var(--text);
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 15px;
-        line-height: 1.45;
-      }
-      a {
-        color: var(--brand-dark);
-        font-weight: 700;
-        text-decoration: none;
-      }
-      header {
-        border-bottom: 1px solid var(--line);
-        background: var(--surface);
-      }
-      .wrap {
-        width: min(1180px, calc(100% - 32px));
-        margin: 0 auto;
-      }
-      .topbar {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
+      .dashboard-shell {
+        display: grid;
         gap: 16px;
-        padding: 18px 0;
-      }
-      h1,
-      h2,
-      h3,
-      p {
-        margin-top: 0;
-      }
-      h1 {
-        margin-bottom: 2px;
-        font-size: 24px;
-      }
-      h2 {
-        margin-bottom: 12px;
-        font-size: 19px;
-      }
-      h3 {
-        margin-bottom: 4px;
-        font-size: 15px;
-      }
-      .muted {
-        color: var(--muted);
-      }
-      main {
-        padding: 24px 0 40px;
-      }
-      .grid {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) 320px;
-        gap: 22px;
-        align-items: start;
-      }
-      section {
-        margin-bottom: 22px;
-      }
-      .panel {
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: var(--surface);
-        padding: 16px;
-      }
-      .queue {
-        display: grid;
-        gap: 10px;
-      }
-      .item {
-        display: grid;
-        grid-template-columns: 72px minmax(0, 1fr) auto;
-        gap: 14px;
-        align-items: center;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: var(--surface);
-        padding: 14px;
-      }
-      .item.high {
-        border-left: 5px solid var(--warn);
-      }
-      .item.quiet {
-        background: #fbfcfd;
-        opacity: 0.76;
-      }
-      .score {
-        display: grid;
-        place-items: center;
-        min-height: 54px;
-        border-radius: 8px;
-        background: var(--quiet);
-        font-weight: 800;
-      }
-      .score span {
-        display: block;
-        color: var(--muted);
-        font-size: 11px;
-        font-weight: 700;
-        text-transform: uppercase;
-      }
-      .subject {
-        overflow-wrap: anywhere;
-        font-weight: 800;
-      }
-      .meta {
-        margin-top: 3px;
-        color: var(--muted);
-        font-size: 13px;
-      }
-      .reason {
-        margin-top: 8px;
-        color: #344454;
-      }
-      .tags {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        margin-top: 8px;
-      }
-      .tag {
-        border: 1px solid var(--line);
-        border-radius: 999px;
-        padding: 2px 8px;
-        background: #f8fafb;
-        color: #405060;
-        font-size: 12px;
-        font-weight: 700;
-      }
-      .actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        justify-content: flex-end;
-      }
-      button,
-      .button,
-      select,
-      input {
-        min-height: 36px;
-        border: 1px solid var(--line);
-        border-radius: 6px;
-        background: var(--surface);
-        color: var(--text);
-        cursor: pointer;
-        font: inherit;
-        font-weight: 700;
-        padding: 7px 11px;
-      }
-      select,
-      input {
-        width: 100%;
-        min-width: 0;
-        font-weight: 400;
-      }
-      button.primary,
-      .button.primary {
-        border-color: var(--brand);
-        background: var(--brand);
-        color: #ffffff;
-      }
-      .mini-list {
-        display: grid;
-        gap: 10px;
-        padding: 0;
-        margin: 0;
-        list-style: none;
-      }
-      .mini-list li {
-        border-top: 1px solid var(--line);
-        padding-top: 10px;
-      }
-      .mini-list li:first-child {
-        border-top: 0;
-        padding-top: 0;
-      }
-      .empty {
-        border: 1px dashed var(--line);
-        border-radius: 8px;
-        background: #fbfcfd;
-        color: var(--muted);
-        padding: 18px;
       }
       .sync-actions {
         display: flex;
@@ -211,41 +16,44 @@
         gap: 8px;
         justify-content: flex-end;
       }
-      .sync-status {
-        display: flex;
-        flex-wrap: wrap;
+      .status-grid {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr 1fr;
+        gap: 12px;
+      }
+      .status-card {
+        display: grid;
         gap: 10px;
-        margin-bottom: 18px;
+        min-height: 100%;
+      }
+      .metric-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(105px, 1fr));
+        gap: 8px;
+      }
+      .metric {
         border: 1px solid var(--line);
         border-radius: 8px;
-        background: var(--surface);
-        padding: 12px 14px;
+        background: var(--surface-2);
+        padding: 9px;
       }
-      .sync-stat {
-        min-width: 108px;
-      }
-      .sync-stat strong {
+      .metric strong {
         display: block;
+        font-size: 20px;
+        line-height: 1.1;
       }
-      .sync-error {
-        color: var(--warn);
-        font-weight: 700;
-      }
-      .runtime-status {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        margin-bottom: 18px;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: var(--surface);
-        padding: 12px 14px;
+      .main-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 340px;
+        gap: 16px;
+        align-items: start;
       }
       .filters {
         display: grid;
-        grid-template-columns: repeat(6, minmax(0, 1fr));
-        gap: 10px;
+        grid-template-columns: 1.1fr 0.95fr 0.95fr minmax(180px, 1.3fr) 1fr auto;
+        gap: 8px;
         align-items: end;
+        margin-bottom: 10px;
       }
       .filters label {
         display: grid;
@@ -254,218 +62,227 @@
         font-size: 12px;
         font-weight: 700;
       }
-      @media (max-width: 860px) {
-        .grid,
-        .item {
+      .attention-table {
+        display: grid;
+        gap: 6px;
+      }
+      .attention-head,
+      .attention-row {
+        display: grid;
+        grid-template-columns: 58px 96px minmax(140px, 0.9fr) minmax(240px, 1.6fr) 145px 115px 154px;
+        gap: 8px;
+        align-items: center;
+      }
+      .attention-head {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        padding: 0 10px;
+      }
+      .attention-row {
+        border: 1px solid var(--line);
+        border-left: 4px solid var(--line-strong);
+        border-radius: 8px;
+        background: var(--surface);
+        padding: 8px 10px;
+      }
+      .attention-row.high {
+        border-left-color: var(--bad);
+      }
+      .attention-row.quiet {
+        background: #fbfcfd;
+      }
+      .score {
+        display: grid;
+        place-items: center;
+        min-height: 38px;
+        border-radius: 7px;
+        background: #eef3f5;
+        font-weight: 900;
+      }
+      .subject {
+        overflow-wrap: anywhere;
+        font-weight: 800;
+      }
+      .compact {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .row-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        justify-content: flex-end;
+      }
+      .row-actions button,
+      .row-actions .button {
+        min-height: 30px;
+        padding: 5px 8px;
+      }
+      .widget-grid {
+        display: grid;
+        gap: 10px;
+      }
+      .widget {
+        padding: 12px;
+      }
+      .widget h2 {
+        margin-bottom: 6px;
+        font-size: 15px;
+      }
+      .widget .mini-list {
+        gap: 6px;
+        font-size: 13px;
+      }
+      @media (min-width: 1500px) {
+        .main-grid {
+          grid-template-columns: minmax(0, 1fr) 390px;
+        }
+        .attention-head,
+        .attention-row {
+          grid-template-columns: 62px 110px minmax(160px, 0.95fr) minmax(320px, 1.8fr) 170px 130px 170px;
+        }
+      }
+      @media (max-width: 1120px) {
+        .status-grid,
+        .main-grid,
+        .filters {
           grid-template-columns: 1fr;
         }
-        .actions {
-          justify-content: flex-start;
+        .attention-head {
+          display: none;
         }
-        .score {
-          width: 76px;
+        .attention-row {
+          grid-template-columns: 56px minmax(0, 1fr);
+        }
+        .attention-row > div:nth-child(n+3) {
+          grid-column: 2;
+        }
+        .row-actions {
+          justify-content: flex-start;
         }
       }
     </style>
   </head>
   <body>
-    <header>
-      <div class="wrap topbar">
+    <header class="topbar">
+      <div class="wide-wrap topbar-inner">
         <div>
           <h1>RTH CommsDesk</h1>
-          <div class="muted">
-            Communication attention queue | <a href="/contacts">Contacts</a> | <a href="/drafts">Drafts</a> | <a href="/review-packages">Review packages</a> | <a href="/voice-calibration">Voice calibration</a> | <a href="/bulk-triage">Bulk triage</a> | <a href="/executions">Executions</a> | <a href="/providers">Providers</a> | <a href="/operational-smoke">Operational smoke</a> | <a href="/admin">Admin</a>
+          <div class="nav-links">
+            <a href="/contacts">Contacts</a>
+            <a href="/drafts">Drafts</a>
+            <a href="/review-packages">Review packages</a>
+            <a href="/voice-calibration">Voice calibration</a>
+            <a href="/bulk-triage">Bulk triage</a>
+            <a href="/executions">Executions</a>
+            <a href="/providers">Providers</a>
+            <a href="/operational-smoke">Operational smoke</a>
+            <a href="/admin">Admin</a>
           </div>
         </div>
         <div class="sync-actions">
-          <form method="post" action="/sync/gmail">
-            <button class="primary" type="submit">Sync Gmail</button>
-          </form>
+          <form method="post" action="/sync/gmail"><button class="primary" type="submit">Sync Gmail</button></form>
           <form method="post" action="/sync/gmail">
             <input type="hidden" name="resync" value="true" />
             <button type="submit">Resync recent</button>
           </form>
-          <form method="post" action="/sync/gmail/backfill">
-            <button type="submit">Backfill older</button>
-          </form>
-          <form method="post" action="/sync/outlook">
-            <button type="submit">Sync Outlook</button>
-          </form>
-          <form method="post" action="/logout">
-            <button type="submit">Sign out</button>
-          </form>
+          <form method="post" action="/sync/gmail/backfill"><button type="submit">Backfill older</button></form>
+          <form method="post" action="/sync/outlook"><button type="submit">Sync Outlook</button></form>
+          <form method="post" action="/logout"><button type="submit">Sign out</button></form>
         </div>
       </div>
     </header>
 
-    <main class="wrap">
-      <section class="sync-status">
-        {% if sync_state %}
-        <div class="sync-stat">
-          <strong>{{ sync_state.last_fetched_count }}</strong>
-          <span class="muted">Fetched</span>
+    <main class="wide-wrap page-pad dashboard-shell">
+      <section>
+        <div class="workflow" aria-label="Workflow">
+          <span class="active">Sync</span><span class="active">Triage</span><span>Analyze</span><span>Review</span><span>Prepare</span><span>Execute</span><span>Audit</span>
         </div>
-        <div class="sync-stat">
-          <strong>{{ sync_state.last_inserted_count }}</strong>
-          <span class="muted">Inserted</span>
-        </div>
-        <div class="sync-stat">
-          <strong>{{ sync_state.last_skipped_duplicate_count }}</strong>
-          <span class="muted">Duplicates skipped</span>
-        </div>
-        <div class="sync-stat">
-          <strong>{{ sync_state.last_updated_thread_count }}</strong>
-          <span class="muted">Threads updated</span>
-        </div>
-        <div class="sync-stat">
-          <strong>{{ sync_state.last_backfill_fetched_count }}</strong>
-          <span class="muted">Backfill fetched</span>
-        </div>
-        <div class="sync-stat">
-          <strong>{{ sync_state.last_backfill_inserted_count }}</strong>
-          <span class="muted">Backfill inserted</span>
-        </div>
-        <div class="sync-stat">
-          <strong>{% if sync_state.backlog_next_page_token %}More{% else %}End/unknown{% endif %}</strong>
-          <span class="muted">Backlog cursor</span>
-        </div>
-        <div class="sync-stat">
-          <strong>
-            {% if sync_state.last_successful_sync_at %}
-            {{ sync_state.last_successful_sync_at.strftime("%Y-%m-%d %H:%M") }}
-            {% else %}
-            Never
-            {% endif %}
-          </strong>
-          <span class="muted">Last successful sync</span>
-        </div>
-        {% if sync_state.last_error %}
-        <div class="sync-error">Last sync error: {{ sync_state.last_error }}</div>
-        {% endif %}
-        {% if sync_state.last_backfill_error %}
-        <div class="sync-error">Last backfill error: {{ sync_state.last_backfill_error }}</div>
-        {% endif %}
-        {% else %}
-        <div class="muted">No Gmail sync has completed yet.</div>
-        {% endif %}
-        {% if sync_error %}
-        <div class="sync-error">
-          Sync did not complete. Check Gmail OAuth setup and local configuration.
-        </div>
-        {% endif %}
+        <p class="help-text">What this page is for: operate the daily queue, see readiness/blockers, and jump to the next useful item without enabling any new outbound behavior.</p>
       </section>
-      <section class="runtime-status" aria-label="Provider and storage status">
-        <div class="sync-stat">
-          <strong>{{ provider_status.ai_provider }}</strong>
-          <span class="muted">AI analysis provider</span>
-        </div>
-        <div class="sync-stat">
-          <strong>{% if provider_status.ai_live_enabled %}Live{% else %}Mock{% endif %}</strong>
-          <span class="muted">{{ provider_status.ai_detail }}{% if provider_status.ai_model %} Model: {{ provider_status.ai_model }}.{% endif %}{% if provider_status.ai_deployment %} Deployment: {{ provider_status.ai_deployment }}.{% endif %}</span>
-        </div>
-        <div class="sync-stat">
-          <strong>{{ provider_status.calendar_provider }}</strong>
-          <span class="muted">Calendar provider</span>
-        </div>
-        <div class="sync-stat">
-          <strong>{{ provider_status.execution_provider }}</strong>
-          <span class="muted">Execution provider</span>
-        </div>
-        <div class="sync-stat">
-          <strong>{% if provider_status.gmail_full_body %}On{% else %}Off{% endif %}</strong>
-          <span class="muted">Gmail full-body sync</span>
-        </div>
-        <div class="sync-stat">
-          <strong><a href="/providers">Provider matrix</a></strong>
-          <span class="muted">Live, mock, disabled, missing config, dry-run, and failed states</span>
-        </div>
-        <div class="sync-stat">
-          <strong><a href="/operational-smoke">Operational smoke</a></strong>
-          <span class="muted">Gmail, Outlook, AI, execution flags, and blockers</span>
-        </div>
-      </section>
-      <section class="panel">
-        <h2>Operational Smoke</h2>
-        <div class="runtime-status" style="margin-bottom: 0">
-          <div class="sync-stat">
-            <strong>{{ smoke_status.gmail_read.state.replace("_", " ").title() }}</strong>
-            <span class="muted">Gmail read config</span>
+
+      <section class="status-grid" aria-label="Consolidated operational status">
+        <div class="panel status-card">
+          <h2>Operational Status</h2>
+          <div class="metric-row">
+            <div class="metric">
+              <strong><span class="status-dot {{ smoke_status.gmail_read.state }}"></span>{{ smoke_status.gmail_read.state.replace("_", " ").title() }}</strong>
+              <span class="muted">Gmail read config</span>
+            </div>
+            <div class="metric">
+              <strong><span class="status-dot {{ smoke_status.outlook_read.state }}"></span>{{ smoke_status.outlook_read.state.replace("_", " ").title() }}</strong>
+              <span class="muted">Outlook sync</span>
+            </div>
+            <div class="metric">
+              <strong><span class="status-dot {{ smoke_status.graph_auth.state }}"></span>{{ smoke_status.graph_auth.state.replace("_", " ").title() }}</strong>
+              <span class="muted">Outlook delegated Graph</span>
+            </div>
+            <div class="metric">
+              <strong><span class="status-dot {{ smoke_status.ai_provider.state }}"></span>{{ smoke_status.ai_provider.state.replace("_", " ").title() }}</strong>
+              <span class="muted">Azure/OpenAI analysis</span>
+            </div>
+            <div class="metric">
+              <strong><span class="status-dot {% if smoke_status.external_write_dry_run %}dry_run{% else %}live{% endif %}"></span>{% if smoke_status.external_write_dry_run %}Dry-run{% else %}Live-ready{% endif %}</strong>
+              <span class="muted">External dry-run</span>
+            </div>
           </div>
-          <div class="sync-stat">
-            <strong>{{ smoke_status.graph_auth.state.replace("_", " ").title() }}</strong>
-            <span class="muted">Outlook delegated Graph</span>
+          {% if provider_warnings %}
+          <div class="notice">
+            Next attention: {{ provider_warnings[0].label }} is {{ provider_warnings[0].state.replace("_", " ") }}. {{ provider_warnings[0].next_action }}
           </div>
-          <div class="sync-stat">
-            <strong>{{ smoke_status.outlook_read.state.replace("_", " ").title() }}</strong>
-            <span class="muted">Outlook sync</span>
+          {% else %}
+          <div class="subtle-panel">No provider blockers are currently reported. Continue with triage or review packages.</div>
+          {% endif %}
+          <div class="button-row">
+            <a class="button primary" href="/process-next?queue_filter={{ queue_filter }}{% if filter_source %}&source={{ filter_source }}{% endif %}">Process next attention item</a>
+            <a class="button" href="/operational-smoke">Operational Smoke</a>
+            <a class="button" href="/providers">Provider matrix</a>
           </div>
-          <div class="sync-stat">
-            <strong>{{ smoke_status.ai_provider.state.replace("_", " ").title() }}</strong>
-            <span class="muted">Azure/OpenAI analysis</span>
+        </div>
+
+        <div class="panel status-card">
+          <h2>Command Center State</h2>
+          <div class="metric-row">
+            <div class="metric"><strong>{{ attention|length }}</strong><span class="muted">Visible attention rows</span></div>
+            <div class="metric"><strong>{{ backlog_stats.pending_review_packages }}</strong><span class="muted">Proposed Actions pending</span></div>
+            <div class="metric"><strong>{{ backlog_stats.ready_executions }}</strong><span class="muted">Ready For Approval</span></div>
+            <div class="metric"><strong>{{ backlog_stats.reviewed_total }} / {{ backlog_stats.attention_total }}</strong><span class="muted">Reviewed / total attention</span></div>
           </div>
-          <div class="sync-stat">
-            <strong>{% if smoke_status.external_write_dry_run %}On{% else %}Off{% endif %}</strong>
-            <span class="muted">External dry-run</span>
+          <div class="button-row">
+            <a class="button" href="/review-packages/next">Next review package</a>
+            <a class="button" href="/executions/next">Next execution approval</a>
           </div>
-          <div class="sync-stat">
-            <strong>{{ smoke_status.execution_provider_mode }}</strong>
-            <span class="muted">Execution provider mode</span>
+        </div>
+
+        <div class="panel status-card">
+          <h2>Source Counts and Runtime</h2>
+          <div class="metric-row">
+            {% for row in source_counts %}
+            <a class="metric" href="/?source={{ row.key if row.key != 'all' else 'all' }}">
+              <strong>{{ row.unreviewed_attention_count }}</strong>
+              <span class="muted">{{ row.label }} unreviewed | {{ row.message_count }} messages</span>
+            </a>
+            {% endfor %}
+          </div>
+          <div class="subtle-panel">
+            <strong>AI analysis provider:</strong> {{ provider_status.ai_provider }}.
+            <strong>Gmail full-body sync:</strong> {% if provider_status.gmail_full_body %}On{% else %}Off{% endif %}.
+            <strong>Execution provider:</strong> {{ provider_status.execution_provider }}.
           </div>
         </div>
       </section>
-      {% if provider_warnings %}
-      <section class="panel">
-        <h2>Provider Status Warnings</h2>
-        <ul class="mini-list">
-          {% for row in provider_warnings %}
-          <li>
-            <strong>{{ row.label }}: {{ row.state.replace("_", " ").title() }}</strong>
-            <div class="muted">{{ row.next_action }}</div>
-          </li>
-          {% endfor %}
-        </ul>
-      </section>
+
+      {% if sync_error %}
+      <section class="warning">Sync did not complete. Check OAuth setup and local configuration before running the workflow.</section>
       {% endif %}
-      <section class="panel">
-        <h2>Command Center</h2>
-        <div class="runtime-status" style="margin-bottom: 0">
-          <div class="sync-stat">
-            <strong>{{ attention|length }}</strong>
-            <span class="muted">Needs my attention on this view</span>
-          </div>
-          <div class="sync-stat">
-            <strong>{{ backlog_stats.pending_review_packages }}</strong>
-            <span class="muted">Proposed actions pending review</span>
-          </div>
-          <div class="sync-stat">
-            <strong>{{ backlog_stats.ready_executions }}</strong>
-            <span class="muted">Ready for approval or confirmation</span>
-          </div>
-          <div class="sync-stat">
-            <strong>{{ backlog_stats.reviewed_total }} / {{ backlog_stats.attention_total }}</strong>
-            <span class="muted">Backlog progress</span>
-          </div>
-          <div class="sync-stat">
-            <strong><a href="/process-next?queue_filter={{ queue_filter }}{% if filter_source %}&source={{ filter_source }}{% endif %}">Process next</a></strong>
-            <span class="muted">Open the next attention item in this view</span>
-          </div>
-        </div>
-      </section>
-      <section class="panel">
-        <h2>Source Counts</h2>
-        <div class="runtime-status" style="margin-bottom: 0">
-          {% for row in source_counts %}
-          <div class="sync-stat">
-            <strong>{{ row.unreviewed_attention_count }}</strong>
-            <span class="muted">{{ row.label }} unreviewed | {{ row.message_count }} messages</span>
-          </div>
-          {% endfor %}
-        </div>
-      </section>
-      <div class="grid">
-        <section>
+
+      <div class="main-grid">
+        <section class="panel">
           <h2>Needs My Attention</h2>
-          <form class="panel filters" method="get" action="/">
+          <form class="filters" method="get" action="/">
             <label>
               Queue
               <select name="queue_filter">
@@ -477,18 +294,9 @@
                 <option value="reviewed" {% if queue_filter == "reviewed" %}selected{% endif %}>Reviewed</option>
               </select>
             </label>
-            <label>
-              From date
-              <input type="date" name="date_start" value="{{ filter_date_start }}" />
-            </label>
-            <label>
-              To date
-              <input type="date" name="date_end" value="{{ filter_date_end }}" />
-            </label>
-            <label>
-              Sender/contact
-              <input type="search" name="sender" value="{{ filter_sender }}" placeholder="email or name" />
-            </label>
+            <label>From date<input type="date" name="date_start" value="{{ filter_date_start }}" /></label>
+            <label>To date<input type="date" name="date_end" value="{{ filter_date_end }}" /></label>
+            <label>Sender/contact<input type="search" name="sender" value="{{ filter_sender }}" placeholder="email or name" /></label>
             <label>
               Source
               <select name="source">
@@ -499,38 +307,38 @@
             </label>
             <button class="primary" type="submit">Apply</button>
           </form>
-          <div class="queue">
+
+          <div class="attention-table">
+            <div class="attention-head">
+              <div>Score</div><div>Source</div><div>Sender/contact</div><div>Subject</div><div>Recommended action</div><div>Status / age</div><div>Actions</div>
+            </div>
             {% for row in attention_rows %}
             {% set item = row.item %}
             {% set message = row.message %}
             {% set is_quiet = row.classification and (row.classification.is_newsletter or row.classification.is_marketing or row.classification.is_group_noise) %}
-            <article class="item {% if item.attention_score >= 60 %}high{% endif %} {% if is_quiet %}quiet{% endif %}">
-              <div class="score">
-                {{ item.attention_score }}
-                <span>Score</span>
+            <article class="attention-row {% if item.attention_score >= 60 %}high{% endif %} {% if is_quiet %}quiet{% endif %}">
+              <div class="score">{{ item.attention_score }}</div>
+              <div>
+                <span class="badge">{{ message.source_type if message else "unknown" }}</span>
+                {% if message and message.source_confidence is not none %}
+                <div class="muted">{{ "%.0f"|format((message.source_confidence or 0) * 100) }}% confidence</div>
+                {% endif %}
+              </div>
+              <div class="compact">{{ message.sender_display_name or message.sender_email or "Unknown sender" if message else "Unknown sender" }}</div>
+              <div>
+                <div class="subject">{{ message.subject if message and message.subject else "(No subject)" }}</div>
+                <div class="muted compact">{{ item.reason or "No reason recorded yet." }}</div>
               </div>
               <div>
-                <div class="subject">
-                  {{ message.subject if message and message.subject else "(No subject)" }}
-                </div>
-                <div class="meta">
-                  {{ message.sender_display_name or message.sender_email or "Unknown sender" if message else "Unknown sender" }}
-                  {% if message and message.received_at %} | {{ message.received_at.strftime("%Y-%m-%d %H:%M") }}{% endif %}
-                  | {{ item.status.value if item.status.value is defined else item.status }}
-                  | {{ item.recommended_action or "Review" }}
-                  {% if message %} | {{ message.source_type }}{% endif %}
-                  {% if message and message.source_confidence is not none %} | {{ "%.0f"|format((message.source_confidence or 0) * 100) }}% source confidence{% endif %}
-                </div>
-                <div class="tags">
-                  <span class="tag">{{ row.label }}</span>
-                  {% for tag in row.tags %}
-                  <span class="tag">{{ tag }}</span>
-                  {% endfor %}
-                </div>
-                <div class="reason">{{ item.reason or "No reason recorded yet." }}</div>
+                {{ item.recommended_action or "Review" }}
+                <div class="muted">{{ row.label }}{% for tag in row.tags[:2] %} | {{ tag }}{% endfor %}</div>
               </div>
-              <div class="actions">
-                {% if item.message_id %}<a class="button primary" href="/messages/{{ item.message_id }}">Details</a>{% endif %}
+              <div>
+                {{ item.status.value if item.status.value is defined else item.status }}
+                <div class="muted">{% if message and message.received_at %}{{ message.received_at.strftime("%Y-%m-%d %H:%M") }}{% else %}No date{% endif %}</div>
+              </div>
+              <div class="row-actions">
+                {% if item.message_id %}<a class="button primary" href="/messages/{{ item.message_id }}">Open</a>{% endif %}
                 {% if item.message_id %}
                 <form method="post" action="/messages/{{ item.message_id }}/correct-classification">
                   <input type="hidden" name="corrected_label" value="important" />
@@ -538,127 +346,89 @@
                   <button type="submit">Important</button>
                 </form>
                 {% endif %}
-                <form method="post" action="/attention/{{ item.id }}/review">
-                  <button type="submit">Reviewed</button>
-                </form>
+                <form method="post" action="/attention/{{ item.id }}/review"><button type="submit">Reviewed</button></form>
               </div>
             </article>
             {% else %}
-            <div class="empty">No attention items match this view. Sync Gmail, change filters, or open Review Packages for proposed actions already generated.</div>
+            <div class="empty">No attention items match this view. Sync a source, change filters, or open Review Packages for already generated recommendations.</div>
             {% endfor %}
           </div>
         </section>
 
-        <aside>
-          <section class="panel">
+        <aside class="widget-grid">
+          <section class="panel widget">
             <h2>Proposed Actions</h2>
-            <p><a href="/review-packages/next">Process next pending package</a></p>
+            <p class="muted"><a href="/review-packages/next">Process next pending package</a></p>
             <ul class="mini-list">
-              {% for package in review_packages %}
-              <li>
-                <strong><a href="/review-packages/{{ package.id }}">{{ package.action_type.value.replace("_", " ").title() }}</a></strong>
-                <div class="muted">
-                  {{ package.status.value if package.status.value is defined else package.status }}
-                  | {{ "%.0f"|format((package.confidence or 0) * 100) }}% confidence
-                  {% if package.message and package.message.sender_email %} | {{ package.message.sender_email }}{% endif %}
-                </div>
-              </li>
+              {% for package in review_packages[:6] %}
+              <li><strong><a href="/review-packages/{{ package.id }}">{{ package.action_type.value.replace("_", " ").title() }}</a></strong><div class="muted">{{ package.status.value if package.status.value is defined else package.status }} | {{ "%.0f"|format((package.confidence or 0) * 100) }}%</div></li>
               {% else %}
-              <li class="muted">No proposed actions yet. Open a message and analyze the conversation.</li>
+              <li class="muted">No proposed actions yet.</li>
               {% endfor %}
             </ul>
           </section>
 
-          <section class="panel">
+          <section class="panel widget">
             <h2>Ready For Approval</h2>
-            <p><a href="/executions/next">Process next execution</a></p>
+            <p class="muted"><a href="/executions/next">Process next execution</a></p>
             <ul class="mini-list">
-              {% for record in ready_executions %}
-              <li>
-                <strong><a href="/executions/{{ record.id }}">Execution #{{ record.id }}</a></strong>
-                <div class="muted">
-                  {{ record.action_type.value.replace("_", " ").title() }}
-                  | {{ record.status.value.replace("_", " ").title() }}
-                  | {{ record.provider_name }}
-                </div>
-              </li>
+              {% for record in ready_executions[:5] %}
+              <li><strong><a href="/executions/{{ record.id }}">Execution #{{ record.id }}</a></strong><div class="muted">{{ record.action_type.value.replace("_", " ").title() }} | {{ record.status.value.replace("_", " ").title() }}</div></li>
               {% else %}
-              <li class="muted">No execution records are waiting for approval or confirmation.</li>
+              <li class="muted">No execution records need approval.</li>
               {% endfor %}
             </ul>
           </section>
 
-          <section class="panel">
+          <section class="panel widget">
             <h2>Calendar Candidates</h2>
             <ul class="mini-list">
-              {% for package in calendar_candidates %}
-              <li>
-                <strong><a href="/review-packages/{{ package.id }}">{{ package.action_type.value.replace("_", " ").title() }}</a></strong>
-                <div class="muted">
-                  {{ "%.0f"|format((package.confidence or 0) * 100) }}% confidence
-                  {% if package.message and package.message.sender_email %} | {{ package.message.sender_email }}{% endif %}
-                </div>
-              </li>
+              {% for package in calendar_candidates[:4] %}
+              <li><strong><a href="/review-packages/{{ package.id }}">{{ package.action_type.value.replace("_", " ").title() }}</a></strong><div class="muted">{{ "%.0f"|format((package.confidence or 0) * 100) }}% confidence</div></li>
               {% else %}
-              <li class="muted">No reminder or meeting candidates are pending.</li>
+              <li class="muted">No reminder or meeting candidates.</li>
               {% endfor %}
             </ul>
           </section>
 
-          <section class="panel">
-            <h2>Noise And Unsubscribe Candidates</h2>
+          <section class="panel widget">
+            <h2>Noise/Unsub Candidates</h2>
             <ul class="mini-list">
-              {% for candidate in automation_candidates %}
-              <li>
-                <strong>{{ candidate.candidate_type.value.replace("_", " ").title() }}</strong>
-                <div class="muted">
-                  {{ "%.0f"|format((candidate.confidence or 0) * 100) }}% confidence
-                  {% if candidate.message and candidate.message.sender_email %} | {{ candidate.message.sender_email }}{% endif %}
-                </div>
-                <div>{{ candidate.reason }}</div>
-              </li>
+              {% for candidate in automation_candidates[:4] %}
+              <li><strong>{{ candidate.candidate_type.value.replace("_", " ").title() }}</strong><div class="muted">{{ "%.0f"|format((candidate.confidence or 0) * 100) }}% | {{ candidate.message.sender_email if candidate.message else "unknown" }}</div></li>
               {% else %}
-              <li class="muted">No pending automation candidates yet.</li>
+              <li class="muted">No pending automation candidates.</li>
               {% endfor %}
             </ul>
           </section>
 
-          <section class="panel">
+          <section class="panel widget">
             <h2>VIP Contacts</h2>
             <ul class="mini-list">
-              {% for c in vip_contacts %}
-              <li>
-                <strong><a href="/contacts/{{ c.id }}">{{ c.display_name or c.primary_email or "Unknown" }}</a></strong>
-                <div class="muted">{{ c.primary_email or "" }}</div>
-              </li>
+              {% for c in vip_contacts[:5] %}
+              <li><strong><a href="/contacts/{{ c.id }}">{{ c.display_name or c.primary_email or "Unknown" }}</a></strong><div class="muted compact">{{ c.primary_email or "" }}</div></li>
               {% else %}
               <li class="muted">No VIP contacts yet.</li>
               {% endfor %}
             </ul>
           </section>
 
-          <section class="panel">
+          <section class="panel widget">
             <h2>Recent Human Messages</h2>
             <ul class="mini-list">
-              {% for m in unread_human %}
-              <li>
-                <a href="/messages/{{ m.id }}">{{ m.subject or "(No subject)" }}</a>
-                <div class="muted">{{ m.sender_email or "Unknown sender" }}</div>
-              </li>
+              {% for m in unread_human[:5] %}
+              <li><a href="/messages/{{ m.id }}">{{ m.subject or "(No subject)" }}</a><div class="muted compact">{{ m.sender_email or "Unknown sender" }}</div></li>
               {% else %}
               <li class="muted">No unread human-like messages.</li>
               {% endfor %}
             </ul>
           </section>
 
-          <section class="panel">
+          <section class="panel widget">
             <h2>Suspected Noise</h2>
             <ul class="mini-list">
-              {% for m in suspected_noise %}
-              <li>
-                <a href="/messages/{{ m.id }}">{{ m.subject or "(No subject)" }}</a>
-                <div class="muted">{{ m.sender_email or "Unknown sender" }}</div>
-              </li>
+              {% for m in suspected_noise[:5] %}
+              <li><a href="/messages/{{ m.id }}">{{ m.subject or "(No subject)" }}</a><div class="muted compact">{{ m.sender_email or "Unknown sender" }}</div></li>
               {% else %}
               <li class="muted">No suspected noise yet.</li>
               {% endfor %}

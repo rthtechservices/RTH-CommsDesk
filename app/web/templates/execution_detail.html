@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Execution Detail | RTH CommsDesk</title>
+    <link rel="stylesheet" href="/static/ui.css" />
     <style>
       :root {
         --bg: #f6f7f9;
@@ -60,7 +61,11 @@
     <main class="wrap">
       <a href="/executions">Back to executions</a>
       {% if record %}
+      <div class="workflow" aria-label="Workflow">
+        <span>Sync</span><span>Triage</span><span>Analyze</span><span>Review</span><span>Prepare</span><span class="active">Execute</span><span class="active">Audit</span>
+      </div>
       <h1>Execution #{{ record.id }}</h1>
+      <p class="help-text">What this page is for: inspect one immutable execution attempt, approve or confirm when safe, and review the provider result and audit trail.</p>
       <p>
         <a href="/executions/next?current_id={{ record.id }}">Process next execution</a>
         {% if record.review_package_id %} | <a href="/review-packages/{{ record.review_package_id }}">Source review package</a>{% endif %}

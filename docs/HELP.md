@@ -16,9 +16,9 @@ Current MVP features:
 - Keep Gmail sync metadata locally so repeat syncs are incremental.
 - Skip duplicate Gmail messages and duplicate attention items on repeat sync.
 - Show the latest sync/backfill counts: fetched, inserted, duplicates skipped, threads updated, and backlog cursor status.
-- Show current provider/storage status on the dashboard: AI analysis provider, live/mock mode, calendar provider, execution provider, and Gmail full-body sync state.
-- Open the Provider Status page to see live, mock, disabled, missing configuration, dry-run, and failed states for each provider/action.
-- Open the Operational Smoke page to see Gmail read config, Outlook Graph status, Outlook sync readiness, Azure/OpenAI readiness, execution mode, dry-run state, write flags, source counts, and blockers.
+- Show compact dashboard status cards for provider readiness, operational smoke state, command-center queues, source counts, and next recommended operator actions.
+- Open the Provider Status page to see live, mock, disabled, missing configuration, dry-run, failed, and not-implemented states for each provider/action, plus copy/paste configuration guidance.
+- Open the Operational Smoke page to see Gmail read config, Outlook Graph status, Outlook sync readiness, Azure/OpenAI readiness, execution mode, dry-run state, write flags, source counts, blockers, and safe `.env` snippets.
 - Store message metadata and snippets by default.
 - Test delegated Microsoft Graph configuration with sanitized `POST /api/graph/test` output.
 - Fetch and store full Gmail conversation content manually from a message detail page.
@@ -79,7 +79,7 @@ RTH CommsDesk does not currently:
 
 ### Attention Queue
 
-The Attention Queue lists messages that the app thinks may need attention. Higher scores should appear closer to the top.
+The Attention Queue lists messages that the app thinks may need attention. Higher scores should appear closer to the top. Dashboard rows are compact and show score, source, sender/contact, subject, recommended action, status/date, and the primary review actions.
 
 Reviewed and noise/dismissed items are excluded from the default active queue so the list can move forward as items are processed. Use the queue filters to view reviewed or noise items again.
 
@@ -183,7 +183,12 @@ Each click/run fetches one Gmail results page. The maximum page size is controll
 
 ### Provider and storage status
 
-The dashboard shows the current local runtime mode and links to `/providers` for the full provider matrix.
+The dashboard shows the current local runtime mode and links to `/providers` for the full provider matrix. Status lights use:
+
+- Green: operational.
+- Amber: warning, manual step, mock, or dry-run.
+- Red: broken or blocking.
+- Grey: disabled or not implemented.
 
 - AI analysis provider: usually `mock` unless live AI is explicitly configured.
 - AI mode/detail: shows whether the app is using the default mock path or a configured live provider with mock fallback.
@@ -199,14 +204,17 @@ The Provider Status page distinguishes:
 - Missing configuration: enabled or live-capable but required setup is absent.
 - Dry-run: action will record an execution result without writing externally.
 - Failed: provider check or runtime execution failed.
+- Not implemented: intentionally unavailable until a future phase.
 
-Provider status also classifies each provider/action as live-ready, mock-only, adapter-shape-only, or partially wired.
+Provider status also classifies each provider/action as live-ready, mock-only, adapter-shape-only, partially wired, or not implemented. It provides configuration snippets and says when a restart is recommended, but it does not edit `.env`.
 
 ### Command center dashboard
 
 The dashboard is organized around the daily workflow:
 
-- Needs My Attention: current filtered attention queue.
+- Workflow breadcrumb: Sync → Triage → Analyze → Review → Prepare → Execute → Audit.
+- Consolidated status cards: what is working, what is blocked, what is in dry-run/manual mode, and what to do next.
+- Needs My Attention: current filtered attention queue in compact rows.
 - Proposed Actions: recent review packages.
 - Ready For Approval: execution records waiting for approve or confirm.
 - Calendar Candidates: meeting/reminder recommendations.
@@ -216,6 +224,19 @@ The dashboard is organized around the daily workflow:
 - Operational Smoke: Gmail, Outlook, AI, execution, dry-run, and write-flag readiness.
 - Source Counts: all, Gmail, Outlook, and notification-derived counts with unreviewed attention totals.
 - Process next links: open the next attention item, next pending review package, or next execution approval/confirmation.
+
+### Message Detail
+
+Message Detail is for inspecting one conversation and taking local review actions. The conversation timeline and stored bodies wrap and scroll inside the main content column so long messages do not overlap the action sidebar.
+
+Actions are grouped into:
+
+- Message actions.
+- Conversation/AI actions.
+- Contact actions.
+- Draft/execution actions.
+
+Contact controls are context-aware: VIP contacts do not show "Mark Contact VIP", noise contacts do not show "Mark Sender as Noise", and reset appears only for VIP/noise contacts.
 
 ### Operational Smoke
 
@@ -232,6 +253,7 @@ It shows:
 - Pending review package and execution queues.
 - Plain-language token/config blockers.
 - Disabled Microsoft write boundaries: Outlook send, Outlook Calendar, and Teams.
+- Copy/paste configuration snippets for safe local defaults, delegated Outlook read, and optional live AI setup. The page does not edit `.env`; restart the app after changing environment variables.
 
 ### Sync Outlook
 

@@ -3,130 +3,87 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Message Detail</title>
+    <title>Message Detail | RTH CommsDesk</title>
+    <link rel="stylesheet" href="/static/ui.css" />
     <style>
-      :root {
-        --bg: #f6f7f9;
-        --surface: #ffffff;
-        --line: #d9dee6;
-        --text: #17202a;
-        --muted: #607080;
-        --brand: #246b5a;
-        --danger: #8b2f24;
-      }
-      * {
-        box-sizing: border-box;
-      }
-      body {
-        margin: 0;
-        background: var(--bg);
-        color: var(--text);
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 15px;
-        line-height: 1.45;
-      }
-      a {
-        color: var(--brand);
-        font-weight: 700;
-        text-decoration: none;
-      }
-      .wrap {
-        width: min(980px, calc(100% - 32px));
-        margin: 0 auto;
-        padding: 22px 0 42px;
-      }
-      header {
-        margin-bottom: 18px;
-      }
-      h1,
-      h2,
-      h3,
-      p {
-        margin-top: 0;
-      }
-      h1 {
-        margin: 10px 0 8px;
-        overflow-wrap: anywhere;
-        font-size: 26px;
-      }
-      h2 {
-        margin-bottom: 12px;
-        font-size: 18px;
-      }
-      .meta,
-      .muted {
-        color: var(--muted);
-      }
       .layout {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) 280px;
-        gap: 20px;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 16px;
         align-items: start;
       }
-      section,
+      .main-column,
       aside {
-        margin-bottom: 18px;
+        min-width: 0;
       }
-      .panel {
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: var(--surface);
-        padding: 16px;
+      section {
+        margin-bottom: 14px;
+      }
+      .snippet,
+      .message-body,
+      .timeline-body {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        white-space: pre-wrap;
       }
       .snippet {
         border-left: 4px solid var(--line);
         padding-left: 12px;
         color: #344454;
-        white-space: pre-wrap;
       }
       .message-body {
-        max-height: 420px;
+        max-height: 360px;
         overflow: auto;
         border: 1px solid var(--line);
         border-radius: 8px;
-        background: #fbfcfd;
+        background: var(--surface-2);
         padding: 12px;
-        color: #243444;
-        white-space: pre-wrap;
       }
       .timeline {
         display: grid;
-        gap: 12px;
+        gap: 10px;
+        max-width: 100%;
+        overflow: hidden;
       }
       .timeline-item {
+        min-width: 0;
         border: 1px solid var(--line);
         border-radius: 8px;
+        background: var(--surface-2);
         padding: 12px;
-        background: #fbfcfd;
       }
       .timeline-item.selected {
         border-color: var(--brand);
-        background: #f4faf7;
+        background: #eef7f3;
       }
       .timeline-body {
         max-height: 260px;
         overflow: auto;
         margin-top: 8px;
-        white-space: pre-wrap;
+        padding-right: 4px;
       }
-      .facts {
+      .actions {
         display: grid;
         gap: 8px;
       }
-      .facts div {
+      .action-group {
         display: grid;
-        grid-template-columns: 150px minmax(0, 1fr);
-        gap: 12px;
+        gap: 8px;
         border-top: 1px solid var(--line);
-        padding-top: 8px;
+        padding-top: 10px;
       }
-      .facts div:first-child {
+      .action-group:first-child {
         border-top: 0;
         padding-top: 0;
       }
-      .label {
-        color: var(--muted);
-        font-weight: 700;
+      .contact-card {
+        display: grid;
+        gap: 8px;
+      }
+      .contact-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
       }
       .tags {
         display: flex;
@@ -134,176 +91,56 @@
         gap: 6px;
         margin-top: 8px;
       }
-      .tag {
-        border: 1px solid var(--line);
-        border-radius: 999px;
-        padding: 2px 8px;
-        background: #f8fafb;
-        color: #405060;
-        font-size: 12px;
-        font-weight: 700;
-      }
-      .actions {
-        display: grid;
-        gap: 10px;
-      }
-      .inline-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-      }
-      button,
-      .button,
-      select,
-      input,
-      textarea {
-        border: 1px solid var(--line);
-        border-radius: 6px;
-        font: inherit;
-      }
-      button {
-        min-height: 36px;
-        background: var(--surface);
-        cursor: pointer;
-        font-weight: 700;
-        padding: 7px 11px;
-      }
-      .button {
-        display: inline-flex;
-        align-items: center;
-        min-height: 36px;
-        background: var(--surface);
-        color: var(--text);
-        font-weight: 700;
-        padding: 7px 11px;
-      }
-      button.primary {
-        border-color: var(--brand);
-        background: var(--brand);
-        color: #ffffff;
-      }
-      button.danger {
-        border-color: var(--danger);
-        color: var(--danger);
-      }
-      select,
-      input,
-      textarea {
-        width: 100%;
-        padding: 8px;
-      }
       textarea {
         min-height: 78px;
-        resize: vertical;
       }
-      .history {
-        display: grid;
-        gap: 10px;
-        padding: 0;
-        margin: 0;
-        list-style: none;
-      }
-      .history li {
-        border-top: 1px solid var(--line);
-        padding-top: 10px;
-      }
-      .empty {
-        border: 1px dashed var(--line);
-        border-radius: 8px;
-        background: #fbfcfd;
-        color: var(--muted);
-        padding: 18px;
-      }
-      @media (max-width: 760px) {
-        .layout,
-        .facts div {
+      @media (max-width: 900px) {
+        .layout {
           grid-template-columns: 1fr;
         }
       }
     </style>
   </head>
   <body>
-    <main class="wrap">
+    <main class="wrap page-pad">
       <a href="/">Back to dashboard</a>
       {% if message %}
       <header>
+        <div class="workflow" aria-label="Workflow">
+          <span>Sync</span><span class="active">Triage</span><span class="active">Analyze</span><span>Review</span><span>Prepare</span><span>Execute</span><span>Audit</span>
+        </div>
         <h1>{{ message.subject or "(No subject)" }}</h1>
-        <div class="meta">
+        <p class="help-text">What this page is for: inspect one conversation, correct triage signals, analyze locally, and prepare draft/review work without sending anything.</p>
+        <div class="muted">
           {{ message.sender_display_name or "Unknown sender" }}
           {% if message.sender_email %}&lt;{{ message.sender_email }}&gt;{% endif %}
           {% if message.received_at %} | {{ message.received_at.strftime("%Y-%m-%d %H:%M") }}{% endif %}
         </div>
-        <p style="margin-top: 10px">
-          <a href="/process-next?source={{ message.source_type }}">Process next {{ message.source_type }} item</a>
-          | <a href="/review-packages/next">Next review package</a>
-          | <a href="/executions/next">Next execution approval</a>
+        <p class="button-row" style="margin-top: 10px">
+          <a class="button" href="/process-next?source={{ message.source_type }}">Process next {{ message.source_type }} item</a>
+          <a class="button" href="/review-packages/next">Next review package</a>
+          <a class="button" href="/executions/next">Next execution approval</a>
         </p>
       </header>
 
       <div class="layout">
-        <div>
+        <div class="main-column">
           <section class="panel">
             <h2>Message</h2>
             <div class="facts">
-              <div>
-                <span class="label">Body mode</span>
-                <span>{{ message.body_stored_mode.value if message.body_stored_mode.value is defined else message.body_stored_mode }}</span>
-              </div>
-              <div>
-                <span class="label">Attention score</span>
-                <span>{{ attention_item.attention_score if attention_item else "None" }}</span>
-              </div>
+              <div><span class="label">Body mode</span><span>{{ message.body_stored_mode.value if message.body_stored_mode.value is defined else message.body_stored_mode }}</span></div>
+              <div><span class="label">Attention score</span><span>{{ attention_item.attention_score if attention_item else "None" }}</span></div>
               <div>
                 <span class="label">Thread</span>
-                <span>
-                  {{ message.thread.source_thread_id if message.thread else "Unknown" }}
-                  {% if has_full_conversation %}| full conversation fetched{% else %}| full conversation not fetched{% endif %}
-                </span>
+                <span>{{ message.thread.source_thread_id if message.thread else "Unknown" }} {% if has_full_conversation %}| full conversation fetched{% else %}| full conversation not fetched{% endif %}</span>
               </div>
               <div>
                 <span class="label">Source</span>
-                <span>
-                  {{ message.source_type }}
-                  {% if message.source_channel %}| channel {{ message.source_channel }}{% endif %}
-                  {% if message.source_confidence is not none %}| {{ "%.0f"|format((message.source_confidence or 0) * 100) }}% confidence{% endif %}
-                </span>
+                <span>{{ message.source_type }}{% if message.source_channel %} | channel {{ message.source_channel }}{% endif %}{% if message.source_confidence is not none %} | {{ "%.0f"|format((message.source_confidence or 0) * 100) }}% confidence{% endif %}</span>
               </div>
-              <div>
-                <span class="label">To</span>
-                <span>{% if recipient_emails %}{{ recipient_emails|join(", ") }}{% else %}Not stored{% endif %}</span>
-              </div>
-              <div>
-                <span class="label">CC</span>
-                <span>{% if cc_emails %}{{ cc_emails|join(", ") }}{% else %}None stored{% endif %}</span>
-              </div>
-              <div>
-                <span class="label">Recommended action</span>
-                <span>{{ attention_item.recommended_action if attention_item else "None" }}</span>
-              </div>
-              <div>
-                <span class="label">Contact status</span>
-                <span>
-                  {% if contact %}<a href="/contacts/{{ contact.id }}">{{ contact_status.title() }}</a>{% else %}Unknown{% endif %}
-                </span>
-              </div>
-              <div>
-                <span class="label">Relationship</span>
-                <span>{{ contact.relationship_type.replace("_", " ").title() if contact and contact.relationship_type else "Unknown" }}</span>
-              </div>
-              <div>
-                <span class="label">Importance tier</span>
-                <span>{{ contact.importance_tier if contact else "Unknown" }}</span>
-              </div>
-              <div>
-                <span class="label">Preferred channel</span>
-                <span>{{ contact.preferred_channel or "Not set" if contact else "Unknown" }}</span>
-              </div>
-              <div>
-                <span class="label">Aliases</span>
-                <span>
-                  {% if contact_aliases %}{{ contact_aliases|join(", ") }}{% else %}None{% endif %}
-                </span>
-              </div>
+              <div><span class="label">To</span><span>{% if recipient_emails %}{{ recipient_emails|join(", ") }}{% else %}Not stored{% endif %}</span></div>
+              <div><span class="label">CC</span><span>{% if cc_emails %}{{ cc_emails|join(", ") }}{% else %}None stored{% endif %}</span></div>
+              <div><span class="label">Recommended action</span><span>{{ attention_item.recommended_action if attention_item else "None" }}</span></div>
             </div>
           </section>
 
@@ -330,18 +167,13 @@
               {% for entry in timeline %}
               {% set m = entry.message %}
               <article class="timeline-item {% if entry.is_selected %}selected{% endif %}">
-                <strong>
-                  {% if entry.is_selected %}Selected message | {% endif %}
-                  {{ m.sender_display_name or m.sender_email or "Unknown sender" }}
-                </strong>
+                <strong>{% if entry.is_selected %}Selected message | {% endif %}{{ m.sender_display_name or m.sender_email or "Unknown sender" }}</strong>
                 <div class="muted">
                   {% if m.sender_email %}&lt;{{ m.sender_email }}&gt;{% endif %}
                   {% if m.received_at %} | {{ m.received_at.strftime("%Y-%m-%d %H:%M") }}{% endif %}
                   | {{ m.subject or "(No subject)" }}
                 </div>
-                <div class="timeline-body">
-                  {{ m.body_text or m.snippet or "No body or snippet stored." }}
-                </div>
+                <div class="timeline-body">{{ m.body_text or m.snippet or "No body or snippet stored." }}</div>
               </article>
               {% else %}
               <div class="empty">No conversation messages stored yet.</div>
@@ -354,41 +186,20 @@
             <strong>{{ friendly_label }}</strong>
             <div class="tags">
               {% for tag in classification_tags %}
-              <span class="tag">{{ tag }}</span>
+              <span class="badge">{{ tag }}</span>
               {% else %}
-              <span class="tag">No flags</span>
+              <span class="badge">No flags</span>
               {% endfor %}
             </div>
-            <p class="muted" style="margin-top: 10px">
-              {{ classification.classification_reason if classification else "No classification yet." }}
-            </p>
+            <p class="muted" style="margin-top: 10px">{{ classification.classification_reason if classification else "No classification yet." }}</p>
           </section>
 
           <section class="panel">
             <h2>Correct Classification</h2>
             <form method="post" action="/messages/{{ message.id }}/correct-classification" class="actions">
-              <label>
-                <span class="label">Label</span>
-                <select name="corrected_label" required>
-                  {% for label in correction_labels %}
-                  <option value="{{ label }}">{{ label.replace("_", " ").title() }}</option>
-                  {% endfor %}
-                </select>
-              </label>
-              <label>
-                <span class="label">Importance</span>
-                <select name="corrected_importance">
-                  <option value="">Default</option>
-                  <option value="0">0 - Low</option>
-                  <option value="1">1 - Slight</option>
-                  <option value="2">2 - Important</option>
-                  <option value="3">3 - Urgent</option>
-                </select>
-              </label>
-              <label>
-                <span class="label">Notes</span>
-                <textarea name="notes" placeholder="Optional note for why this was corrected"></textarea>
-              </label>
+              <label><span class="label">Label</span><select name="corrected_label" required>{% for label in correction_labels %}<option value="{{ label }}">{{ label.replace("_", " ").title() }}</option>{% endfor %}</select></label>
+              <label><span class="label">Importance</span><select name="corrected_importance"><option value="">Default</option><option value="0">0 - Low</option><option value="1">1 - Slight</option><option value="2">2 - Important</option><option value="3">3 - Urgent</option></select></label>
+              <label><span class="label">Notes</span><textarea name="notes" placeholder="Optional note for why this was corrected"></textarea></label>
               <button class="primary" type="submit">Save correction</button>
             </form>
           </section>
@@ -396,60 +207,92 @@
 
         <aside>
           <section class="panel">
+            <h2>Contact</h2>
+            <div class="contact-card">
+              {% if contact %}
+              <div>
+                <strong><a href="/contacts/{{ contact.id }}">{{ contact.display_name or contact.primary_email or "Known contact" }}</a></strong>
+                <div class="muted">{{ contact.primary_email or message.sender_email or "No email stored" }}</div>
+              </div>
+              <div class="contact-badges">
+                <span class="badge {% if contact_status == 'vip' %}ok{% elif contact_status == 'noise' %}bad{% endif %}">{{ contact_status.title() }}</span>
+                {% if contact.is_vip %}<span class="badge ok">VIP</span>{% endif %}
+                {% if contact.is_noise %}<span class="badge bad">Noise</span>{% endif %}
+              </div>
+              <div class="facts">
+                <div><span class="label">Relationship</span><span>{{ contact.relationship_type.replace("_", " ").title() if contact.relationship_type else "Unknown" }}</span></div>
+                <div><span class="label">Importance</span><span>{{ contact.importance_tier }}</span></div>
+                <div><span class="label">Channel</span><span>{{ contact.preferred_channel or "Not set" }}</span></div>
+              </div>
+              <div class="button-row">
+                <a class="button" href="/contacts/{{ contact.id }}">Edit contact</a>
+                {% if contact_status in ["vip", "noise"] %}
+                <form method="post" action="/contacts/{{ contact.id }}/normal"><button type="submit">Reset contact normal</button></form>
+                {% endif %}
+              </div>
+              {% else %}
+              <div class="muted">No matched contact profile.</div>
+              {% endif %}
+            </div>
+          </section>
+
+          <section class="panel">
             <h2>Actions</h2>
             <div class="actions">
-              <form method="post" action="/messages/{{ message.id }}/correct-classification">
-                <input type="hidden" name="corrected_label" value="important" />
-                <input type="hidden" name="corrected_importance" value="3" />
-                <button class="primary" type="submit">Mark important</button>
-              </form>
-              <form method="post" action="/messages/{{ message.id }}/requires-reply">
-                <button type="submit">Mark needs reply</button>
-              </form>
-              {% if attention_item %}
-              <form method="post" action="/attention/{{ attention_item.id }}/review">
-                <button type="submit">Mark reviewed</button>
-              </form>
-              {% endif %}
-              {% if not has_full_conversation %}
-              <form method="post" action="/messages/{{ message.id }}/fetch-conversation">
-                <button type="submit">Fetch full conversation</button>
-              </form>
-              {% endif %}
-              <form method="post" action="/messages/{{ message.id }}/analyze">
-                <button class="primary" type="submit">Analyze conversation</button>
-              </form>
-              {% if contact %}
-              <form method="post" action="/contacts/{{ contact.id }}/vip">
-                <button type="submit">Mark contact VIP</button>
-              </form>
-              <form method="post" action="/contacts/{{ contact.id }}/normal">
-                <button type="submit">Reset contact normal</button>
-              </form>
-              <a class="button" href="/contacts/{{ contact.id }}">Edit contact</a>
-              {% endif %}
-              {% if message.sender_email %}
-              <form method="post" action="/contacts/noise">
-                <input type="hidden" name="sender_email" value="{{ message.sender_email }}" />
-                <button class="danger" type="submit">Mark sender as noise</button>
-              </form>
-              {% endif %}
-              <form method="post" action="/messages/{{ message.id }}/generate-draft" class="actions">
-                <label>
-                  <span class="label">Voice profile</span>
-                  <select name="voice_profile_id">
-                    {% for profile in voice_profiles %}
-                    <option value="{{ profile.id }}" {% if profile.id == suggested_profile_id %}selected{% endif %}>
-                      {{ profile.name }}
-                    </option>
-                    {% else %}
-                    <option value="">Local mock voice</option>
-                    {% endfor %}
-                  </select>
-                </label>
-                <button type="submit">Generate local draft</button>
-              </form>
-              <div class="muted">Drafts are suggestions only. Nothing is sent or created in Gmail.</div>
+              <div class="action-group">
+                <h3>Message actions</h3>
+                <form method="post" action="/messages/{{ message.id }}/correct-classification">
+                  <input type="hidden" name="corrected_label" value="important" />
+                  <input type="hidden" name="corrected_importance" value="3" />
+                  <button class="primary" type="submit">Mark important</button>
+                </form>
+                <form method="post" action="/messages/{{ message.id }}/requires-reply"><button type="submit">Mark needs reply</button></form>
+                {% if attention_item %}
+                <form method="post" action="/attention/{{ attention_item.id }}/review"><button type="submit">Mark reviewed</button></form>
+                {% endif %}
+              </div>
+
+              <div class="action-group">
+                <h3>Conversation/AI actions</h3>
+                {% if not has_full_conversation %}
+                <form method="post" action="/messages/{{ message.id }}/fetch-conversation"><button type="submit">Fetch full conversation</button></form>
+                {% endif %}
+                <form method="post" action="/messages/{{ message.id }}/analyze"><button class="primary" type="submit">Analyze conversation</button></form>
+              </div>
+
+              <div class="action-group">
+                <h3>Contact actions</h3>
+                {% if contact and contact_status != "vip" %}
+                <form method="post" action="/contacts/{{ contact.id }}/vip"><button type="submit">Mark Contact VIP</button></form>
+                {% endif %}
+                {% if message.sender_email and contact_status != "noise" %}
+                <form method="post" action="/contacts/noise">
+                  <input type="hidden" name="sender_email" value="{{ message.sender_email }}" />
+                  <button class="danger" type="submit">Mark Sender as Noise</button>
+                </form>
+                {% endif %}
+                {% if not contact and not message.sender_email %}
+                <div class="muted">No sender email is available for contact actions.</div>
+                {% endif %}
+              </div>
+
+              <div class="action-group">
+                <h3>Draft/execution actions</h3>
+                <form method="post" action="/messages/{{ message.id }}/generate-draft" class="actions">
+                  <label>
+                    <span class="label">Voice profile</span>
+                    <select name="voice_profile_id">
+                      {% for profile in voice_profiles %}
+                      <option value="{{ profile.id }}" {% if profile.id == suggested_profile_id %}selected{% endif %}>{{ profile.name }}</option>
+                      {% else %}
+                      <option value="">Local mock voice</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <button type="submit">Generate local draft</button>
+                </form>
+                <div class="muted">Drafts are suggestions only. Nothing is sent or created in Gmail.</div>
+              </div>
             </div>
           </section>
 
@@ -457,34 +300,19 @@
             <h2>Review Packages</h2>
             <ul class="history">
               {% for package in review_packages %}
-              <li>
-                <strong><a href="/review-packages/{{ package.id }}">{{ package.action_type.value.replace("_", " ").title() }}</a></strong>
-                <div class="muted">
-                  {{ package.status.value if package.status.value is defined else package.status }}
-                  | {{ "%.0f"|format((package.confidence or 0) * 100) }}% confidence
-                  {% if package.updated_at %} | {{ package.updated_at.strftime("%Y-%m-%d %H:%M") }}{% endif %}
-                </div>
-                <div>{{ package.explanation }}</div>
-              </li>
+              <li><strong><a href="/review-packages/{{ package.id }}">{{ package.action_type.value.replace("_", " ").title() }}</a></strong><div class="muted">{{ package.status.value if package.status.value is defined else package.status }} | {{ "%.0f"|format((package.confidence or 0) * 100) }}%</div><div>{{ package.explanation }}</div></li>
               {% else %}
               <li class="muted">No local review package generated for this message.</li>
               {% endfor %}
             </ul>
-            <div class="muted" style="margin-top: 10px">Review packages are local recommendations only and do not modify Gmail, calendar, archive, delete, labels, or unsubscribe settings.</div>
+            <div class="muted" style="margin-top: 10px">Review packages are local recommendations only.</div>
           </section>
 
           <section class="panel">
             <h2>Local Drafts</h2>
             <ul class="history">
               {% for draft in draft_replies %}
-              <li>
-                <strong><a href="/drafts/{{ draft.id }}">Draft {{ draft.id }}</a></strong>
-                <div class="muted">
-                  {{ draft.status.value if draft.status.value is defined else draft.status }}
-                  {% if draft.voice_profile %} | {{ draft.voice_profile.name }}{% endif %}
-                  {% if draft.created_at %} | {{ draft.created_at.strftime("%Y-%m-%d %H:%M") }}{% endif %}
-                </div>
-              </li>
+              <li><strong><a href="/drafts/{{ draft.id }}">Draft {{ draft.id }}</a></strong><div class="muted">{{ draft.status.value if draft.status.value is defined else draft.status }}{% if draft.voice_profile %} | {{ draft.voice_profile.name }}{% endif %}</div></li>
               {% else %}
               <li class="muted">No local draft suggestions generated for this message.</li>
               {% endfor %}
@@ -495,11 +323,7 @@
             <h2>Message Feedback</h2>
             <ul class="history">
               {% for item in feedback %}
-              <li>
-                <strong>{{ item.corrected_label or item.corrected_value or item.feedback_type }}</strong>
-                <div class="muted">{{ item.created_at.strftime("%Y-%m-%d %H:%M") if item.created_at else "" }}</div>
-                {% if item.feedback_text %}<div>{{ item.feedback_text }}</div>{% endif %}
-              </li>
+              <li><strong>{{ item.corrected_label or item.corrected_value or item.feedback_type }}</strong><div class="muted">{{ item.created_at.strftime("%Y-%m-%d %H:%M") if item.created_at else "" }}</div>{% if item.feedback_text %}<div>{{ item.feedback_text }}</div>{% endif %}</li>
               {% else %}
               <li class="muted">No corrections recorded for this message.</li>
               {% endfor %}
@@ -510,11 +334,7 @@
             <h2>Contact History</h2>
             <ul class="history">
               {% for item in contact_feedback %}
-              <li>
-                <strong>{{ item.feedback_type.replace("_", " ").title() }}</strong>
-                <div class="muted">{{ item.created_at.strftime("%Y-%m-%d %H:%M") if item.created_at else "" }}</div>
-                <div>{{ item.corrected_value or item.feedback_text or "Profile feedback recorded." }}</div>
-              </li>
+              <li><strong>{{ item.feedback_type.replace("_", " ").title() }}</strong><div class="muted">{{ item.created_at.strftime("%Y-%m-%d %H:%M") if item.created_at else "" }}</div><div>{{ item.corrected_value or item.feedback_text or "Profile feedback recorded." }}</div></li>
               {% else %}
               <li class="muted">No contact profile changes recorded.</li>
               {% endfor %}

@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Review Package | RTH CommsDesk</title>
+    <link rel="stylesheet" href="/static/ui.css" />
     <style>
       :root {
         --bg: #f6f7f9;
@@ -132,7 +133,11 @@
     <main class="wrap">
       <a href="/review-packages">Back to review packages</a>
       {% if package %}
+      <div class="workflow" aria-label="Workflow">
+        <span>Sync</span><span>Triage</span><span>Analyze</span><span class="active">Review</span><span>Prepare</span><span>Execute</span><span>Audit</span>
+      </div>
       <h1>Review Package</h1>
+      <p class="help-text">What this page is for: evaluate a local recommendation, edit its review state, and move it to execution preparation only when appropriate.</p>
       {% if package_position and package_total %}
       <p class="muted">Item {{ package_position }} of {{ package_total }}</p>
       {% endif %}

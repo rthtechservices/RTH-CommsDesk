@@ -172,6 +172,10 @@ python -m pytest -q
 - Operational smoke should aggregate readiness across sync, AI, execution mode, dry-run, write flags, and disabled connector boundaries so the operator does not have to infer readiness from several pages.
 - Process-next links are useful glue for smoke testing because they preserve the existing detail pages while removing repeated dashboard/list navigation.
 - Do not surface disabled future connectors as primary dashboard actions. A disabled provider row is enough until the phase explicitly opens that connector.
+- Dense operator dashboards need explicit status semantics. Use green for operational, amber for mock/dry-run/manual setup, red for blockers, and grey for disabled/not implemented.
+- Provider and operational guidance can be actionable without becoming a config editor: show current state, env var names, copy/paste snippets, and restart guidance, but leave `.env` mutation manual until an explicit phase opens it.
+- Message detail action sidebars should hide impossible/redundant contact actions. Showing both "Mark VIP" and "Reset normal" for an already-VIP contact makes the workflow look unsafe.
+- Long conversation timelines need `min-width: 0`, wrapping, and card-level scrolling in grid layouts; otherwise body text can escape the main column and overlap the action column.
 
 ## UI lessons
 

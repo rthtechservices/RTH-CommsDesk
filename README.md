@@ -28,8 +28,8 @@ Each LLM session should complete one phase only, update documentation, and stop 
 
 ## Known MVP limitations
 - Outlook mail read now supports delegated Microsoft Graph OAuth for local smoke testing; Outlook send, Outlook Calendar, and Teams remain disabled/not implemented.
-- The dashboard now includes an operational smoke workflow for Gmail sync, Outlook sync, source counts, provider blockers, review packages, and execution approvals.
-- Provider status is visible at `/providers`; Microsoft Graph Teams and Outlook Calendar remain fail-closed until tenant-specific permissions are configured.
+- The dashboard now includes compact operational status, command-center, source/runtime cards, dense attention rows, workflow breadcrumbs, provider blockers, review packages, and execution approvals.
+- Provider status is visible at `/providers`; it includes copy/paste configuration guidance but does not edit `.env`. Microsoft Graph Teams, Outlook send, and Outlook Calendar remain disabled/not implemented.
 - AI classifier is provider-neutral but runs with deterministic logic/mock fallback by default.
 - Gmail sync is read-only and duplicate-safe. Recent sync handles the active inbox window, and manual backfill can page farther through the Gmail backlog.
 - Gmail conversation context can be fetched on demand so detail pages show a full thread timeline when full content is available.
@@ -108,7 +108,7 @@ Use `GET /api/ai/status` for sanitized configuration status and `POST /api/ai/te
 
 ## Provider status and external-write dry-run
 
-Open `http://127.0.0.1:8000/providers` or call `GET /api/providers/status` to see each provider/action classified as live-ready, mock-only, adapter-shape-only, or partially wired, with runtime state such as live, mock, disabled, missing configuration, dry-run, or failed.
+Open `http://127.0.0.1:8000/providers` or call `GET /api/providers/status` to see each provider/action classified as live-ready, mock-only, adapter-shape-only, partially wired, or not implemented, with runtime state such as live, mock, disabled, missing configuration, dry-run, or failed. The page includes configuration snippets and restart guidance; it does not live-edit `.env`.
 
 Open `http://127.0.0.1:8000/operational-smoke` for the daily readiness panel. It shows Gmail read config, Outlook delegated Graph status, Outlook sync readiness, Azure/OpenAI test links, execution provider mode, dry-run state, Gmail write flags, Google Calendar write status, Microsoft write boundaries, source counts, and pending workflow queues.
 
@@ -248,4 +248,4 @@ Do not delete or commit `client_secret.json`, `gmail_token.json`, `.env`, or any
 
 ## Current phase status
 
-Phases 01 through 18 are implemented. Phases 19 through 20 are documented as the next test-email execution and inbox-intelligence quality passes.
+Phases 01 through 18.5 are implemented. Phases 19 through 20 are documented as the next test-email execution and inbox-intelligence quality passes.

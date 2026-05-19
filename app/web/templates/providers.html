@@ -4,76 +4,106 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Provider Status | RTH CommsDesk</title>
+    <link rel="stylesheet" href="/static/ui.css" />
     <style>
-      :root {
-        --bg: #f6f7f9;
-        --surface: #ffffff;
-        --line: #d9dee6;
-        --text: #17202a;
-        --muted: #607080;
-        --brand: #246b5a;
-        --warn: #8a4b12;
-        --bad: #8a1f1f;
-        --ok: #246b5a;
-      }
-      * { box-sizing: border-box; }
-      body {
-        margin: 0;
-        background: var(--bg);
-        color: var(--text);
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 15px;
-        line-height: 1.45;
-      }
-      a { color: var(--brand); font-weight: 700; text-decoration: none; }
-      .wrap { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 22px 0 42px; }
-      .panel { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 16px; margin-bottom: 16px; }
-      .muted { color: var(--muted); }
-      .stats { display: flex; flex-wrap: wrap; gap: 10px; }
-      .stat { min-width: 130px; border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: #fbfcfd; }
-      .stat strong { display: block; font-size: 20px; }
-      table { width: 100%; border-collapse: collapse; }
-      th, td { border-top: 1px solid var(--line); padding: 9px 7px; text-align: left; vertical-align: top; }
-      th { color: var(--muted); font-size: 12px; text-transform: uppercase; }
-      .state { display: inline-block; border-radius: 999px; padding: 2px 8px; font-size: 12px; font-weight: 800; background: #eef1f4; }
-      .state.live { color: var(--ok); }
-      .state.mock, .state.dry_run { color: var(--warn); }
-      .state.missing_configuration, .state.failed { color: var(--bad); }
-      .state.disabled { color: var(--muted); }
-      @media (max-width: 760px) {
-        table, thead, tbody, tr, th, td { display: block; }
-        th { display: none; }
-        td { border-top: 0; padding: 4px 0; }
-        tr { border-top: 1px solid var(--line); padding: 10px 0; }
+      @media (max-width: 860px) {
+        table,
+        thead,
+        tbody,
+        tr,
+        th,
+        td {
+          display: block;
+        }
+        thead {
+          display: none;
+        }
+        tr {
+          border-top: 1px solid var(--line);
+          padding: 10px 0;
+        }
+        td {
+          border-top: 0;
+          padding: 4px 0;
+        }
       }
     </style>
   </head>
   <body>
-    <main class="wrap">
+    <main class="wide-wrap page-pad">
       <a href="/">Back to dashboard</a>
+      <div class="workflow" aria-label="Workflow">
+        <span class="active">Sync</span><span>Triage</span><span>Analyze</span><span>Review</span><span>Prepare</span><span>Execute</span><span>Audit</span>
+      </div>
       <h1>Provider Status</h1>
-      <p class="muted">External providers fail closed. Live writes require feature flags, approval, final confirmation, and dry-run must be turned off deliberately.</p>
-      <p>
-        <a href="/operational-smoke">Operational smoke</a>
-        | <a href="/api/providers/status">Provider status JSON</a>
+      <p class="help-text">What this page is for: confirm provider readiness and find the exact environment settings needed. This page observes configuration only; it does not edit `.env` or enable writes.</p>
+      <p class="notice">Microsoft write boundaries remain disabled/not implemented: Outlook send, Outlook Calendar, and Teams are not execution surfaces.</p>
+      <p class="button-row">
+        <a class="button" href="/operational-smoke">Operational smoke</a>
+        <a class="button" href="/api/providers/status">Provider status JSON</a>
+        <form method="post" action="/api/graph/test" style="display: inline"><button type="submit">Test Microsoft Graph</button></form>
+        <form method="post" action="/api/ai/test" style="display: inline"><button type="submit">Test AI provider</button></form>
       </p>
-      <form method="post" action="/api/graph/test" style="display: inline">
-        <button type="submit">Test Microsoft Graph</button>
-      </form>
-      <form method="post" action="/api/ai/test" style="display: inline">
-        <button type="submit">Test AI provider</button>
-      </form>
 
-      <section class="panel stats">
-        {% for state, count in state_counts.items() %}
-        <div class="stat">
-          <strong>{{ count }}</strong>
-          <span class="muted">{{ state.replace("_", " ").title() }}</span>
+      <section class="panel">
+        <h2>Status Summary</h2>
+        <div class="config-grid">
+          {% for state, count in state_counts.items() %}
+          <div class="subtle-panel">
+            <strong><span class="status-dot {{ state }}"></span>{{ count }}</strong>
+            <div class="muted">{{ state.replace("_", " ").title() }}</div>
+          </div>
+          {% endfor %}
         </div>
-        {% endfor %}
       </section>
 
       <section class="panel">
+        <h2>Configuration Guidance</h2>
+        <div class="config-grid">
+          <div class="config-card subtle-panel">
+            <h3>Gmail read and optional Gmail writes</h3>
+            <p class="muted">Current state is shown in the Gmail rows below. Restart is recommended after changing environment variables.</p>
+            <pre>GMAIL_CLIENT_SECRETS_FILE=./client_secret.json
+EXECUTION_PROVIDER=mock
+EXTERNAL_WRITE_DRY_RUN=true
+GMAIL_WRITE_ENABLED=false
+GMAIL_DRAFT_CREATE_ENABLED=false
+GMAIL_SEND_ENABLED=false
+GMAIL_LABEL_ARCHIVE_ENABLED=false</pre>
+          </div>
+          <div class="config-card subtle-panel">
+            <h3>Azure/OpenAI analysis</h3>
+            <p class="muted">Live AI is optional. Mock remains the local fallback if these are unset or fail validation.</p>
+            <pre>AI_PROVIDER=azure_openai
+AZURE_OPENAI_ENDPOINT=https://&lt;resource&gt;.cognitiveservices.azure.com
+AZURE_OPENAI_API_KEY=...
+AZURE_OPENAI_DEPLOYMENT=...
+AZURE_OPENAI_API_VERSION=2025-04-01-preview</pre>
+          </div>
+          <div class="config-card subtle-panel">
+            <h3>Microsoft Graph read-only Outlook</h3>
+            <p class="muted">Restart after edits, then run the Microsoft Graph test. Outlook send, Outlook Calendar, and Teams stay disabled.</p>
+            <pre>MICROSOFT_GRAPH_ENABLED=true
+MICROSOFT_GRAPH_OUTLOOK_MAIL_ENABLED=true
+MICROSOFT_GRAPH_AUTH_MODE=delegated
+MICROSOFT_GRAPH_SCOPES=User.Read Mail.Read offline_access
+MICROSOFT_GRAPH_TOKEN_FILE=./microsoft_graph_token.json
+MICROSOFT_TENANT_ID=...
+MICROSOFT_CLIENT_ID=...</pre>
+          </div>
+          <div class="config-card subtle-panel">
+            <h3>Google Calendar execution safety</h3>
+            <p class="muted">Calendar writes are off until a deliberate test phase enables the flag and dry-run is manually disabled.</p>
+            <pre>CALENDAR_PROVIDER=google
+GOOGLE_CALENDAR_READ_ENABLED=true
+GOOGLE_CALENDAR_WRITE_ENABLED=false
+GOOGLE_CALENDAR_TIME_ZONE=America/Vancouver</pre>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Provider Matrix</h2>
         <table>
           <thead>
             <tr>
@@ -90,15 +120,13 @@
             <tr>
               <td><strong>{{ row.label }}</strong></td>
               <td>{{ row.classification }}</td>
-              <td><span class="state {{ row.state }}">{{ row.state.replace("_", " ").title() }}</span></td>
+              <td><span class="state {{ row.state }}"><span class="status-dot {{ row.state }}"></span>{{ row.state.replace("_", " ").title() }}</span></td>
               <td>{{ row.mode }}</td>
               <td>{{ row.detail }}</td>
               <td>{{ row.next_action }}</td>
             </tr>
             {% else %}
-            <tr>
-              <td colspan="6" class="muted">No provider status rows are available.</td>
-            </tr>
+            <tr><td colspan="6" class="muted">No provider status rows are available.</td></tr>
             {% endfor %}
           </tbody>
         </table>

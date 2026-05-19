@@ -7,6 +7,7 @@ from app.core.database import get_db
 from app.main import app
 from app.models.entities import (
     AttentionItem,
+    Contact,
     ConversationSummary,
     ExecutionActionType,
     ExecutionRecord,
@@ -38,6 +39,9 @@ def test_dashboard_renders_operational_smoke_statuses(db_session):
         app.dependency_overrides.clear()
 
     assert response.status_code == 200
+    assert "Operational Status" in response.text
+    assert "Command Center State" in response.text
+    assert "status-dot" in response.text
     assert "Operational Smoke" in response.text
     assert "Gmail read config" in response.text
     assert "Outlook delegated Graph" in response.text
@@ -141,16 +145,143 @@ def test_operational_smoke_route_exposes_key_status_without_microsoft_writes(db_
     assert provider_status["microsoft_graph_teams"]["state"] == "disabled"
 
 
+def test_provider_status_page_keeps_microsoft_write_boundaries_not_implemented():
+    with TestClient(app) as client:
+        response = client.get("/providers")
+
+    assert response.status_code == 200
+    assert "Outlook send actions are intentionally not implemented" in response.text
+    assert "Outlook calendar read/write remains fail-closed and is not implemented" in response.text
+    assert "Teams remains disabled" in response.text
+    assert "This page observes configuration only" in response.text
+
+
+def test_message_detail_groups_actions_and_contains_timeline_inside_main_column(db_session):
+    message, _ = _message_with_attention(
+        db_session, source_type="gmail", source_id="detail-layout", score=77
+    )
+    message.body_text = "Long local body " * 80
+    db_session.commit()
+
+    def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    try:
+        with TestClient(app) as client:
+            response = client.get(f"/messages/{message.id}")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert "Conversation Timeline" in response.text
+    assert "timeline-body" in response.text
+    assert "main-column" in response.text
+    assert "Message actions" in response.text
+    assert "Conversation/AI actions" in response.text
+    assert "Contact actions" in response.text
+    assert "Draft/execution actions" in response.text
+    assert "What this page is for" in response.text
+
+
+def test_message_detail_hides_redundant_contact_actions_for_vip_contact(db_session):
+    contact = Contact(
+        display_name="VIP Sender",
+        primary_email="vip-sender@example.com",
+        relationship_type="client",
+        importance_tier=4,
+        is_vip=True,
+        is_noise=False,
+    )
+    db_session.add(contact)
+    db_session.flush()
+    message, _ = _message_with_attention(
+        db_session,
+        source_type="gmail",
+        source_id="vip-sender",
+        score=84,
+        contact_id=contact.id,
+    )
+    db_session.commit()
+
+    def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    try:
+        with TestClient(app) as client:
+            response = client.get(f"/messages/{message.id}")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert "Mark Contact VIP" not in response.text
+    assert "Reset contact normal" in response.text
+    assert "Mark Sender as Noise" in response.text
+    assert "VIP" in response.text
+
+
+def test_message_detail_hides_noise_action_for_noise_contact(db_session):
+    contact = Contact(
+        display_name="Noise Sender",
+        primary_email="noise-sender@example.com",
+        relationship_type="newsletter",
+        importance_tier=0,
+        is_vip=False,
+        is_noise=True,
+    )
+    db_session.add(contact)
+    db_session.flush()
+    message, _ = _message_with_attention(
+        db_session,
+        source_type="gmail",
+        source_id="noise-sender",
+        score=20,
+        contact_id=contact.id,
+    )
+    db_session.commit()
+
+    def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    try:
+        with TestClient(app) as client:
+            response = client.get(f"/messages/{message.id}")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert "Mark Sender as Noise" not in response.text
+    assert "Reset contact normal" in response.text
+    assert "Noise" in response.text
+
+
+def test_review_and_execution_pages_render_workflow_help():
+    with TestClient(app) as client:
+        review_response = client.get("/review-packages")
+        execution_response = client.get("/executions")
+
+    assert review_response.status_code == 200
+    assert "Sync</span><span>Triage</span><span>Analyze</span><span class=\"active\">Review" in review_response.text
+    assert "What this page is for" in review_response.text
+    assert execution_response.status_code == 200
+    assert "<span class=\"active\">Execute</span><span class=\"active\">Audit</span>" in execution_response.text
+    assert "What this page is for" in execution_response.text
+
+
 def _message_with_attention(
     db_session,
     *,
     source_type: str,
     source_id: str,
     score: int,
+    contact_id: int | None = None,
 ) -> tuple[Message, AttentionItem]:
     thread = MessageThread(
         source_type=source_type,
         source_thread_id=f"thread-{source_id}",
+        contact_id=contact_id,
         unread_count=1,
     )
     db_session.add(thread)
@@ -178,6 +309,7 @@ def _message_with_attention(
         )
     )
     item = AttentionItem(
+        contact_id=contact_id,
         thread_id=thread.id,
         message_id=message.id,
         attention_score=score,
