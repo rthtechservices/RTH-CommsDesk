@@ -46,10 +46,10 @@ Implemented:
 
 Validation:
 
-- `python -m ruff check .` — pending at time of phase-file creation.
-- `python -m pytest -q` — pending at time of phase-file creation.
-- `python -m alembic upgrade head` — pending at time of phase-file creation.
-- Local route smoke — pending at time of phase-file creation.
+- `python -m ruff check .` — passed.
+- `python -m pytest -q` — passed, 129 tests.
+- `python -m alembic upgrade head` — passed.
+- Local Uvicorn route smoke on port 8765 returned HTTP 200 for `/`, `/operational-smoke`, `/providers`, `/review-packages`, `/executions`, `/admin`, and `/healthz`.
 
 Known issues:
 

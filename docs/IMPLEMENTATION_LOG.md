@@ -35,10 +35,12 @@ Record completed work here at the end of every phase. Newest entries should be a
 
 ### Tests run
 - `python -m pytest tests/test_app_bootstrap.py tests/test_operational_workflow.py tests/test_provider_status.py -q` — passed, 21 tests.
-- Full release-gate commands pending final validation.
+- `python -m ruff check .` — passed.
+- `python -m pytest -q` — passed, 129 tests.
+- `python -m alembic upgrade head` — passed.
 
 ### Smoke tests
-- Pending final route smoke.
+- Temporary Uvicorn route smoke on port 8765 returned HTTP 200 for `/`, `/operational-smoke`, `/providers`, `/review-packages`, `/executions`, `/admin`, and `/healthz`.
 
 ### Documentation updated
 - `README.md`
