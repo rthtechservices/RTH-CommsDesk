@@ -263,10 +263,10 @@ def test_review_and_execution_pages_render_workflow_help():
         execution_response = client.get("/executions")
 
     assert review_response.status_code == 200
-    assert "Sync</span><span>Triage</span><span>Analyze</span><span class=\"active\">Review" in review_response.text
+    assert 'class="done">Sync</span><span class="done">Triage</span><span class="done">Analyze</span><span class="active">Review' in review_response.text
     assert "What this page is for" in review_response.text
     assert execution_response.status_code == 200
-    assert "<span class=\"active\">Execute</span><span class=\"active\">Audit</span>" in execution_response.text
+    assert '<span class="active">Execute</span><span>Audit</span>' in execution_response.text
     assert "What this page is for" in execution_response.text
 
 

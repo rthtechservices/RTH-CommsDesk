@@ -6,11 +6,14 @@
 {% block content %}
   <a href="/">Back to dashboard</a>
   <div class="workflow" aria-label="Workflow">
-    <span>Sync</span><span>Triage</span><span>Analyze</span><span class="active">Review</span><span>Prepare</span><span>Execute</span><span>Audit</span>
+    <span class="done">Sync</span><span class="done">Triage</span><span class="done">Analyze</span><span class="active">Review</span><span>Prepare</span><span>Execute</span><span>Audit</span>
   </div>
   <h1>Review Packages</h1>
   <p class="help-text">What this page is for: review local AI recommendations, approve/edit/reject them, and decide whether an item should move to draft or execution preparation.</p>
-  <p class="notice">Local recommendations only. Nothing here sends email, creates Gmail drafts, changes labels, archives, deletes, unsubscribes, or creates calendar events.</p>
+  <div class="callout callout-amber" style="margin-bottom:14px">
+    <div class="callout-title">Local recommendations only</div>
+    Nothing here sends email, creates Gmail drafts, changes labels, archives, deletes, unsubscribes, or creates calendar events.
+  </div>
   <section class="panel">
     <ul class="items">
       {% for package in packages %}
@@ -19,7 +22,11 @@
           <div>
             <strong><a href="/review-packages/{{ package.id }}">{{ package.action_type.value.replace("_", " ").title() }}</a></strong>
             <div class="muted" style="margin-top:3px">
-              <span class="badge {% if package.status.value in ['approved'] %}ok{% elif package.status.value in ['rejected'] %}bad{% endif %}">{{ package.status.value if package.status.value is defined else package.status }}</span>
+              <span class="badge
+                {% if package.status.value == 'approved' %}ok
+                {% elif package.status.value == 'rejected' %}bad
+                {% elif package.status.value == 'pending' %}amber
+                {% else %}grey{% endif %}">{{ package.status.value if package.status.value is defined else package.status }}</span>
               {{ "%.0f"|format((package.confidence or 0) * 100) }}% confidence
               {% if package.message and package.message.sender_email %} | {{ package.message.sender_email }}{% endif %}
               {% if package.updated_at %} | {{ package.updated_at.strftime("%Y-%m-%d %H:%M") }}{% endif %}
@@ -30,7 +37,9 @@
         </div>
       </li>
       {% else %}
-      <li class="empty">No local review packages yet. Open a message and analyze the conversation.</li>
+      <li>
+        <div class="empty">No local review packages yet. Open a message and analyze the conversation to generate a recommendation.</div>
+      </li>
       {% endfor %}
     </ul>
   </section>

@@ -97,6 +97,9 @@
 {% block content %}
   <a href="/">Back to dashboard</a>
   {% if message %}
+  <div class="workflow" aria-label="Workflow" style="margin-top:10px">
+    <span class="done">Sync</span><span class="done">Triage</span><span class="active">Analyze</span><span>Review</span><span>Prepare</span><span>Execute</span><span>Audit</span>
+  </div>
   <header style="margin: 12px 0 16px">
     <div class="workflow" aria-label="Workflow">
       <span>Sync</span><span class="active">Triage</span><span class="active">Analyze</span><span>Review</span><span>Prepare</span><span>Execute</span><span>Audit</span>

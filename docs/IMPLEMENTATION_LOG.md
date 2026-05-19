@@ -2,7 +2,40 @@
 
 Record completed work here at the end of every phase. Newest entries should be added at the top.
 
-## 2026-05-19 — Phase 18.6: Visual Design System and Dashboard Polish
+## 2026-05-20 — Phase 18.7: Interaction Hierarchy, Triage Ergonomics & RTH Palette Alignment
+
+### Summary
+- UI/UX-only pass. No new backend services, no schema changes, no new outbound behavior.
+- Replaced old ad-hoc color variables in `ui.css` with the full RTH/TaskDesk palette: blue, sky, cyan, teal, green, amber, orange, red, pink, purple, indigo. Added semantic tokens: `--ok`, `--warn`, `--bad`, `--info`, `--ai`, `--calendar`.
+- Darkened background from `#0c1117` to `#11161D`.
+- Changed workflow rail semantics: `.done` = past stage (subtle green), `.active` = current stage (amber glow). Previously the active stage used green, which was misleading (current stage = pending work, not success).
+- Added Next Best Action (NBA) strip to dashboard: tier-based amber/red/green color with primary + secondary action buttons.
+- Added `_compute_next_best_action()` helper to `routes.py` that computes the most important next step from backlog stats.
+- Improved information hierarchy: Command Center numbers colored amber (non-zero) or green (zero). Attention queue score cells use tier color classes (urgent/high/medium/low). Source badge classes (src-gmail, src-outlook). Action badge classes (act-reply, act-schedule, act-review, act-noise). Row action hierarchy: Open=primary, Important=amber, Reviewed=outline.
+- Updated workflow rail stages on 7 pages: message_detail (Analyze active), review_packages/detail (Review active), executions/detail (Execute active), providers+operational_smoke (Audit active).
+- Polished providers.html: Microsoft write boundary callout-grey cards, semantic badge states.
+- Polished operational_smoke.html: callout-red blockers summary at top, callout-green if clear.
+- Polished executions.html: semantic badge colors, empty state guidance text.
+- Polished review_packages.html: callout-amber local-recommendations notice, semantic badge states.
+- Added `tests/test_phase_18_7_interaction_hierarchy.py` with 36 tests covering NBA strip, status sections, action hierarchy, workflow stage semantics, and regression guards for existing boundary strings.
+- Updated `test_operational_workflow.py` workflow assertions to match new `done`/`active` stage semantics.
+- All 202 tests pass. Ruff: no errors.
+
+### Files changed
+- `app/web/ui.css`
+- `app/web/routes.py`
+- `app/web/templates/dashboard.html`
+- `app/web/templates/message_detail.html`
+- `app/web/templates/review_packages.html`
+- `app/web/templates/review_package_detail.html`
+- `app/web/templates/executions.html`
+- `app/web/templates/execution_detail.html`
+- `app/web/templates/providers.html`
+- `app/web/templates/operational_smoke.html`
+- `tests/test_phase_18_7_interaction_hierarchy.py` (new)
+- `tests/test_operational_workflow.py` (updated assertions)
+- `docs/phases/PHASE_18_7_INTERACTION_HIERARCHY_TRIAGE_ERGONOMICS.md` (new)
+
 
 ### Summary
 - Completely rewrote `app/web/ui.css` as a dark "mission control" design system with a retro-futuristic 1990s feel. Color palette: `--bg:#0c1117`, dark surface layers, brand green `#1cba8b`, accent blue `#4a8ff5`, status traffic lights.

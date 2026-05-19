@@ -22,9 +22,10 @@
 | 18 | Operational Inbox Workflow Smoke and Fast-Path UX | ✅ Completed | 2026-05-19 |
 | 18.5 | Dashboard and Workflow UI Polish | ✅ Completed | 2026-05-19 |
 | 18.6 | Visual Design System and Dashboard Polish | ✅ Completed | 2026-05-19 |
+| 18.7 | Interaction Hierarchy, Triage Ergonomics & RTH Palette Alignment | ✅ Completed | 2026-05-20 |
 | 19 | Test Email Execution Enablement | Planned | TBD |
 | 20 | Inbox Intelligence Quality Pass | Planned | TBD |
 
 ## Current recommendation
 
-Stop for human review of Phase 18.6. Next recommended phase is Phase 19: Test Email Execution Enablement, after the dark command-center UI is accepted.
+Stop for human review of Phase 18.7. Next recommended phase is Phase 19: Test Email Execution Enablement, after the interaction hierarchy and RTH palette pass is accepted.

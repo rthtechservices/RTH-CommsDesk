@@ -148,6 +148,67 @@ def _safe_next_path(value: str | None) -> str:
     return value
 
 
+def _compute_next_best_action(backlog_stats: dict, provider_rows: list) -> dict:
+    """Determine the single most important next operator action for the dashboard NBA strip."""
+    blockers = [
+        row for row in provider_rows
+        if row.state in {"missing_configuration", "failed"}
+    ]
+    if blockers:
+        label = blockers[0].label
+        return {
+            "tier": "blocker",
+            "message": f"Resolve provider blocker: {label}",
+            "primary_label": "View Providers",
+            "primary_url": "/providers",
+            "secondary": [{"label": "Operational Smoke", "url": "/operational-smoke"}],
+        }
+    pending_pkgs = backlog_stats.get("pending_review_packages", 0)
+    ready_execs = backlog_stats.get("ready_executions", 0)
+    attention_total = backlog_stats.get("attention_total", 0)
+    reviewed_total = backlog_stats.get("reviewed_total", 0)
+    unreviewed = max(0, attention_total - reviewed_total)
+    if pending_pkgs > 0 and ready_execs > 0:
+        return {
+            "tier": "pending",
+            "message": f"Process {pending_pkgs} pending review package{'s' if pending_pkgs != 1 else ''} and approve {ready_execs} execution record{'s' if ready_execs != 1 else ''}",
+            "primary_label": "Next review package",
+            "primary_url": "/review-packages/next",
+            "secondary": [{"label": "Next execution approval", "url": "/executions/next"}],
+        }
+    if pending_pkgs > 0:
+        return {
+            "tier": "pending",
+            "message": f"Process {pending_pkgs} pending review package{'s' if pending_pkgs != 1 else ''}",
+            "primary_label": "Next review package",
+            "primary_url": "/review-packages/next",
+            "secondary": [{"label": "All review packages", "url": "/review-packages"}],
+        }
+    if ready_execs > 0:
+        return {
+            "tier": "pending",
+            "message": f"Approve {ready_execs} execution record{'s' if ready_execs != 1 else ''} awaiting confirmation",
+            "primary_label": "Next execution approval",
+            "primary_url": "/executions/next",
+            "secondary": [{"label": "All executions", "url": "/executions"}],
+        }
+    if unreviewed > 0:
+        return {
+            "tier": "triage",
+            "message": f"Review {unreviewed} attention item{'s' if unreviewed != 1 else ''} in the queue",
+            "primary_label": "Process next item",
+            "primary_url": "/process-next",
+            "secondary": [],
+        }
+    return {
+        "tier": "clear",
+        "message": "No immediate action required. Queue is clear.",
+        "primary_label": "View dashboard",
+        "primary_url": "/",
+        "secondary": [],
+    }
+
+
 @web_router.get("/login")
 def login_page(request: Request):
     settings = get_settings()
@@ -387,6 +448,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                 if row.state in {"missing_configuration", "failed"}
                 or (row.state == "dry_run" and row.key != "ai_provider")
             ][:5],
+            "next_best_action": _compute_next_best_action(backlog_stats, provider_rows),
         },
     )
 

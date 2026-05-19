@@ -17,7 +17,7 @@
 {% block content %}
   <a href="/">Back to dashboard</a>
   <div class="workflow" aria-label="Workflow">
-    <span>Sync</span><span>Triage</span><span>Analyze</span><span>Review</span><span>Prepare</span><span class="active">Execute</span><span class="active">Audit</span>
+    <span class="done">Sync</span><span class="done">Triage</span><span class="done">Analyze</span><span class="done">Review</span><span class="done">Prepare</span><span class="active">Execute</span><span>Audit</span>
   </div>
   <h1>Execution Queue</h1>
   <p class="help-text">What this page is for: inspect immutable outbound execution attempts and continue only records that already passed preparation. Approval and final confirmation remain required.</p>
@@ -46,7 +46,14 @@
           <td><a href="/executions/{{ record.id }}">#{{ record.id }}</a></td>
           <td>{{ record.attempt_number }}</td>
           <td>{{ record.action_type.value.replace("_", " ").title() }}</td>
-          <td><span class="badge {% if record.status.value == 'executed' %}ok{% elif record.status.value in ['cancelled', 'failed'] %}bad{% elif record.status.value == 'approved' %}warn{% endif %}">{{ record.status.value.replace("_", " ").title() }}</span></td>
+          <td>
+            <span class="badge
+              {% if record.status.value == 'executed' %}ok
+              {% elif record.status.value in ['cancelled', 'failed'] %}bad
+              {% elif record.status.value in ['approved', 'pending_confirmation'] %}amber
+              {% elif record.status.value == 'pending_approval' %}info
+              {% else %}grey{% endif %}">{{ record.status.value.replace("_", " ").title() }}</span>
+          </td>
           <td>{% if record.review_package_id %}Review package {{ record.review_package_id }}{% endif %}{% if record.draft_id %}Draft {{ record.draft_id }}{% endif %}</td>
           <td>{{ record.provider_name }}</td>
           <td>{{ record.created_at.strftime("%Y-%m-%d %H:%M") if record.created_at else "" }}</td>
@@ -55,7 +62,13 @@
           <td class="muted" style="font-size:12px">{% if record.error_text %}{{ record.error_text }}{% elif record.result_json %}{{ record.result_json }}{% else %}-{% endif %}</td>
         </tr>
         {% else %}
-        <tr><td colspan="10" class="muted">No execution records yet.</td></tr>
+        <tr>
+          <td colspan="10">
+            <div class="empty">
+              No execution records yet. Process a review package to generate the first execution record.
+            </div>
+          </td>
+        </tr>
         {% endfor %}
       </tbody>
     </table>

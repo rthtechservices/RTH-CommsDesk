@@ -206,6 +206,11 @@ python -m pytest -q
 - A raw list of scores and reasons is technically useful but not user-friendly.
 - The dashboard should explain why something matters without requiring the user to understand internal scoring.
 - Row actions should be limited and clear. Put secondary actions on the detail page.
+- Workflow stage color semantics matter: amber = current/pending work (draws attention), green = past stage (completed, no action needed). Do NOT use green for the current/active stage — it looks like success when it should signal "work is here."
+- Pending counts (review packages, ready executions, attention queue size) should visually distinguish zero (green = nothing to do) from non-zero (amber = action needed). Using the same muted color for 0 and 50 makes the UI useless for quick triage.
+- A Next Best Action strip at the top of the dashboard is the single most ergonomic addition: it collapses the decision of "where do I start?" into one sentence and one button, reducing cognitive load on every open.
+- Source and action visual identity: assign a stable color to each source (Gmail=cyan, Outlook=blue) and each action type (reply=amber, schedule=teal, noise=indigo, review=purple). Users learn these associations quickly when they are consistent across all badges.
+- Existing tests are the spec for exact label text. When renaming UI labels for brevity, check first whether any test asserts the old string literally. Preserve or update the test, never silently break it.
 
 ## LLM handoff lessons
 

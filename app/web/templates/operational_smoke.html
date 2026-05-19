@@ -6,92 +6,123 @@
 {% block content %}
   <a href="/">Back to dashboard</a>
   <div class="workflow" aria-label="Workflow">
-    <span>Sync</span><span>Triage</span><span>Analyze</span><span>Review</span><span>Prepare</span><span>Execute</span><span>Audit</span>
+    <span>Sync</span><span>Triage</span><span>Analyze</span><span>Review</span><span>Prepare</span><span>Execute</span><span class="active">Audit</span>
   </div>
   <h1>Operational Smoke</h1>
-  <p class="help-text">What this page is for: verify system readiness and connector health without performing any operations. All checks are read-only diagnostics.</p>
-
-  <section class="panel">
-    <h2>Gmail read config</h2>
-    <div class="facts">
-      {% if smoke_status.gmail_read %}
-      <div><strong class="label">State</strong><span><span class="status-dot {{ smoke_status.gmail_read.state }}"></span>{{ smoke_status.gmail_read.state.replace("_", " ").title() }}</span></div>
-      <div><strong class="label">Label</strong><span class="muted">{{ smoke_status.gmail_read.label }}</span></div>
-      {% if smoke_status.gmail_read.detail %}<div><strong class="label">Detail</strong><span class="muted">{{ smoke_status.gmail_read.detail }}</span></div>{% endif %}
-      {% if smoke_status.gmail_read.next_action %}<div><strong class="label">Next action</strong><span class="muted">{{ smoke_status.gmail_read.next_action }}</span></div>{% endif %}
-      {% else %}
-      <div class="muted">Gmail config not available.</div>
-      {% endif %}
-    </div>
-  </section>
-
-  <section class="panel">
-    <h2>Outlook delegated Graph</h2>
-    <div class="facts">
-      {% if smoke_status.graph_auth %}
-      <div><strong class="label">State</strong><span><span class="status-dot {{ smoke_status.graph_auth.state }}"></span>{{ smoke_status.graph_auth.state.replace("_", " ").title() }}</span></div>
-      <div><strong class="label">Label</strong><span class="muted">{{ smoke_status.graph_auth.label }}</span></div>
-      {% if smoke_status.graph_auth.detail %}<div><strong class="label">Detail</strong><span class="muted">{{ smoke_status.graph_auth.detail }}</span></div>{% endif %}
-      {% else %}
-      <div class="muted">Graph config not available.</div>
-      {% endif %}
-      {% if smoke_status.outlook_read %}
-      <div><strong class="label">Outlook mail state</strong><span><span class="status-dot {{ smoke_status.outlook_read.state }}"></span>{{ smoke_status.outlook_read.state.replace("_", " ").title() }}</span></div>
-      {% endif %}
-    </div>
-  </section>
-
-  <section class="panel">
-    <h2>Dry-run state</h2>
-    <div class="facts">
-      <div><strong class="label">External write dry-run</strong><span>{% if smoke_status.external_write_dry_run %}<span class="badge warn">Dry-run enabled</span>{% else %}<span class="badge ok">Live-ready</span>{% endif %}</span></div>
-      <div><strong class="label">Execution provider</strong><span class="muted">{{ smoke_status.execution_provider_mode or "-" }}</span></div>
-      {% if smoke_status.gmail_write_flags %}
-      {% for flag_name, flag_val in smoke_status.gmail_write_flags.items() %}
-      <div><strong class="label">{{ flag_name }}</strong><span class="muted">{{ flag_val }}</span></div>
-      {% endfor %}
-      {% endif %}
-    </div>
-  </section>
-
-  <section class="panel">
-    <h2>Disabled Microsoft Write Boundaries</h2>
-    <p>All Microsoft write operations are disabled and fail-closed by design. These boundaries are enforced at the connector layer and cannot be changed from the UI.</p>
-    {% if smoke_status.disabled_boundaries %}
-    <ul class="items">
-      {% for row in smoke_status.disabled_boundaries %}
-      <li><span class="status-dot {{ row.state }}"></span> {{ row.label }}: {{ row.detail or row.state }}</li>
-      {% endfor %}
-    </ul>
-    {% endif %}
-    <ul class="items" style="margin-top:6px">
-      <li>Outlook send: not implemented</li>
-      <li>Outlook calendar write: not implemented</li>
-      <li>Teams: disabled</li>
-    </ul>
-  </section>
-
-  <section class="panel">
-    <h2>AI provider</h2>
-    <div class="facts">
-      {% if smoke_status.ai_provider %}
-      <div><strong class="label">State</strong><span><span class="status-dot {{ smoke_status.ai_provider.state }}"></span>{{ smoke_status.ai_provider.state.replace("_", " ").title() }}</span></div>
-      <div><strong class="label">Label</strong><span class="muted">{{ smoke_status.ai_provider.label }}</span></div>
-      {% if smoke_status.ai_provider.detail %}<div><strong class="label">Detail</strong><span class="muted">{{ smoke_status.ai_provider.detail }}</span></div>{% endif %}
-      {% else %}
-      <div class="muted">AI provider status not available.</div>
-      {% endif %}
-    </div>
-  </section>
+  <p class="help-text">Read-only system readiness check. All diagnostics here are non-destructive and do not trigger any operations.</p>
 
   {% if smoke_status.blockers %}
-  <section class="panel">
-    <h2>Execution blockers</h2>
-    <ul class="items">
+  <div class="callout callout-red" style="margin-bottom:14px">
+    <div class="callout-title" style="color:var(--bad)">Execution blockers detected</div>
+    <ul style="margin:6px 0 0;padding-left:16px">
       {% for row in smoke_status.blockers %}
-      <li><span class="status-dot {{ row.state }}"></span> {{ row.label }}: {{ row.detail or row.state }}</li>
+      <li><span class="status-dot {{ row.state }}"></span> <strong>{{ row.label }}</strong> — {{ row.detail or row.state }}</li>
       {% endfor %}
     </ul>
-  </section>
+  </div>
+  {% else %}
+  <div class="callout callout-green" style="margin-bottom:14px">
+    <span style="color:var(--ok)">&#x2713;</span> No execution blockers detected. System is ready for triage.
+  </div>
   {% endif %}
+
+  <div style="display:grid;gap:12px">
+    <section class="panel">
+      <h2>Gmail read config</h2>
+      <div class="facts">
+        {% if smoke_status.gmail_read %}
+        <div>
+          <strong class="label">State</strong>
+          <span><span class="status-dot {{ smoke_status.gmail_read.state }}"></span>
+          <span class="badge {% if smoke_status.gmail_read.state == 'live' %}ok{% elif smoke_status.gmail_read.state in ['dry_run','mock'] %}amber{% elif smoke_status.gmail_read.state in ['missing_configuration','failed'] %}bad{% else %}grey{% endif %}">{{ smoke_status.gmail_read.state.replace("_", " ").title() }}</span></span>
+        </div>
+        <div><strong class="label">Label</strong><span class="muted">{{ smoke_status.gmail_read.label }}</span></div>
+        {% if smoke_status.gmail_read.detail %}<div><strong class="label">Detail</strong><span class="muted">{{ smoke_status.gmail_read.detail }}</span></div>{% endif %}
+        {% if smoke_status.gmail_read.next_action %}<div><strong class="label">Next step</strong><span class="muted">{{ smoke_status.gmail_read.next_action }}</span></div>{% endif %}
+        {% else %}
+        <div class="muted">Gmail config not available.</div>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Outlook delegated Graph</h2>
+      <div class="facts">
+        {% if smoke_status.graph_auth %}
+        <div>
+          <strong class="label">Graph auth state</strong>
+          <span><span class="status-dot {{ smoke_status.graph_auth.state }}"></span>
+          <span class="badge {% if smoke_status.graph_auth.state == 'live' %}ok{% elif smoke_status.graph_auth.state in ['dry_run','mock'] %}amber{% elif smoke_status.graph_auth.state in ['missing_configuration','failed'] %}bad{% else %}grey{% endif %}">{{ smoke_status.graph_auth.state.replace("_", " ").title() }}</span></span>
+        </div>
+        <div><strong class="label">Label</strong><span class="muted">{{ smoke_status.graph_auth.label }}</span></div>
+        {% if smoke_status.graph_auth.detail %}<div><strong class="label">Detail</strong><span class="muted">{{ smoke_status.graph_auth.detail }}</span></div>{% endif %}
+        {% else %}
+        <div class="muted">Graph config not available.</div>
+        {% endif %}
+        {% if smoke_status.outlook_read %}
+        <div>
+          <strong class="label">Outlook mail state</strong>
+          <span><span class="status-dot {{ smoke_status.outlook_read.state }}"></span>{{ smoke_status.outlook_read.state.replace("_", " ").title() }}</span>
+        </div>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Dry-run state</h2>
+      <div class="facts">
+        <div>
+          <strong class="label">External write dry-run</strong>
+          <span>
+            {% if smoke_status.external_write_dry_run %}
+            <span class="badge amber">Dry-run enabled — no external writes</span>
+            {% else %}
+            <span class="badge ok">Live-ready — external writes allowed when approved</span>
+            {% endif %}
+          </span>
+        </div>
+        <div><strong class="label">Execution provider</strong><span class="muted">{{ smoke_status.execution_provider_mode or "-" }}</span></div>
+        {% if smoke_status.gmail_write_flags %}
+        {% for flag_name, flag_val in smoke_status.gmail_write_flags.items() %}
+        <div><strong class="label">{{ flag_name }}</strong><span class="muted">{{ flag_val }}</span></div>
+        {% endfor %}
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Disabled Microsoft Write Boundaries</h2>
+      <p class="muted" style="font-size:13px;margin-bottom:8px">These boundaries are enforced at the connector layer. They cannot be changed from the UI.</p>
+      <div style="display:grid;gap:8px">
+        <div class="callout callout-grey"><div class="callout-title">Outlook send</div><div class="muted" style="font-size:13px">Not implemented — disabled by design</div></div>
+        <div class="callout callout-grey"><div class="callout-title">Outlook calendar write</div><div class="muted" style="font-size:13px">Not implemented — fail-closed</div></div>
+        <div class="callout callout-grey"><div class="callout-title">Teams</div><div class="muted" style="font-size:13px">Disabled — no sync or write wired</div></div>
+        {% if smoke_status.disabled_boundaries %}
+        {% for row in smoke_status.disabled_boundaries %}
+        <div class="callout callout-grey">
+          <div class="callout-title">{{ row.label }}</div>
+          <div class="muted" style="font-size:13px">{{ row.detail or row.state }}</div>
+        </div>
+        {% endfor %}
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>AI provider</h2>
+      <div class="facts">
+        {% if smoke_status.ai_provider %}
+        <div>
+          <strong class="label">State</strong>
+          <span><span class="status-dot {{ smoke_status.ai_provider.state }}"></span>
+          <span class="badge {% if smoke_status.ai_provider.state == 'live' %}ok{% elif smoke_status.ai_provider.state in ['dry_run','mock'] %}amber{% elif smoke_status.ai_provider.state in ['missing_configuration','failed'] %}bad{% else %}grey{% endif %}">{{ smoke_status.ai_provider.state.replace("_", " ").title() }}</span></span>
+        </div>
+        <div><strong class="label">Label</strong><span class="muted">{{ smoke_status.ai_provider.label }}</span></div>
+        {% if smoke_status.ai_provider.detail %}<div><strong class="label">Detail</strong><span class="muted">{{ smoke_status.ai_provider.detail }}</span></div>{% endif %}
+        {% else %}
+        <div class="muted">AI provider status not available.</div>
+        {% endif %}
+      </div>
+    </section>
+  </div>
 {% endblock %}

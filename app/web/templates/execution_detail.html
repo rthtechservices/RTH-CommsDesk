@@ -25,7 +25,7 @@
   <a href="/executions">Back to executions</a>
   {% if record %}
   <div class="workflow" aria-label="Workflow" style="margin-top:12px">
-    <span>Sync</span><span>Triage</span><span>Analyze</span><span>Review</span><span>Prepare</span><span class="active">Execute</span><span class="active">Audit</span>
+    <span class="done">Sync</span><span class="done">Triage</span><span class="done">Analyze</span><span class="done">Review</span><span class="done">Prepare</span><span class="active">Execute</span><span class="active">Audit</span>
   </div>
   <h1>Execution #{{ record.id }}</h1>
   <p class="help-text">What this page is for: inspect one immutable execution attempt, approve or confirm when safe, and review the provider result and audit trail.</p>

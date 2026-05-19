@@ -4,13 +4,34 @@ This file is the user-facing help guide. Keep it simple, practical, and current 
 
 ## UI / Design
 
-RTH CommsDesk uses a dark "mission control / operations console" design. All pages share a single stylesheet (`app/web/ui.css`) and a common Jinja2 base template (`base.html`) which provides:
+RTH CommsDesk uses a dark "mission control / operations console" design aligned with the RTH/TaskDesk color palette. All pages share a single stylesheet (`app/web/ui.css`) and a common Jinja2 base template (`base.html`) which provides:
 
 - Sticky dark topbar with brand name and navigation links.
-- Connected pill-segment **workflow rail** showing the current step: Sync → Triage → Analyze → Review → Prepare → Execute → Audit.
+- Connected pill-segment **workflow rail** showing stages: Sync → Triage → Analyze → Review → Prepare → Execute → Audit. Past stages show a subtle green tint (`.done`); the current stage glows amber (`.active`). Amber = work is here now, not success.
+- **Next Best Action strip** at the top of the dashboard: a single sentence and button indicating the highest-priority next operator step. Color-coded: red = blocker, amber = pending review, green = queue clear.
 - Status dots with green/amber/red glow for provider states.
 - Dark panel cards, badges, and button variants.
 - Responsive layout at 1280px (`.wrap`) and 1720px (`.wide-wrap`).
+
+### Color palette and semantic tokens
+
+The RTH palette is defined in `ui.css`:
+- `--blue`, `--sky`, `--cyan`, `--teal`, `--green`, `--amber`, `--orange`, `--red`, `--pink`, `--purple`, `--indigo`
+- Semantic tokens: `--ok` (green), `--warn` (amber), `--bad` (red), `--info` (cyan), `--ai` (purple), `--calendar` (teal)
+
+### Attention queue visual hierarchy
+
+- **Score tiers**: `score-urgent` (red, ≥80), `score-high` (amber, ≥55), `score-medium` (cyan, ≥30), `score-low` (muted, <30).
+- **Row accent bars**: `attention-row.urgent` (red left border), `.high` (amber), `.medium` (cyan).
+- **Source badges**: `badge.src-gmail` (cyan), `badge.src-outlook` (blue), `badge.src-notification` (purple).
+- **Action badges**: `badge.act-reply` (amber), `badge.act-schedule` (teal), `badge.act-review` (purple), `badge.act-noise` (indigo).
+- **Row action hierarchy**: Open = `.button.primary` (blue), Important = `.button.amber` (amber), Reviewed = `.button.outline` (muted).
+
+### Command Center pending counts
+
+- Non-zero pending counts (review packages, ready executions) display in amber → action needed.
+- Zero counts display in green → nothing pending.
+
 
 ## What RTH CommsDesk does today
 

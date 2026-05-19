@@ -6,13 +6,17 @@
 {% block content %}
   <a href="/">Back to dashboard</a>
   <div class="workflow" aria-label="Workflow">
-    <span>Sync</span><span>Triage</span><span>Analyze</span><span>Review</span><span>Prepare</span><span>Execute</span><span>Audit</span>
+    <span>Sync</span><span>Triage</span><span>Analyze</span><span>Review</span><span>Prepare</span><span>Execute</span><span class="active">Audit</span>
   </div>
   <h1>Provider Status</h1>
-  <p class="help-text">This page observes configuration only. No actions are taken here. Provider matrix reflects live readiness diagnostics.</p>
-  <p class="notice">Outlook send actions are intentionally not implemented. Outlook calendar read/write remains fail-closed and is not implemented. Teams remains disabled. All write boundaries are enforced at the connector layer, not the UI.</p>
+  <p class="help-text">Read-only diagnostics. No credentials are modified here. Provider matrix reflects live configuration state.</p>
 
-  <section class="panel">
+  <div class="callout callout-grey" style="margin-bottom:14px">
+    <div class="callout-title">Microsoft write boundaries — disabled by design</div>
+    Outlook send actions are intentionally not implemented. Outlook calendar read/write remains fail-closed and is not implemented. Teams remains disabled. All write boundaries are enforced at the connector layer.
+  </div>
+
+  <section class="panel" style="margin-bottom:14px">
     <h2>Provider matrix</h2>
     <table>
       <thead>
@@ -29,7 +33,14 @@
         <tr>
           <td class="muted" style="font-size:11px">{{ row.key }}</td>
           <td>{{ row.label }}</td>
-          <td><span class="badge {% if row.state == 'live' %}ok{% elif row.state in ['dry_run', 'mock'] %}warn{% elif row.state in ['disabled', 'missing_configuration', 'failed'] %}bad{% endif %}">{{ row.state.replace("_", " ") }}</span></td>
+          <td>
+            <span class="badge
+              {% if row.state == 'live' %}ok
+              {% elif row.state in ['dry_run', 'mock'] %}amber
+              {% elif row.state in ['disabled', 'not_implemented'] %}grey
+              {% elif row.state in ['missing_configuration', 'failed'] %}bad
+              {% endif %}">{{ row.state.replace("_", " ") }}</span>
+          </td>
           <td class="muted" style="font-size:12px">{{ row.mode }}</td>
           <td class="muted" style="font-size:12px">{{ row.detail }}</td>
         </tr>
@@ -40,24 +51,32 @@
     </table>
   </section>
 
-  <section class="panel">
+  <section class="panel" style="margin-bottom:14px">
     <h2>Microsoft write boundaries</h2>
-    <p>All Microsoft write operations are disabled by design. The system reads from Outlook/Graph (with delegated permissions) for contact intelligence and message sync only.</p>
-    <ul class="items">
-      <li>Outlook send actions are intentionally not implemented</li>
-      <li>Outlook calendar read/write remains fail-closed and is not implemented</li>
-      <li>Teams remains disabled</li>
-    </ul>
+    <p class="muted" style="font-size:13px;margin-bottom:10px">All Microsoft write operations are read-only or not implemented. These boundaries are enforced at the connector layer and cannot be changed from the UI.</p>
+    <div style="display:grid;gap:8px">
+      <div class="callout callout-grey">
+        <div class="callout-title">Outlook send</div>
+        <div class="muted" style="font-size:13px">Not implemented. Outbound email via Outlook/Graph is disabled by design in this phase.</div>
+      </div>
+      <div class="callout callout-grey">
+        <div class="callout-title">Outlook calendar read/write</div>
+        <div class="muted" style="font-size:13px">Fail-closed. Calendar write is not implemented. Calendar read requires explicit opt-in flags and approved OAuth scopes.</div>
+      </div>
+      <div class="callout callout-grey">
+        <div class="callout-title">Teams</div>
+        <div class="muted" style="font-size:13px">Disabled. No Teams sync, send, or read actions are wired. Reserved for a future phase.</div>
+      </div>
+    </div>
   </section>
 
   <section class="panel">
     <h2>Configuration guidance</h2>
-    <p>Provider tokens and credentials are managed outside the UI. To reconfigure:</p>
+    <p class="muted" style="font-size:13px;margin-bottom:10px">Provider tokens and credentials are managed outside the UI. This page observes configuration only. No credentials are modified here.</p>
     <ul class="items">
-      <li>Gmail: re-run the OAuth flow via <code>python -m app.connectors.gmail.oauth_setup</code></li>
-      <li>Microsoft Graph: re-run via <code>python -m app.connectors.microsoft_graph.oauth_setup</code></li>
-      <li>AI provider: set the <code>OPENAI_API_KEY</code> or equivalent environment variable</li>
+      <li><strong>Gmail:</strong> re-run the OAuth flow via <code>python -m app.connectors.gmail.oauth_setup</code></li>
+      <li><strong>Microsoft Graph:</strong> re-run via <code>python -m app.connectors.microsoft_graph.oauth_setup</code></li>
+      <li><strong>AI provider:</strong> set the <code>OPENAI_API_KEY</code> or equivalent environment variable</li>
     </ul>
-    <p class="muted" style="font-size:12px">This page observes configuration only. No credentials are modified here.</p>
   </section>
 {% endblock %}
