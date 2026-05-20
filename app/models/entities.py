@@ -98,6 +98,11 @@ class ExecutionActionType(StrEnum):
     CREATE_CALENDAR_EVENT = "create_calendar_event"
     APPLY_GMAIL_LABEL_ARCHIVE = "apply_gmail_label_archive"
     DELETE_UNSUBSCRIBE = "delete_unsubscribe"
+    # Phase 29 — Microsoft Graph write parity
+    CREATE_OUTLOOK_DRAFT = "create_outlook_draft"
+    SEND_OUTLOOK_REPLY = "send_outlook_reply"
+    APPLY_OUTLOOK_MAIL_MODIFY = "apply_outlook_mail_modify"
+    CREATE_OUTLOOK_CALENDAR_EVENT = "create_outlook_calendar_event"
 
 
 class MailboxCleanupStatus(StrEnum):

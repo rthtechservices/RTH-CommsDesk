@@ -102,10 +102,13 @@ def operational_smoke_status(
         or (row.state == "dry_run" and row.key != "ai_provider")
     ]
     disabled_boundaries = [
-        provider_by_key["microsoft_graph_outlook_mail_send"],
-        provider_by_key["outlook_calendar_read"],
-        provider_by_key["microsoft_graph_teams"],
+        provider_by_key.get("outlook_draft_create"),
+        provider_by_key.get("outlook_send"),
+        provider_by_key.get("outlook_mail_modify"),
+        provider_by_key.get("outlook_calendar_write"),
+        provider_by_key.get("microsoft_graph_teams"),
     ]
+    disabled_boundaries = [r for r in disabled_boundaries if r is not None]
     return {
         "source_counts": source_operational_counts(db),
         "sync_statuses": [

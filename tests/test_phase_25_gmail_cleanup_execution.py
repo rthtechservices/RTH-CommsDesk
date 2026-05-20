@@ -740,14 +740,13 @@ class TestOperationalSmoke:
 
 class TestOutlookWriteDisabled:
     def test_outlook_mail_send_not_implemented(self):
-        """Provider status confirms Outlook mail send is intentionally not implemented."""
+        """Phase 29: Outlook send is behind a feature flag; row exists and defaults to disabled."""
         from app.services.provider_status_service import provider_status_rows
 
         rows = provider_status_rows()
-        row = next((r for r in rows if r.key == "microsoft_graph_outlook_mail_send"), None)
+        row = next((r for r in rows if r.key == "outlook_send"), None)
         assert row is not None
         assert row.state == "disabled"
-        assert "not implemented" in row.classification.lower()
 
     def test_microsoft_graph_teams_not_implemented(self):
         """Microsoft Graph Teams provider row is disabled and not implemented."""
@@ -759,11 +758,11 @@ class TestOutlookWriteDisabled:
         assert row.state == "disabled"
 
     def test_outlook_calendar_not_implemented(self):
-        """Outlook Calendar provider row is disabled."""
+        """Phase 29: Outlook calendar write is behind a feature flag; defaults to disabled."""
         from app.services.provider_status_service import provider_status_rows
 
         rows = provider_status_rows()
-        row = next((r for r in rows if r.key == "outlook_calendar_read"), None)
+        row = next((r for r in rows if r.key == "outlook_calendar_write"), None)
         assert row is not None
         assert row.state == "disabled"
 

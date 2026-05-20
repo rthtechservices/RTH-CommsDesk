@@ -17,7 +17,14 @@ GOOGLE_CALENDAR_REQUIRED_SCOPES = (
     "https://www.googleapis.com/auth/calendar.freebusy",
     "https://www.googleapis.com/auth/calendar.events",
 )
-MICROSOFT_GRAPH_REQUIRED_SCOPES = ("User.Read", "Mail.Read", "offline_access")
+MICROSOFT_GRAPH_REQUIRED_SCOPES = (
+    "User.Read",
+    "Mail.Read",
+    "Mail.ReadWrite",
+    "Mail.Send",
+    "Calendars.ReadWrite",
+    "offline_access",
+)
 
 
 @dataclass(frozen=True)
@@ -161,7 +168,7 @@ def provider_status_rows(settings: Settings | None = None) -> list[ProviderStatu
         ProviderStatusRow(
             key="microsoft_graph_outlook_mail",
             label="Outlook mail read",
-            classification="partially wired" if graph_configured else "adapter-shape-only",
+            classification="live-ready" if graph_configured else "adapter-shape-only",
             state=_enabled_state(
                 active.microsoft_graph_enabled and active.microsoft_graph_outlook_mail_enabled,
                 graph_configured,
@@ -171,14 +178,45 @@ def provider_status_rows(settings: Settings | None = None) -> list[ProviderStatu
             detail="Outlook mail read can use Microsoft Graph delegated OAuth or the existing app-only client seam with Mail.Read.",
             next_action=_graph_next_action(active, "MICROSOFT_GRAPH_OUTLOOK_MAIL_ENABLED"),
         ),
-        ProviderStatusRow(
-            key="microsoft_graph_outlook_mail_send",
-            label="Outlook mail send",
-            classification="not implemented",
-            state="disabled",
-            mode="disabled",
-            detail="Outlook send actions are intentionally not implemented.",
-            next_action="Keep disabled until a future explicit approved-execution write phase.",
+        _microsoft_write_status(
+            active,
+            key="outlook_draft_create",
+            label="Outlook draft creation",
+            enabled=active.outlook_draft_create_enabled,
+            graph_configured=graph_configured,
+            dry_run=dry_run,
+            feature_flag="OUTLOOK_DRAFT_CREATE_ENABLED",
+            required_scope="Mail.ReadWrite",
+        ),
+        _microsoft_write_status(
+            active,
+            key="outlook_send",
+            label="Outlook send / reply",
+            enabled=active.outlook_send_enabled,
+            graph_configured=graph_configured,
+            dry_run=dry_run,
+            feature_flag="OUTLOOK_SEND_ENABLED",
+            required_scope="Mail.Send",
+        ),
+        _microsoft_write_status(
+            active,
+            key="outlook_mail_modify",
+            label="Outlook mail modify (category/archive)",
+            enabled=active.outlook_mail_modify_enabled,
+            graph_configured=graph_configured,
+            dry_run=dry_run,
+            feature_flag="OUTLOOK_MAIL_MODIFY_ENABLED",
+            required_scope="Mail.ReadWrite",
+        ),
+        _microsoft_write_status(
+            active,
+            key="outlook_calendar_write",
+            label="Outlook calendar event creation",
+            enabled=active.outlook_calendar_write_enabled,
+            graph_configured=graph_configured,
+            dry_run=dry_run,
+            feature_flag="OUTLOOK_CALENDAR_WRITE_ENABLED",
+            required_scope="Calendars.ReadWrite",
         ),
         ProviderStatusRow(
             key="microsoft_graph_teams",
@@ -188,15 +226,6 @@ def provider_status_rows(settings: Settings | None = None) -> list[ProviderStatu
             mode="disabled",
             detail="Teams remains disabled and the adapter seam stays fail-closed.",
             next_action="Confirm tenant permissions and a future read scope before implementing Teams.",
-        ),
-        ProviderStatusRow(
-            key="outlook_calendar_read",
-            label="Outlook Calendar",
-            classification="not implemented",
-            state="disabled",
-            mode="disabled",
-            detail="Outlook calendar read/write remains fail-closed and is not implemented.",
-            next_action="Keep disabled until a future calendar-specific Graph phase.",
         ),
         ProviderStatusRow(
             key="notification_webhook",
@@ -241,6 +270,70 @@ def provider_status_matrix(settings: Settings | None = None) -> dict[str, dict[s
         }
         for row in provider_status_rows(settings)
     }
+
+
+def _microsoft_write_status(
+    settings: Settings,
+    *,
+    key: str,
+    label: str,
+    enabled: bool,
+    graph_configured: bool,
+    dry_run: bool,
+    feature_flag: str,
+    required_scope: str,
+) -> ProviderStatusRow:
+    if not settings.microsoft_graph_enabled:
+        state = "misconfigured"
+        mode = "blocked"
+        detail = f"{label} requires MICROSOFT_GRAPH_ENABLED=true."
+        next_action = "Set MICROSOFT_GRAPH_ENABLED=true and configure tenant/client IDs."
+    elif not graph_configured:
+        state = "misconfigured"
+        mode = "blocked"
+        detail = f"{label} requires MICROSOFT_TENANT_ID and MICROSOFT_CLIENT_ID."
+        next_action = "Configure Microsoft Graph credentials before enabling write surfaces."
+    elif not enabled:
+        state = "disabled"
+        mode = "disabled"
+        detail = (
+            f"{label} is disabled by {feature_flag}=false. "
+            f"Required Graph scope: {required_scope}."
+        )
+        next_action = (
+            f"Set {feature_flag}=true after confirming Graph delegated auth has {required_scope}. "
+            f"If scopes changed: Remove-Item '.\\microsoft_graph_token.json' -Force -ErrorAction SilentlyContinue, "
+            f"then run POST /api/graph/test."
+        )
+    elif dry_run:
+        state = "dry_run"
+        mode = "dry-run write"
+        detail = (
+            f"{label} is enabled but EXTERNAL_WRITE_DRY_RUN=true so no live Graph write will occur. "
+            f"Required scope: {required_scope}."
+        )
+        next_action = (
+            "Set EXTERNAL_WRITE_DRY_RUN=false only after verifying dry-run results. "
+            "All writes still require approval, confirmation, and audit."
+        )
+    else:
+        state = "available"
+        mode = "live Graph write"
+        detail = (
+            f"{label} is enabled. External writes require approval, confirmation, and audit. "
+            f"Required scope: {required_scope}."
+        )
+        next_action = "Prepare an execution record, approve, confirm, and audit the result."
+    return ProviderStatusRow(
+        key=key,
+        label=label,
+        classification="partially wired" if graph_configured else "adapter-shape-only",
+        state=state,
+        mode=mode,
+        detail=detail,
+        next_action=next_action,
+        dry_run=enabled and dry_run,
+    )
 
 
 def _gmail_write_status(

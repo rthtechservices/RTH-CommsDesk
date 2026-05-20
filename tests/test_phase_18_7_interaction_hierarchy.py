@@ -279,19 +279,21 @@ def test_message_detail_workflow_prior_stages_done(db_session):
 # ── Providers page: Microsoft write boundaries (regression guard) ─────────────
 
 def test_providers_page_outlook_send_boundary_intact():
-    """Providers must still say Outlook send actions are intentionally not implemented."""
+    """Phase 29: Outlook send is implemented behind a feature flag; write readiness section present."""
     with TestClient(app) as client:
         resp = client.get("/providers")
     assert resp.status_code == 200
-    assert "Outlook send actions are intentionally not implemented" in resp.text
+    assert "Microsoft write readiness" in resp.text
+    assert "outlook_send" in resp.text
 
 
 def test_providers_page_calendar_boundary_intact():
-    """Providers must still say Outlook calendar is fail-closed and not implemented."""
+    """Phase 29: Outlook calendar write is implemented behind a feature flag."""
     with TestClient(app) as client:
         resp = client.get("/providers")
     assert resp.status_code == 200
-    assert "Outlook calendar read/write remains fail-closed and is not implemented" in resp.text
+    assert "Microsoft write readiness" in resp.text
+    assert "outlook_calendar_write" in resp.text
 
 
 def test_providers_page_teams_boundary_intact():

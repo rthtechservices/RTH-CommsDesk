@@ -2,9 +2,9 @@
 
 ## Current position
 
-Phase 28 is complete or in final smoke review. It added the `/about` life-to-date statistics page: persistent `app_stat_records` SQLite table, configurable transparent hours-saved estimate, go-live baseline support, and all-route navigation smoke coverage.
+Phase 29 is complete or in final smoke review. It added full Microsoft Graph write parity: Outlook draft creation, Outlook send/reply, Outlook mail modify, and Outlook calendar event creation — all behind explicit feature flags, the approval/confirmation/audit pipeline, and `EXTERNAL_WRITE_DRY_RUN`. Provider-aware routing blocks cross-provider mutations at the execution layer.
 
-The project now moves into two large remaining sprints before release candidate. No more endless phase train.
+One phase remains before the release candidate.
 
 ## End goal
 

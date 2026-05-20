@@ -33,16 +33,15 @@
 | 26 | Bulk Triage Live Smoke and Execution Verification | ✅ Smoke-reviewed | 2026-05-21 |
 | 27 | Operator Polish and Daily-Use Hardening | ✅ Completed | 2026-05-21 |
 | 28 | Daily-Use Cutover and Operator Console | ✅ Completed | 2026-05-21 |
-| 29 | Outlook Draft Write and Cross-Provider Parity | Planned | TBD |
+| 29 | Outlook Draft Write and Cross-Provider Parity | ✅ Completed | 2026-05-21 |
 | 30 | Release Candidate and Production Readiness | Planned | TBD |
 
 ## Current recommendation
 
-Phase 28 is complete and ready for human review. Phase 29 and Phase 30 remain forward-planning placeholders only unless explicitly started.
+Phase 29 is complete and ready for human review. Phase 30 remains the final endgame phase before release candidate.
 
-The remaining endgame is intentionally short:
+The remaining endgame is one phase:
 
-1. Phase 29 — Outlook draft creation only, safely gated.
-2. Phase 30 — release-candidate hardening and production readiness.
+1. Phase 30 — release-candidate hardening and production readiness.
 
 Do not add new side quests before the release candidate unless smoke testing exposes a blocker.

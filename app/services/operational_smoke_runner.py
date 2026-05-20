@@ -566,10 +566,13 @@ def _microsoft_boundary_checks(row_by_key: dict) -> list[SmokeCheckInput]:
             sanitized_payload={"state": row_by_key[key].state, "implemented": False},
         )
         for key in (
-            "microsoft_graph_outlook_mail_send",
-            "outlook_calendar_read",
+            "outlook_draft_create",
+            "outlook_send",
+            "outlook_mail_modify",
+            "outlook_calendar_write",
             "microsoft_graph_teams",
         )
+        if key in row_by_key
     ]
 
 

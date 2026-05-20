@@ -54,9 +54,11 @@ def test_provider_status_rows_cover_required_phase15_actions():
         "google_calendar_write",
         "microsoft_graph_delegated_auth",
         "microsoft_graph_outlook_mail",
-        "microsoft_graph_outlook_mail_send",
+        "outlook_draft_create",
+        "outlook_send",
+        "outlook_mail_modify",
+        "outlook_calendar_write",
         "microsoft_graph_teams",
-        "outlook_calendar_read",
         "notification_webhook",
         "ai_provider",
     }.issubset(keys)
@@ -79,8 +81,9 @@ def test_provider_status_reports_delegated_graph_auth(tmp_path):
 
     assert status["microsoft_graph_delegated_auth"]["state"] == "live"
     assert status["microsoft_graph_outlook_mail"]["mode"] == "delegated Graph"
-    assert status["microsoft_graph_outlook_mail_send"]["state"] == "disabled"
-    assert status["outlook_calendar_read"]["state"] == "disabled"
+    assert status["outlook_draft_create"]["state"] == "disabled"
+    assert status["outlook_send"]["state"] == "disabled"
+    assert status["outlook_calendar_write"]["state"] == "disabled"
 
 
 def test_provider_status_route_loads():

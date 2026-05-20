@@ -77,6 +77,310 @@ class MicrosoftGraphMailService:
         url = f"{self._account_url()}?{urllib.parse.urlencode({'$select': 'id,displayName,mail,userPrincipalName'})}"
         return self._get_json_response(url)
 
+    # ------------------------------------------------------------------
+    # Phase 29 write surfaces — mail draft/send/modify + calendar create
+    # ------------------------------------------------------------------
+
+    def create_draft(self, payload: dict) -> dict:
+        """Create an Outlook draft in the Drafts folder via Microsoft Graph.
+
+        Required payload keys: to (str), subject (str), body (str).
+        Optional: conversation_id (str), source_message_id (str).
+        Returns: {status, draft_id, internet_message_id}.
+        """
+        self._require_draft_create_enabled()
+        body: dict[str, Any] = {
+            "subject": payload.get("subject") or "CommsDesk draft",
+            "body": {
+                "contentType": "Text",
+                "content": payload.get("send_ready_body") or payload.get("body") or "",
+            },
+            "toRecipients": self._build_recipients(payload.get("to")),
+        }
+        url = f"{self._account_url()}/mailFolders/Drafts/messages"
+        response = self._post_json(url, body)
+        draft_id = response.data.get("id") or ""
+        internet_message_id = response.data.get("internetMessageId") or ""
+        return {
+            "status": "created",
+            "draft_id": draft_id,
+            "internet_message_id": internet_message_id,
+            "provider": "microsoft_graph",
+        }
+
+    def send_draft(self, message_id: str) -> dict:
+        """Send an existing Outlook draft (message_id from Graph) via /send."""
+        self._require_send_enabled()
+        if not message_id:
+            raise MicrosoftGraphConfigurationError(
+                "message_id is required to send an Outlook draft",
+                category="bad_request",
+            )
+        url = f"{self._account_url()}/messages/{urllib.parse.quote(message_id, safe='')}/send"
+        self._post_empty(url)
+        return {"status": "sent", "message_id": message_id, "provider": "microsoft_graph"}
+
+    def create_and_send_reply(self, payload: dict) -> dict:
+        """Create a reply draft in the context of an existing Outlook conversation and send it.
+
+        If source_message_id is present, uses POST /messages/{id}/createReply to preserve
+        conversation threading. Falls back to create-draft-then-send when no source ID.
+        Returns: {status, message_id, provider}.
+        """
+        self._require_send_enabled()
+        source_message_id = payload.get("source_message_id") or ""
+        reply_body = payload.get("send_ready_body") or payload.get("body") or ""
+        if source_message_id:
+            # Create a reply in the correct conversation thread
+            reply_url = (
+                f"{self._account_url()}/messages/"
+                f"{urllib.parse.quote(source_message_id, safe='')}/createReply"
+            )
+            reply_payload: dict[str, Any] = {
+                "message": {
+                    "body": {"contentType": "Text", "content": reply_body},
+                },
+                "comment": reply_body,
+            }
+            create_response = self._post_json(reply_url, reply_payload)
+            draft_id = create_response.data.get("id") or ""
+            if not draft_id:
+                raise MicrosoftGraphConfigurationError(
+                    "Microsoft Graph createReply did not return a draft message id",
+                    category="provider_error",
+                )
+            # Now send the reply draft
+            send_url = (
+                f"{self._account_url()}/messages/"
+                f"{urllib.parse.quote(draft_id, safe='')}/send"
+            )
+            self._post_empty(send_url)
+            return {"status": "sent", "message_id": draft_id, "provider": "microsoft_graph"}
+        # No source message — create draft then send
+        draft_result = self.create_draft(payload)
+        draft_id = draft_result.get("draft_id") or ""
+        if not draft_id:
+            raise MicrosoftGraphConfigurationError(
+                "Microsoft Graph draft creation did not return a draft id",
+                category="provider_error",
+            )
+        return self.send_draft(draft_id)
+
+    def modify_message(self, message_id: str, payload: dict) -> dict:
+        """Apply category/read/flag modifications to an Outlook message via PATCH.
+
+        Supported payload keys:
+          categories (list[str]): category names to set.
+          is_read (bool): mark read or unread.
+          flag_status (str): 'notFlagged' | 'flagged' | 'complete'.
+        Returns: {status, message_id, provider}.
+        """
+        self._require_mail_modify_enabled()
+        if not message_id:
+            raise MicrosoftGraphConfigurationError(
+                "message_id is required for Outlook message modification",
+                category="bad_request",
+            )
+        patch_body: dict[str, Any] = {}
+        if "categories" in payload and payload["categories"] is not None:
+            patch_body["categories"] = list(payload["categories"])
+        if "is_read" in payload and payload["is_read"] is not None:
+            patch_body["isRead"] = bool(payload["is_read"])
+        if "flag_status" in payload and payload["flag_status"]:
+            patch_body["flag"] = {"flagStatus": str(payload["flag_status"])}
+        if not patch_body:
+            return {
+                "status": "skipped",
+                "reason": "no_modifications_requested",
+                "message_id": message_id,
+                "provider": "microsoft_graph",
+            }
+        url = f"{self._account_url()}/messages/{urllib.parse.quote(message_id, safe='')}"
+        response = self._patch_json(url, patch_body)
+        return {
+            "status": "modified",
+            "message_id": response.data.get("id") or message_id,
+            "provider": "microsoft_graph",
+        }
+
+    def archive_message(self, message_id: str) -> dict:
+        """Move a message to the Archive folder (mail modify variant).
+
+        Uses POST /messages/{id}/move with destinationId='archive'.
+        Returns: {status, message_id, provider}.
+        """
+        self._require_mail_modify_enabled()
+        if not message_id:
+            raise MicrosoftGraphConfigurationError(
+                "message_id is required to archive an Outlook message",
+                category="bad_request",
+            )
+        url = f"{self._account_url()}/messages/{urllib.parse.quote(message_id, safe='')}/move"
+        response = self._post_json(url, {"destinationId": "archive"})
+        return {
+            "status": "archived",
+            "message_id": response.data.get("id") or message_id,
+            "provider": "microsoft_graph",
+        }
+
+    def create_calendar_event(self, payload: dict) -> dict:
+        """Create an Outlook calendar event via Microsoft Graph.
+
+        Required payload keys: subject (str), start (str ISO 8601), end (str ISO 8601).
+        Optional: body (str), attendees (list[str]), time_zone (str),
+                  is_reminder (bool), reminder_minutes_before_start (int).
+        Returns: {status, event_id, web_link, provider}.
+        """
+        self._require_calendar_write_enabled()
+        tz = payload.get("time_zone") or self.settings.google_calendar_time_zone or "UTC"
+        start_dt = payload.get("start") or payload.get("proposed_start_at")
+        end_dt = payload.get("end") or payload.get("proposed_end_at")
+        if not start_dt:
+            raise MicrosoftGraphConfigurationError(
+                "Calendar event start time is required",
+                category="bad_request",
+            )
+        if not end_dt:
+            # Default to 1 hour after start if not provided
+            from datetime import timedelta
+            start_parsed = datetime.fromisoformat(str(start_dt).replace("Z", "+00:00"))
+            end_dt = (start_parsed + timedelta(hours=1)).isoformat()
+        # Block past events
+        from datetime import timezone as _tz
+        start_parsed = datetime.fromisoformat(str(start_dt).replace("Z", "+00:00"))
+        if start_parsed.tzinfo is None:
+            start_parsed = start_parsed.replace(tzinfo=_tz.utc)
+        now_utc = datetime.now(_tz.utc)
+        if start_parsed < now_utc:
+            raise MicrosoftGraphConfigurationError(
+                f"Calendar event start time {start_dt} is in the past; event blocked",
+                category="bad_request",
+            )
+        event_body: dict[str, Any] = {
+            "subject": payload.get("summary") or payload.get("subject") or "CommsDesk event",
+            "body": {
+                "contentType": "Text",
+                "content": payload.get("body") or payload.get("description") or "",
+            },
+            "start": {"dateTime": str(start_dt), "timeZone": tz},
+            "end": {"dateTime": str(end_dt), "timeZone": tz},
+            "isReminderOn": bool(payload.get("is_reminder", True)),
+            "reminderMinutesBeforeStart": int(
+                payload.get("reminder_minutes_before_start") or 15
+            ),
+        }
+        attendees_raw: list[str] = payload.get("attendees") or []
+        if attendees_raw:
+            event_body["attendees"] = [
+                {"emailAddress": {"address": addr}, "type": "required"}
+                for addr in attendees_raw
+                if addr
+            ]
+        url = f"{self._account_url()}/calendar/events"
+        response = self._post_json(url, event_body)
+        return {
+            "status": "created",
+            "event_id": response.data.get("id") or "",
+            "web_link": response.data.get("webLink") or "",
+            "provider": "microsoft_graph",
+        }
+
+    # ------------------------------------------------------------------
+    # Feature-flag guards for Phase 29 write surfaces
+    # ------------------------------------------------------------------
+
+    def _require_draft_create_enabled(self) -> None:
+        self._require_graph_enabled()
+        if not self.settings.outlook_draft_create_enabled:
+            raise MicrosoftGraphConfigurationError(
+                "Outlook draft creation is disabled by OUTLOOK_DRAFT_CREATE_ENABLED=false",
+                category="disabled",
+            )
+
+    def _require_send_enabled(self) -> None:
+        self._require_graph_enabled()
+        if not self.settings.outlook_send_enabled:
+            raise MicrosoftGraphConfigurationError(
+                "Outlook send is disabled by OUTLOOK_SEND_ENABLED=false",
+                category="disabled",
+            )
+
+    def _require_mail_modify_enabled(self) -> None:
+        self._require_graph_enabled()
+        if not self.settings.outlook_mail_modify_enabled:
+            raise MicrosoftGraphConfigurationError(
+                "Outlook mail modification is disabled by OUTLOOK_MAIL_MODIFY_ENABLED=false",
+                category="disabled",
+            )
+
+    def _require_calendar_write_enabled(self) -> None:
+        self._require_graph_enabled()
+        if not self.settings.outlook_calendar_write_enabled:
+            raise MicrosoftGraphConfigurationError(
+                "Outlook calendar write is disabled by OUTLOOK_CALENDAR_WRITE_ENABLED=false",
+                category="disabled",
+            )
+
+    # ------------------------------------------------------------------
+    # HTTP helpers for write operations
+    # ------------------------------------------------------------------
+
+    def _post_json(self, url: str, body: dict) -> GraphJsonResponse:
+        data = json.dumps(body).encode("utf-8")
+        request = urllib.request.Request(
+            url,
+            data=data,
+            headers={
+                "Authorization": f"Bearer {self._token()}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+            method="POST",
+        )
+        return self._request_json(request, timeout=30)
+
+    def _post_empty(self, url: str) -> None:
+        """POST with no body (e.g., /messages/{id}/send)."""
+        request = urllib.request.Request(
+            url,
+            data=b"",
+            headers={
+                "Authorization": f"Bearer {self._token()}",
+                "Content-Length": "0",
+            },
+            method="POST",
+        )
+        try:
+            with self._urlopen(request, timeout=30):
+                pass  # 202 Accepted — no body expected
+        except urllib.error.HTTPError as exc:
+            if exc.code == 202:
+                return  # Accepted
+            category, message = _graph_error(exc)
+            raise MicrosoftGraphConfigurationError(
+                message, status_code=exc.code, category=category
+            ) from exc
+
+    def _patch_json(self, url: str, body: dict) -> GraphJsonResponse:
+        data = json.dumps(body).encode("utf-8")
+        request = urllib.request.Request(
+            url,
+            data=data,
+            headers={
+                "Authorization": f"Bearer {self._token()}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+            method="PATCH",
+        )
+        return self._request_json(request, timeout=30)
+
+    @staticmethod
+    def _build_recipients(to_address: str | None) -> list[dict]:
+        if not to_address:
+            return []
+        return [{"emailAddress": {"address": to_address}}]
+
     def _message_query_params(self, *, page_size: int, since: datetime | None) -> dict[str, str]:
         params = {
             "$top": str(page_size),

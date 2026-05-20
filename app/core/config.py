@@ -27,12 +27,16 @@ class Settings(BaseSettings):
     microsoft_account: str = "me"
     microsoft_graph_enabled: bool = False
     microsoft_graph_auth_mode: str = "app_only"
-    microsoft_graph_scopes: str = "User.Read Mail.Read offline_access"
+    microsoft_graph_scopes: str = "User.Read Mail.Read Mail.ReadWrite Mail.Send Calendars.ReadWrite offline_access"
     microsoft_graph_token_file: str = "./microsoft_graph_token.json"
     microsoft_graph_outlook_mail_enabled: bool = False
     microsoft_graph_teams_enabled: bool = False
     microsoft_graph_outlook_calendar_read_enabled: bool = False
     microsoft_graph_base_url: str = "https://graph.microsoft.com/v1.0"
+    outlook_draft_create_enabled: bool = False
+    outlook_send_enabled: bool = False
+    outlook_mail_modify_enabled: bool = False
+    outlook_calendar_write_enabled: bool = False
     notification_webhook_secret: str | None = None
 
     ai_provider: str = "mock"

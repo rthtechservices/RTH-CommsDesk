@@ -128,17 +128,21 @@ def test_message_detail_has_four_action_panels(db_session):
 # ── providers page: Microsoft write boundary strings ─────────────────────────
 
 def test_providers_page_has_outlook_send_boundary():
+    # Phase 29: Outlook send is now implemented behind a feature flag; old boundary text replaced
     with TestClient(app) as client:
         resp = client.get("/providers")
     assert resp.status_code == 200
-    assert "Outlook send actions are intentionally not implemented" in resp.text
+    assert "Microsoft write readiness" in resp.text
+    assert "outlook_send" in resp.text
 
 
 def test_providers_page_has_calendar_boundary():
+    # Phase 29: Outlook calendar write is now implemented behind a feature flag
     with TestClient(app) as client:
         resp = client.get("/providers")
     assert resp.status_code == 200
-    assert "Outlook calendar read/write remains fail-closed and is not implemented" in resp.text
+    assert "Microsoft write readiness" in resp.text
+    assert "outlook_calendar_write" in resp.text
 
 
 def test_providers_page_has_teams_boundary():

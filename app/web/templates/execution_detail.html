@@ -57,6 +57,46 @@
         </div>
       </section>
 
+      {% if provider_detail %}
+      <section class="panel" style="border-left: 3px solid {% if provider_detail.is_outlook_action %}#0078d4{% else %}#4caf50{% endif %}">
+        <h2>Provider routing</h2>
+        <div class="facts">
+          {% if provider_detail.source_provider %}
+          <div><strong class="label">Source provider</strong><span><span class="badge info">{{ provider_detail.source_provider }}</span></span></div>
+          {% endif %}
+          {% if provider_detail.target_provider %}
+          <div><strong class="label">Target provider</strong><span><span class="badge {% if provider_detail.target_provider == 'microsoft_graph' %}info{% else %}grey{% endif %}">{{ provider_detail.target_provider.replace("_", " ") }}</span></span></div>
+          {% endif %}
+          {% if provider_detail.feature_flag %}
+          <div><strong class="label">Feature flag</strong><span class="muted" style="font-size:12px">{{ provider_detail.feature_flag }}</span></div>
+          {% endif %}
+        </div>
+        {% if provider_detail.is_outlook_action and provider_detail.ms_readiness %}
+        <h3 style="font-size:13px;margin:12px 0 6px 0">Microsoft write readiness</h3>
+        {% set action_key_map = {
+          'create_outlook_draft': 'outlook_draft_create',
+          'send_outlook_reply': 'outlook_send',
+          'apply_outlook_mail_modify': 'outlook_mail_modify',
+          'create_outlook_calendar_event': 'outlook_calendar_write'
+        } %}
+        {% set ms_key = action_key_map.get(record.action_type.value, '') %}
+        {% if ms_key and provider_detail.ms_readiness[ms_key] is defined %}
+        {% set ms = provider_detail.ms_readiness[ms_key] %}
+        <div class="facts" style="margin-bottom:8px">
+          <div><strong class="label">Readiness</strong><span><span class="badge {% if ms.state == 'available' %}ok{% elif ms.state == 'dry_run' %}amber{% elif ms.state == 'misconfigured' %}bad{% else %}grey{% endif %}">{{ ms.state }}</span></span></div>
+          <div><strong class="label">Reason</strong><span class="muted" style="font-size:12px">{{ ms.reason }}</span></div>
+        </div>
+        {% if ms.state not in ['available'] %}
+        <div class="panel" style="background:var(--surface-2);margin-bottom:8px">
+          <h3 style="margin:0 0 4px 0;font-size:12px">Recovery guidance</h3>
+          <p style="font-size:12px;margin:0">{{ ms.recovery }}</p>
+        </div>
+        {% endif %}
+        {% endif %}
+        {% endif %}
+      </section>
+      {% endif %}
+
       {% if test_readiness %}
       <section class="panel">
         <h2>Test Execution Readiness</h2>

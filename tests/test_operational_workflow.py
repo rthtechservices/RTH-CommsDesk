@@ -57,8 +57,10 @@ def test_operational_smoke_reports_disabled_microsoft_write_boundaries(db_sessio
     status = operational_smoke_status(db_session)
     disabled = {row.key: row.state for row in status["disabled_boundaries"]}
 
-    assert disabled["microsoft_graph_outlook_mail_send"] == "disabled"
-    assert disabled["outlook_calendar_read"] == "disabled"
+    assert disabled["outlook_draft_create"] == "disabled"
+    assert disabled["outlook_send"] == "disabled"
+    assert disabled["outlook_mail_modify"] == "disabled"
+    assert disabled["outlook_calendar_write"] == "disabled"
     assert disabled["microsoft_graph_teams"] == "disabled"
     assert status["external_write_dry_run"] is True
     assert status["google_calendar_write_enabled"] is False
@@ -148,8 +150,9 @@ def test_operational_smoke_route_exposes_key_status_without_microsoft_writes(db_
     assert "Gmail cleanup test execution" in response.text
     assert "Mailbox cleanup readiness" in response.text
     provider_status = provider_response.json()
-    assert provider_status["microsoft_graph_outlook_mail_send"]["state"] == "disabled"
-    assert provider_status["outlook_calendar_read"]["state"] == "disabled"
+    assert provider_status["outlook_draft_create"]["state"] == "disabled"
+    assert provider_status["outlook_send"]["state"] == "disabled"
+    assert provider_status["outlook_calendar_write"]["state"] == "disabled"
     assert provider_status["microsoft_graph_teams"]["state"] == "disabled"
 
 
@@ -158,10 +161,10 @@ def test_provider_status_page_keeps_microsoft_write_boundaries_not_implemented()
         response = client.get("/providers")
 
     assert response.status_code == 200
-    assert "Outlook send actions are intentionally not implemented" in response.text
-    assert "Outlook calendar read/write remains fail-closed and is not implemented" in response.text
-    assert "Teams remains disabled" in response.text
-    assert "This page observes configuration only" in response.text
+    assert "Microsoft write readiness" in response.text
+    assert "Microsoft write surfaces" in response.text or "Phase 29" in response.text
+    assert "Teams" in response.text
+    assert "Provider matrix reflects live configuration state" in response.text
 
 
 def test_message_detail_groups_actions_and_contains_timeline_inside_main_column(db_session):

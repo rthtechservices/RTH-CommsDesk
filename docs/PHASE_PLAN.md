@@ -25,16 +25,16 @@ sync Gmail + Outlook
 
 | Phase | Title | Status |
 | --- | --- | --- |
-| 28 | Daily-Use Cutover, Operator Console, and About Statistics | Completed / human review |
+| 29 | Microsoft Write Cutover and Provider Parity | Completed / human review |
 
-Phase 28 added the `/about` page with persistent life-to-date statistics (emails processed, drafted, deleted, noise senders, VIPs, AI items, hours saved), a durable `app_stat_records` SQLite table, a transparent configurable hours-saved estimate with visible formula assumptions, and an optional go-live baseline timestamp.
+Phase 29 added full Microsoft Graph write parity: Outlook draft creation, Outlook send/reply, Outlook mail modify (categories/read/flag/archive), and Outlook calendar event creation. All surfaces are gated by explicit feature flags (`OUTLOOK_DRAFT_CREATE_ENABLED`, `OUTLOOK_SEND_ENABLED`, `OUTLOOK_MAIL_MODIFY_ENABLED`, `OUTLOOK_CALENDAR_WRITE_ENABLED`) and the existing approve → confirm → execute → audit pipeline. Provider-aware routing ensures Microsoft-originated work never falls back to Gmail. All flags default to `false`; `EXTERNAL_WRITE_DRY_RUN` provides an additional dry-run layer.
 
 ## Remaining endgame phases
 
 | Phase | Title | Outcome |
 | --- | --- | --- |
 | 28 | Daily-Use Cutover, Operator Console, and About Statistics | One dashboard-led morning workflow plus `/about` with app info, durable life-to-date stats, and transparent estimated hours saved from the go-live baseline. |
-| 29 | Outlook Draft Write and Cross-Provider Parity | Safe Outlook draft creation only, behind explicit flags and approval/confirmation. Outlook send/calendar/Teams write remain parked. |
+| 29 | Outlook Draft Write and Cross-Provider Parity | Full Microsoft Graph write parity (draft, send, reply, mail modify, calendar) behind explicit flags and approval/confirmation/audit. Provider-aware routing. Default: all flags off. |
 | 30 | Release Candidate and Production Readiness | Scope freeze, hardening, route smoke, runbook, config sanity, backup/restore/reauth guidance, and first daily-use release candidate. |
 
 ## Phase documents

@@ -91,6 +91,7 @@ from app.services.execution_service import (
     confirm_execution,
     execution_attempt_history,
     list_execution_records,
+    microsoft_write_readiness,
     prepare_execution_for_draft,
     prepare_execution_for_review_package,
     prepare_new_execution_from_existing,
@@ -1876,6 +1877,24 @@ def execution_detail(execution_id: int, request: Request, db: Session = Depends(
             _payload = {}
     _posture = cleanup_execution_posture(settings) if record else {}
     _cleanup_details = cleanup_execution_details(_payload, _posture) if _payload.get("cleanup_mode") else {}
+
+    # Phase 29 — Provider detail for Outlook and Gmail executions
+    _OUTLOOK_ACTION_PREFIXES = ("create_outlook", "send_outlook", "apply_outlook")
+    _is_outlook_action = (
+        record is not None
+        and any(str(record.action_type.value).startswith(p) for p in _OUTLOOK_ACTION_PREFIXES)
+    )
+    _ms_readiness = microsoft_write_readiness(settings) if _is_outlook_action else {}
+    _provider_detail: dict = {}
+    if record:
+        _provider_detail = {
+            "source_provider": _payload.get("source_provider", ""),
+            "target_provider": _payload.get("target_provider", ""),
+            "feature_flag": _payload.get("feature_flag", ""),
+            "is_outlook_action": _is_outlook_action,
+            "ms_readiness": _ms_readiness,
+        }
+
     return templates.TemplateResponse(
         request,
         "execution_detail.html",
@@ -1885,6 +1904,7 @@ def execution_detail(execution_id: int, request: Request, db: Session = Depends(
             "attempts": execution_attempt_history(db, record) if record else [],
             "test_readiness": readiness_for_execution(record, settings) if record else None,
             "cleanup_details": _cleanup_details,
+            "provider_detail": _provider_detail,
         },
         status_code=200 if record else 404,
     )

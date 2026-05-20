@@ -103,10 +103,16 @@ def test_admin_and_smoke_routes_render_after_phase_22_changes(db_session):
 
 def test_microsoft_write_boundaries_remain_disabled():
     rows = {row.key: row for row in provider_status_rows(Settings())}
-    assert rows["microsoft_graph_outlook_mail_send"].state == "disabled"
-    assert rows["outlook_calendar_read"].state == "disabled"
+    assert rows["outlook_draft_create"].state == "disabled"
+    assert rows["outlook_send"].state == "disabled"
+    assert rows["outlook_calendar_write"].state == "disabled"
     assert rows["microsoft_graph_teams"].state == "disabled"
-    assert rows["microsoft_graph_outlook_mail_send"].classification == "not implemented"
+    # Phase 29: classification reflects graph wiring status, not "not implemented"
+    assert rows["outlook_draft_create"].classification in (
+        "partially wired",
+        "adapter-shape-only",
+        "not implemented",
+    )
 
 
 def test_reauth_script_documents_expected_token_files_and_scopes():

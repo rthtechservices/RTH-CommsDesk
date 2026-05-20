@@ -12,8 +12,8 @@
   <p class="help-text">Read-only diagnostics. No credentials are modified here. Provider matrix reflects live configuration state.</p>
 
   <div class="callout callout-grey" style="margin-bottom:14px">
-    <div class="callout-title">Microsoft write boundaries — disabled by design</div>
-    Outlook send actions are intentionally not implemented. Outlook calendar read/write remains fail-closed and is not implemented. Teams remains disabled. All write boundaries are enforced at the connector layer.
+    <div class="callout-title">Microsoft write surfaces — Phase 29 implementation</div>
+    Outlook draft creation, send/reply, mail modify, and calendar event creation are now implemented behind feature flags and the existing approval/confirmation/audit pipeline. All write surfaces default to disabled. Set the corresponding flag in <code>.env</code> to enable each surface. If scopes changed, delete <code>microsoft_graph_token.json</code> and reauthorize.
   </div>
 
   <section class="panel" style="margin-bottom:14px">
@@ -52,17 +52,23 @@
   </section>
 
   <section class="panel" style="margin-bottom:14px">
-    <h2>Microsoft write boundaries</h2>
-    <p class="muted" style="font-size:13px;margin-bottom:10px">All Microsoft write operations are read-only or not implemented. These boundaries are enforced at the connector layer and cannot be changed from the UI.</p>
+    <h2>Microsoft write readiness</h2>
+    <p class="muted" style="font-size:13px;margin-bottom:10px">All Microsoft write operations are gated by feature flags, the existing approval/confirmation pipeline, and EXTERNAL_WRITE_DRY_RUN. Set each flag in <code>.env</code> to enable. If Graph scopes changed, delete <code>microsoft_graph_token.json</code> and reauthorize.</p>
     <div style="display:grid;gap:8px">
-      <div class="callout callout-grey">
-        <div class="callout-title">Outlook send</div>
-        <div class="muted" style="font-size:13px">Not implemented. Outbound email via Outlook/Graph is disabled by design in this phase.</div>
+      {% set ms_write_keys = ['outlook_draft_create', 'outlook_send', 'outlook_mail_modify', 'outlook_calendar_write'] %}
+      {% for row in provider_rows if row.key in ms_write_keys %}
+      <div class="callout {% if row.state == 'available' %}callout-green{% elif row.state == 'dry_run' %}callout-amber{% elif row.state in ['misconfigured', 'failed'] %}callout-red{% else %}callout-grey{% endif %}">
+        <div class="callout-title">{{ row.label }}</div>
+        <div style="font-size:13px;margin-bottom:4px">
+          <span class="badge {% if row.state == 'available' %}ok{% elif row.state == 'dry_run' %}amber{% elif row.state in ['misconfigured', 'failed'] %}bad{% else %}grey{% endif %}">{{ row.state.replace("_", " ") }}</span>
+          <span class="muted" style="margin-left:6px">{{ row.mode }}</span>
+        </div>
+        <div class="muted" style="font-size:12px;margin-bottom:4px">{{ row.detail }}</div>
+        <div style="font-size:12px"><strong>Next:</strong> {{ row.next_action }}</div>
       </div>
-      <div class="callout callout-grey">
-        <div class="callout-title">Outlook calendar read/write</div>
-        <div class="muted" style="font-size:13px">Fail-closed. Calendar write is not implemented. Calendar read requires explicit opt-in flags and approved OAuth scopes.</div>
-      </div>
+      {% else %}
+      <div class="callout callout-grey"><div class="callout-title">No Microsoft write rows available.</div></div>
+      {% endfor %}
       <div class="callout callout-grey">
         <div class="callout-title">Teams</div>
         <div class="muted" style="font-size:13px">Disabled. No Teams sync, send, or read actions are wired. Reserved for a future phase.</div>
@@ -76,7 +82,7 @@
     <ul class="items">
       <li><strong>Gmail:</strong> run <code>.\scripts\reauth-commsdesk.ps1 -Gmail</code>. Required scopes: <code>https://www.googleapis.com/auth/gmail.readonly</code>, <code>https://www.googleapis.com/auth/gmail.compose</code>, <code>https://www.googleapis.com/auth/gmail.send</code>, <code>https://www.googleapis.com/auth/gmail.modify</code>.</li>
       <li><strong>Google Calendar:</strong> run <code>.\scripts\reauth-commsdesk.ps1 -GoogleCalendar</code>. Required scopes: <code>https://www.googleapis.com/auth/calendar.freebusy</code>, <code>https://www.googleapis.com/auth/calendar.events</code>.</li>
-      <li><strong>Microsoft Graph:</strong> run <code>.\scripts\reauth-commsdesk.ps1 -MicrosoftGraph</code>. Required scopes: <code>User.Read Mail.Read offline_access</code>.</li>
+      <li><strong>Microsoft Graph:</strong> run <code>.\scripts\reauth-commsdesk.ps1 -MicrosoftGraph</code>. Required scopes: <code>User.Read Mail.Read Mail.ReadWrite Mail.Send Calendars.ReadWrite offline_access</code>. If scopes changed, delete <code>microsoft_graph_token.json</code> first: <code>Remove-Item ".\microsoft_graph_token.json" -Force -ErrorAction SilentlyContinue</code>, then run POST /api/graph/test.</li>
       <li><strong>AI provider:</strong> set the <code>OPENAI_API_KEY</code> or equivalent environment variable</li>
     </ul>
   </section>

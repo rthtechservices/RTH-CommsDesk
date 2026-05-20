@@ -22,6 +22,7 @@ from app.models.entities import (
     utcnow,
 )
 from app.services.external_provider_clients import GmailWriteClient, GoogleCalendarClient
+from app.services.microsoft_graph_client import MicrosoftGraphMailService
 from app.services.draft_service import sanitize_send_ready_email_text, send_ready_email_for_draft
 from app.services.execution_test_policy import ensure_test_execution_allowed
 
@@ -46,6 +47,18 @@ class ExecutionProvider(Protocol):
 
     def delete_or_unsubscribe(self, payload: dict) -> dict:
         """Delete or unsubscribe operation with explicit confirmation."""
+
+    def create_outlook_draft(self, payload: dict) -> dict:
+        """Create an Outlook draft via Microsoft Graph."""
+
+    def send_outlook_reply(self, payload: dict) -> dict:
+        """Send an Outlook reply/message via Microsoft Graph."""
+
+    def apply_outlook_mail_modify(self, payload: dict) -> dict:
+        """Apply category/read/archive modification to an Outlook message."""
+
+    def create_outlook_calendar_event(self, payload: dict) -> dict:
+        """Create an Outlook calendar event via Microsoft Graph."""
 
 
 class MockExecutionProvider:
@@ -81,6 +94,34 @@ class MockExecutionProvider:
     def delete_or_unsubscribe(self, payload: dict) -> dict:
         return {"operation_id": _mock_id("destructive", payload), "status": "executed"}
 
+    def create_outlook_draft(self, payload: dict) -> dict:
+        return {
+            "draft_id": _mock_id("outlook_draft", payload),
+            "status": "created",
+            "provider": "mock_outlook",
+        }
+
+    def send_outlook_reply(self, payload: dict) -> dict:
+        return {
+            "message_id": _mock_id("outlook_reply", payload),
+            "status": "sent",
+            "provider": "mock_outlook",
+        }
+
+    def apply_outlook_mail_modify(self, payload: dict) -> dict:
+        return {
+            "operation_id": _mock_id("outlook_modify", payload),
+            "status": "applied",
+            "provider": "mock_outlook",
+        }
+
+    def create_outlook_calendar_event(self, payload: dict) -> dict:
+        return {
+            "event_id": _mock_id("outlook_event", payload),
+            "status": "created",
+            "provider": "mock_outlook",
+        }
+
 
 class GuardedExternalExecutionProvider:
     def __init__(
@@ -89,10 +130,12 @@ class GuardedExternalExecutionProvider:
         *,
         gmail_client: GmailWriteClient | None = None,
         calendar_client: GoogleCalendarClient | None = None,
+        graph_client: MicrosoftGraphMailService | None = None,
     ) -> None:
         self.settings = settings or get_settings()
         self.gmail_client = gmail_client or GmailWriteClient(self.settings)
         self.calendar_client = calendar_client or GoogleCalendarClient(self.settings)
+        self.graph_client = graph_client or MicrosoftGraphMailService(self.settings)
         self.name = "external-dry-run" if self.settings.external_write_dry_run else "external-live"
 
     def create_external_gmail_draft(self, payload: dict) -> dict:
@@ -140,6 +183,46 @@ class GuardedExternalExecutionProvider:
     def delete_or_unsubscribe(self, payload: dict) -> dict:
         raise RuntimeError("Delete/unsubscribe execution is not live-wired")
 
+    def create_outlook_draft(self, payload: dict) -> dict:
+        self._require(
+            self.settings.outlook_draft_create_enabled,
+            "Outlook draft creation",
+        )
+        if self.settings.external_write_dry_run:
+            return self._dry_run_result("create_outlook_draft", payload)
+        return self.graph_client.create_draft(payload)
+
+    def send_outlook_reply(self, payload: dict) -> dict:
+        self._require(
+            self.settings.outlook_send_enabled,
+            "Outlook send",
+        )
+        if self.settings.external_write_dry_run:
+            return self._dry_run_result("send_outlook_reply", payload)
+        return self.graph_client.create_and_send_reply(payload)
+
+    def apply_outlook_mail_modify(self, payload: dict) -> dict:
+        self._require(
+            self.settings.outlook_mail_modify_enabled,
+            "Outlook mail modify",
+        )
+        if self.settings.external_write_dry_run:
+            return self._dry_run_result("apply_outlook_mail_modify", payload)
+        message_id = payload.get("source_message_id") or ""
+        operation = payload.get("operation", "modify")
+        if operation == "archive":
+            return self.graph_client.archive_message(message_id)
+        return self.graph_client.modify_message(message_id, payload)
+
+    def create_outlook_calendar_event(self, payload: dict) -> dict:
+        self._require(
+            self.settings.outlook_calendar_write_enabled,
+            "Outlook calendar write",
+        )
+        if self.settings.external_write_dry_run:
+            return self._dry_run_result("create_outlook_calendar_event", payload)
+        return self.graph_client.create_calendar_event(payload)
+
     @staticmethod
     def _dry_run_result(action: str, payload: dict) -> dict:
         return {
@@ -172,13 +255,57 @@ def prepare_execution_for_draft(
         or (draft.thread.source_type if draft.thread else None)
         or "gmail"
     ).strip().lower()
+
+    settings = get_settings()
+
     if source_type == "outlook":
-        raise ValueError("Outlook draft creation is not implemented or not enabled.")
+        # Route Outlook-originated drafts to Microsoft Graph — never Gmail
+        if not settings.outlook_draft_create_enabled:
+            raise ValueError(
+                "Outlook draft creation is not implemented or not enabled."
+            )
+        action = ExecutionActionType.CREATE_OUTLOOK_DRAFT
+        send_ready = send_ready_email_for_draft(draft)
+        payload = {
+            "source_provider": "outlook",
+            "target_provider": "microsoft_graph",
+            "draft_id": draft.id,
+            "thread_id": draft.thread_id,
+            "message_id": draft.message_id,
+            "source_thread_id": draft.message.thread.source_thread_id if draft.message and draft.message.thread else None,
+            "source_message_id": draft.message.source_message_id if draft.message else None,
+            "conversation_id": draft.message.thread.source_thread_id if draft.message and draft.message.thread else None,
+            "to": draft.message.sender_email if draft.message else None,
+            "subject": send_ready.subject,
+            "body": send_ready.body,
+            "send_ready_subject": send_ready.subject,
+            "send_ready_body": send_ready.body,
+            "feature_flag": "OUTLOOK_DRAFT_CREATE_ENABLED",
+        }
+        record = ExecutionRecord(
+            draft_id=draft.id,
+            action_type=action,
+            attempt_number=_next_attempt_number(db, draft_id=draft.id, action_type=action),
+            status=ExecutionStatus.PENDING_REVIEW,
+            created_by=actor,
+            payload_json=_json(payload),
+            provider_name="mock",
+        )
+        db.add(record)
+        db.flush()
+        _append_audit(db, record, "prepared", actor, payload)
+        db.commit()
+        db.refresh(record)
+        return PreparedExecution(record=record, already_exists=False)
+
     if source_type != "gmail":
         raise ValueError(f"External draft creation is not implemented for source: {source_type}.")
+
     action = ExecutionActionType.CREATE_EXTERNAL_GMAIL_DRAFT
     send_ready = send_ready_email_for_draft(draft)
     payload = {
+        "source_provider": "gmail",
+        "target_provider": "gmail",
         "draft_id": draft.id,
         "thread_id": draft.thread_id,
         "message_id": draft.message_id,
@@ -189,6 +316,7 @@ def prepare_execution_for_draft(
         "body": send_ready.body,
         "send_ready_subject": send_ready.subject,
         "send_ready_body": send_ready.body,
+        "feature_flag": "GMAIL_WRITE_ENABLED and GMAIL_DRAFT_CREATE_ENABLED",
     }
     record = ExecutionRecord(
         draft_id=draft.id,
@@ -213,7 +341,7 @@ def prepare_execution_for_review_package(
     package = db.get(ProposedActionReviewPackage, package_id)
     if not package:
         raise ValueError("Review package not found")
-    action = _map_package_to_execution_action(package.action_type)
+    action = _map_package_to_execution_action(package)
 
     calendar_proposal = package.calendar_proposals[0] if package.calendar_proposals else None
     payload = _build_review_package_payload(package, action, calendar_proposal)
@@ -402,6 +530,78 @@ def get_default_execution_provider(settings: Settings | None = None) -> Executio
     return MockExecutionProvider()
 
 
+def microsoft_write_readiness(settings: Settings | None = None) -> dict:
+    """Return a structured readiness summary for all Microsoft write surfaces.
+
+    Each entry has: surface, feature_flag, state, reason, recovery.
+    States: 'available', 'disabled', 'not_implemented', 'misconfigured'.
+    """
+    active = settings or get_settings()
+    graph_enabled = bool(active.microsoft_graph_enabled)
+    graph_configured = bool(active.microsoft_tenant_id and active.microsoft_client_id)
+
+    def _surface_state(flag_enabled: bool) -> tuple[str, str, str]:
+        if not graph_enabled:
+            return (
+                "misconfigured",
+                "MICROSOFT_GRAPH_ENABLED is false",
+                "Set MICROSOFT_GRAPH_ENABLED=true and configure tenant/client IDs.",
+            )
+        if not graph_configured:
+            return (
+                "misconfigured",
+                "Microsoft Graph tenant/client IDs not configured",
+                "Set MICROSOFT_TENANT_ID and MICROSOFT_CLIENT_ID.",
+            )
+        if not flag_enabled:
+            return (
+                "disabled",
+                "Feature flag is false",
+                "Enable the feature flag in .env when ready for live writes.",
+            )
+        return (
+            "available",
+            "Enabled and configured",
+            "External write is guarded by approval, confirmation, and audit pipeline.",
+        )
+
+    draft_state, draft_reason, draft_recovery = _surface_state(active.outlook_draft_create_enabled)
+    send_state, send_reason, send_recovery = _surface_state(active.outlook_send_enabled)
+    modify_state, modify_reason, modify_recovery = _surface_state(active.outlook_mail_modify_enabled)
+    cal_state, cal_reason, cal_recovery = _surface_state(active.outlook_calendar_write_enabled)
+
+    return {
+        "outlook_draft_create": {
+            "surface": "Outlook draft creation",
+            "feature_flag": "OUTLOOK_DRAFT_CREATE_ENABLED",
+            "state": draft_state,
+            "reason": draft_reason,
+            "recovery": draft_recovery,
+        },
+        "outlook_send": {
+            "surface": "Outlook send / reply",
+            "feature_flag": "OUTLOOK_SEND_ENABLED",
+            "state": send_state,
+            "reason": send_reason,
+            "recovery": send_recovery,
+        },
+        "outlook_mail_modify": {
+            "surface": "Outlook mail modify (category/archive)",
+            "feature_flag": "OUTLOOK_MAIL_MODIFY_ENABLED",
+            "state": modify_state,
+            "reason": modify_reason,
+            "recovery": modify_recovery,
+        },
+        "outlook_calendar_write": {
+            "surface": "Outlook calendar event creation",
+            "feature_flag": "OUTLOOK_CALENDAR_WRITE_ENABLED",
+            "state": cal_state,
+            "reason": cal_reason,
+            "recovery": cal_recovery,
+        },
+    }
+
+
 def list_execution_records(db: Session, *, limit: int = 200) -> list[ExecutionRecord]:
     return (
         db.query(ExecutionRecord)
@@ -420,16 +620,40 @@ def audit_entries_for_execution(db: Session, execution_id: int) -> list[Executio
     )
 
 
-def _map_package_to_execution_action(action_type: ProposedActionType) -> ExecutionActionType:
+def _map_package_to_execution_action(
+    package: "ProposedActionReviewPackage",
+) -> ExecutionActionType:
+    action_type = package.action_type
+    # Detect source provider for routing
+    source_provider = _source_provider_for_package(package)
+
     if action_type in {ProposedActionType.REPLY, ProposedActionType.ASK_CLARIFYING_QUESTION}:
+        if source_provider == "outlook":
+            return ExecutionActionType.SEND_OUTLOOK_REPLY
         return ExecutionActionType.SEND_GMAIL_REPLY
     if action_type in {ProposedActionType.CREATE_CALENDAR_REMINDER, ProposedActionType.SCHEDULE_MEETING}:
+        if source_provider == "outlook":
+            return ExecutionActionType.CREATE_OUTLOOK_CALENDAR_EVENT
         return ExecutionActionType.CREATE_CALENDAR_EVENT
     if action_type in {ProposedActionType.MARK_NOISE, ProposedActionType.ARCHIVE_CANDIDATE}:
+        if source_provider == "outlook":
+            return ExecutionActionType.APPLY_OUTLOOK_MAIL_MODIFY
         return ExecutionActionType.APPLY_GMAIL_LABEL_ARCHIVE
     if action_type in {ProposedActionType.DELETE_CANDIDATE, ProposedActionType.UNSUBSCRIBE_REVIEW}:
         return ExecutionActionType.DELETE_UNSUBSCRIBE
     raise ValueError("Review package action type is not executable in this phase")
+
+
+def _source_provider_for_package(package: "ProposedActionReviewPackage") -> str:
+    message = package.message
+    if message:
+        source_type = (message.source_type or "").strip().lower()
+        if source_type:
+            return source_type
+        thread = getattr(message, "thread", None)
+        if thread:
+            return (thread.source_type or "gmail").strip().lower()
+    return "gmail"
 
 
 def _build_review_package_payload(
@@ -438,14 +662,27 @@ def _build_review_package_payload(
     calendar_proposal: CalendarActionProposal | None,
 ) -> dict:
     message = package.message
+    source_provider = _source_provider_for_package(package)
+    # Determine target provider based on action type
+    _OUTLOOK_ACTIONS = {
+        ExecutionActionType.CREATE_OUTLOOK_DRAFT,
+        ExecutionActionType.SEND_OUTLOOK_REPLY,
+        ExecutionActionType.APPLY_OUTLOOK_MAIL_MODIFY,
+        ExecutionActionType.CREATE_OUTLOOK_CALENDAR_EVENT,
+    }
+    target_provider = "microsoft_graph" if action in _OUTLOOK_ACTIONS else "gmail"
+    feature_flag = _feature_flag_for_action(action)
     base = {
         "review_package_id": package.id,
         "thread_id": package.thread_id,
         "message_id": package.message_id,
         "source_message_id": message.source_message_id if message else None,
         "source_thread_id": message.thread.source_thread_id if message and message.thread else None,
+        "source_provider": source_provider,
+        "target_provider": target_provider,
+        "feature_flag": feature_flag,
     }
-    if action == ExecutionActionType.SEND_GMAIL_REPLY:
+    if action in {ExecutionActionType.SEND_GMAIL_REPLY, ExecutionActionType.SEND_OUTLOOK_REPLY}:
         fallback_subject = f"Re: {message.subject}" if message and message.subject else "Re:"
         send_ready = sanitize_send_ready_email_text(
             package.draft_response
@@ -460,7 +697,7 @@ def _build_review_package_payload(
             "send_ready_subject": send_ready.subject,
             "send_ready_body": send_ready.body,
         }
-    if action == ExecutionActionType.CREATE_CALENDAR_EVENT:
+    if action in {ExecutionActionType.CREATE_CALENDAR_EVENT, ExecutionActionType.CREATE_OUTLOOK_CALENDAR_EVENT}:
         return {
             **base,
             "summary": message.subject if message else "CommsDesk proposed calendar action",
@@ -481,7 +718,7 @@ def _build_review_package_payload(
                 else None
             ),
         }
-    if action == ExecutionActionType.APPLY_GMAIL_LABEL_ARCHIVE:
+    if action in {ExecutionActionType.APPLY_GMAIL_LABEL_ARCHIVE, ExecutionActionType.APPLY_OUTLOOK_MAIL_MODIFY}:
         return {
             **base,
             "operation": (
@@ -497,6 +734,21 @@ def _build_review_package_payload(
         ),
         "warning": "Destructive action requires CONFIRM_DESTRUCTIVE",
     }
+
+
+def _feature_flag_for_action(action: ExecutionActionType) -> str:
+    _flags = {
+        ExecutionActionType.CREATE_EXTERNAL_GMAIL_DRAFT: "GMAIL_WRITE_ENABLED and GMAIL_DRAFT_CREATE_ENABLED",
+        ExecutionActionType.SEND_GMAIL_REPLY: "GMAIL_WRITE_ENABLED and GMAIL_SEND_ENABLED",
+        ExecutionActionType.APPLY_GMAIL_LABEL_ARCHIVE: "GMAIL_WRITE_ENABLED and GMAIL_LABEL_ARCHIVE_ENABLED",
+        ExecutionActionType.CREATE_CALENDAR_EVENT: "GOOGLE_CALENDAR_WRITE_ENABLED",
+        ExecutionActionType.CREATE_OUTLOOK_DRAFT: "OUTLOOK_DRAFT_CREATE_ENABLED",
+        ExecutionActionType.SEND_OUTLOOK_REPLY: "OUTLOOK_SEND_ENABLED",
+        ExecutionActionType.APPLY_OUTLOOK_MAIL_MODIFY: "OUTLOOK_MAIL_MODIFY_ENABLED",
+        ExecutionActionType.CREATE_OUTLOOK_CALENDAR_EVENT: "OUTLOOK_CALENDAR_WRITE_ENABLED",
+        ExecutionActionType.DELETE_UNSUBSCRIBE: "N/A — requires CONFIRM_DESTRUCTIVE",
+    }
+    return _flags.get(action, "unknown")
 
 
 def _get_execution_record(db: Session, execution_id: int) -> ExecutionRecord:
@@ -570,6 +822,30 @@ def _next_attempt_number(
 def _execute_with_provider(
     provider: ExecutionProvider, action_type: ExecutionActionType, payload: dict
 ) -> dict:
+    # Provider mismatch guard: Outlook actions must never fall back to Gmail
+    source_provider = (payload.get("source_provider") or "").strip().lower()
+
+    _OUTLOOK_ACTIONS = {
+        ExecutionActionType.CREATE_OUTLOOK_DRAFT,
+        ExecutionActionType.SEND_OUTLOOK_REPLY,
+        ExecutionActionType.APPLY_OUTLOOK_MAIL_MODIFY,
+        ExecutionActionType.CREATE_OUTLOOK_CALENDAR_EVENT,
+    }
+    _GMAIL_ACTIONS = {
+        ExecutionActionType.CREATE_EXTERNAL_GMAIL_DRAFT,
+        ExecutionActionType.SEND_GMAIL_REPLY,
+        ExecutionActionType.APPLY_GMAIL_LABEL_ARCHIVE,
+    }
+
+    if action_type in _OUTLOOK_ACTIONS and source_provider == "gmail":
+        raise ValueError(
+            f"Provider mismatch: action {action_type} is an Outlook write but source_provider is gmail"
+        )
+    if action_type in _GMAIL_ACTIONS and source_provider == "outlook":
+        raise ValueError(
+            f"Provider mismatch: action {action_type} is a Gmail write but source_provider is outlook"
+        )
+
     if action_type == ExecutionActionType.CREATE_EXTERNAL_GMAIL_DRAFT:
         return provider.create_external_gmail_draft(payload)
     if action_type == ExecutionActionType.SEND_GMAIL_REPLY:
@@ -586,6 +862,15 @@ def _execute_with_provider(
         return provider.apply_gmail_label_archive(payload)
     if action_type == ExecutionActionType.DELETE_UNSUBSCRIBE:
         return provider.delete_or_unsubscribe(payload)
+    # Phase 29 — Microsoft Graph write actions
+    if action_type == ExecutionActionType.CREATE_OUTLOOK_DRAFT:
+        return provider.create_outlook_draft(payload)
+    if action_type == ExecutionActionType.SEND_OUTLOOK_REPLY:
+        return provider.send_outlook_reply(payload)
+    if action_type == ExecutionActionType.APPLY_OUTLOOK_MAIL_MODIFY:
+        return provider.apply_outlook_mail_modify(payload)
+    if action_type == ExecutionActionType.CREATE_OUTLOOK_CALENDAR_EVENT:
+        return provider.create_outlook_calendar_event(payload)
     raise ValueError("Unsupported execution action")
 
 
