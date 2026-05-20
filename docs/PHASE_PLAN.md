@@ -1,59 +1,56 @@
 # RTH CommsDesk Phase Plan
 
-This plan tracks focused LLM-assisted delivery. Earlier phases intentionally used small reviewable increments while OAuth, external execution, provider status, and audit safety were still unstable. That phase of the project is over.
+This plan tracks focused LLM-assisted delivery. Earlier phases used small reviewable increments while OAuth, provider status, execution safety, and audit trails were still unstable. That era is done.
 
-Going forward, phases should be larger product acceleration sprints. Avoid tiny single-feature visibility phases. Each sprint should deliver a useful operator-facing capability and only document what materially changed.
+Going forward, phases are large acceleration sprints. The project is now in the endgame track documented in `docs/ENDGAME_ROADMAP.md`.
 
 ## Product target
 
-RTH CommsDesk is an assistant-grade communications operations console. It should not be limited to a feed of snippets and manual VIP/noise buttons.
-
-The intended end-state is:
+RTH CommsDesk is a local-first communications operations console:
 
 ```text
-High-volume communication ingestion
-→ full thread/conversation context
-→ AI-assisted summaries and recommendations
-→ historical learning from sent mail and user corrections
-→ bulk triage and noise automation
-→ calendar-aware scheduling recommendations
-→ user-approved outbound execution
+sync Gmail + Outlook
+→ capture full thread context
+→ classify and prioritize
+→ summarize and recommend next actions
+→ draft in approved voice
+→ prepare calendar/cleanup/reply actions
+→ approve and confirm external changes
+→ execute through the correct provider
+→ audit every attempt
 ```
 
-Every phase should move toward useful automation and insight while keeping actions explainable, auditable, and under explicit user control when external systems are modified.
+## Current active phase
 
-## Current direction
+| Phase | Title | Status |
+| --- | --- | --- |
+| 27 | Operator Polish and Daily-Use Hardening | In progress |
 
-Phases 01 through 20 built the operational foundation: Gmail ingestion, Outlook mail read through delegated Graph, contact intelligence, full Gmail thread context, Azure OpenAI analysis, review packages, sent-mail learning, bulk triage, calendar recommendations, approved execution records, provider/operational smoke status, a dark command-center UI, an operational test-mode lane for controlled Gmail/Calendar execution, and the first assistant-quality pass for voice, calendar reasoning, and teachable recommendations.
+Phase 27 is expected to fix the Phase 26 smoke-test friction: platform-aware drafts, draft lifecycle controls, execution filtering, repaired Voice/Assistant routes, complete local backups, and navigation/dashboard cleanup.
 
-The next product goal is to make CommsDesk recognizably the operator's assistant, then quickly harden the app for daily use:
+## Remaining endgame phases
 
-```text
-Understand the conversation
-→ recommend the correct next action
-→ reason about dates/times safely
-→ draft in Rohan's real voice
-→ learn from sent mail and corrections
-→ execute only when explicitly approved and safely gated
-→ provide one practical smoke/runbook path for daily operation
-```
+| Phase | Title | Outcome |
+| --- | --- | --- |
+| 28 | Daily-Use Cutover and Operator Console | One dashboard-led morning workflow: readiness, sync, process-next, local review actions, live smoke, backup/restore verification, and reauth guidance. |
+| 29 | Outlook Draft Write and Cross-Provider Parity | Safe Outlook draft creation only, behind explicit flags and approval/confirmation. Outlook send/calendar/Teams write remain parked. |
+| 30 | Release Candidate and Production Readiness | Scope freeze, hardening, route smoke, runbook, config sanity, backup/restore/reauth guidance, and first daily-use release candidate. |
 
-Recent live smoke lessons to address:
+## Phase documents
 
-- Gmail draft execution works, but draft quality still shows generic placeholders such as `[Your Name]`.
-- The assistant should learn stable operator voice traits from sent mail, including recurring sign-off style such as `Cheers, Rohan.` when approved evidence supports it.
-- Calendar reasoning must not create reminders or events in the past.
-- A message asking to meet on a date with no time should generally become a clarifying reply or an all-day tentative candidate, not an invented timed reminder.
-- Phase 19 test-mode and allowlist controls must remain intact while intelligence improves.
+- `docs/ENDGAME_ROADMAP.md`
+- `docs/phases/PHASE_28_DAILY_USE_CUTOVER_OPERATOR_CONSOLE.md`
+- `docs/phases/PHASE_29_OUTLOOK_DRAFT_WRITE_PARITY.md`
+- `docs/phases/PHASE_30_RELEASE_CANDIDATE_PRODUCTION_READINESS.md`
 
-## Delivery rule from Phase 21 onward
+## Delivery rule
 
-- Prefer larger practical sprints over tiny incremental phases.
-- Keep tests meaningful, not exhaustive for every wording change.
-- Keep docs current, not repetitive.
-- Do not split UI visibility, smoke checklists, and personalization controls into separate phases when they can ship together.
-- Preserve external-write safety controls.
-- Stop for review only at useful product checkpoints.
+- No cosmetic-only phases.
+- No tiny visibility-only phases.
+- No broad new side quests before release candidate.
+- Keep focused tests, not giant test matrices.
+- Keep docs useful and current.
+- Keep external-provider changes gated, visible, and audited.
 
 ## Completed phases
 
@@ -87,22 +84,4 @@ Recent live smoke lessons to address:
 | 23 | Mailbox Cleanup, Sender Noise Automation, and Outlook Write Planning | Completed |
 | 24 | Mailbox Cleanup Live Hardening, Real-Inbox Smoke, and Operator Trust Pass | Completed |
 | 25 | Controlled Live Gmail Cleanup Execution and Recovery | Completed |
-
-## Active phase
-
-No active implementation phase. Phase 25 is complete and ready for human review.
-
-Most recent phase file:
-
-- `docs/phases/PHASE_25_CONTROLLED_LIVE_GMAIL_CLEANUP.md`
-
-## Later acceleration candidates
-
-These should be combined or reordered based on what blocks daily usefulness:
-
-- Daily-use hardening: startup scripts, health checks, backup/reset, token reauth helper guidance, and one-page operator runbook.
-- Outlook write implementation only after Gmail/Calendar behavior and voice quality are stable.
-- Outlook calendar only after Google Calendar behavior is stable.
-- Teams read-only only if it materially improves daily triage.
-- Browser/mobile approval console only if desktop workflow is already genuinely useful.
-- Search/reporting/analytics only after the inbox/action loop is reliable.
+| 26 | Bulk Triage Live Smoke and Execution Verification | Completed / smoke-reviewed |
