@@ -31,7 +31,12 @@ $include = @(
     "docs\HELP.md",
     "docs\PHASE_STATUS.md",
     "docs\IMPLEMENTATION_LOG.md",
-    "docs\LESSONS_LEARNED.md"
+    "docs\LESSONS_LEARNED.md",
+    ".env",
+    "gmail_token.json",
+    "google_calendar_token.json",
+    "microsoft_graph_token.json",
+    "client_secret.json"
 )
 
 foreach ($rel in $include) {
@@ -43,7 +48,7 @@ foreach ($rel in $include) {
     }
 }
 
-Compress-Archive -LiteralPath (Join-Path $temp "*") -DestinationPath $zipPath -Force
+Compress-Archive -LiteralPath (Join-Path $temp "\") -DestinationPath $zipPath -Force
 Remove-Item -LiteralPath $temp -Recurse -Force
 
 Write-Host "Backup created: $zipPath"

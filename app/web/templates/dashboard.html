@@ -6,22 +6,45 @@
   .dashboard-shell {
     display: grid;
     gap: 14px;
+    width: min(2300px, calc(100% - 240px));
+    max-width: 2300px;
   }
   /* Status grid: Operational dominant, Command Center secondary, Source compact */
   .status-grid {
     display: grid;
-    grid-template-columns: 1.4fr 1fr 0.8fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
-    align-items: start;
+    align-items: stretch;
   }
   .status-card {
     display: grid;
+    grid-template-rows: auto 1fr auto;
     gap: 10px;
+    min-height: 214px;
+  }
+  .status-card h2 {
+    margin-bottom: 0;
   }
   .metric-row {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
     gap: 7px;
+  }
+  .status-metrics {
+    align-content: start;
+    grid-auto-rows: 1fr;
+  }
+  .status-metrics .metric {
+    min-height: 64px;
+  }
+  .operational-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .command-metrics {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .source-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   .daily-start {
     display: grid;
@@ -64,16 +87,24 @@
 
   .main-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 300px;
+    grid-template-columns: minmax(0, 1fr) 420px;
     gap: 14px;
     align-items: start;
+    width: 100%;
+    max-width: 100%;
+  }
+  .main-grid > .panel,
+  .main-grid > .widget-grid {
+    min-width: 0;
+    max-width: 100%;
   }
   .filters {
     display: grid;
-    grid-template-columns: 1.1fr 0.9fr 0.9fr minmax(160px, 1.2fr) 1fr auto;
+    grid-template-columns: minmax(150px, 1fr) minmax(125px, 0.7fr) minmax(125px, 0.7fr) minmax(170px, 1.2fr) minmax(135px, 0.8fr) auto;
     gap: 7px;
     align-items: end;
     margin-bottom: 10px;
+    max-width: 100%;
   }
   .filters label {
     display: grid;
@@ -87,13 +118,22 @@
   .attention-table {
     display: grid;
     gap: 4px;
+    width: 100%;
+    max-width: 100%;
   }
   .attention-head,
   .attention-row {
     display: grid;
-    grid-template-columns: 54px 90px minmax(130px, 0.8fr) minmax(220px, 1.6fr) 130px 100px 150px;
-    gap: 7px;
+    grid-template-columns: 54px 82px minmax(105px, 0.72fr) minmax(180px, 1.8fr) minmax(118px, 0.78fr) 84px 104px;
+    gap: 6px;
     align-items: center;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .attention-head > div,
+  .attention-row > div {
+    min-width: 0;
   }
   .attention-head {
     color: var(--muted);
@@ -101,13 +141,9 @@
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    padding: 0 10px;
-    position: sticky;
-    top: 52px;
-    z-index: 5;
-    background: var(--bg);
+    padding: 0 10px 5px;
+    background: transparent;
     border-bottom: 1px solid var(--line);
-    padding-bottom: 4px;
   }
   .attention-row {
     border: 1px solid var(--line);
@@ -139,20 +175,27 @@
     flex-wrap: wrap;
     gap: 5px;
     justify-content: flex-end;
+    min-width: 0;
   }
   .row-actions button,
   .row-actions .button {
     min-height: 26px;
-    padding: 3px 8px;
-    font-size: 11px;
+    padding: 3px 7px;
+    font-size: 10px;
   }
   /* widget sidebar */
   .widget-grid {
     display: grid;
     gap: 8px;
+    align-content: start;
+    min-width: 0;
+    max-width: 100%;
   }
   .widget {
     padding: 12px;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
   }
   .widget h2 {
     font-size: 12px;
@@ -160,17 +203,54 @@
   }
   .widget .mini-list {
     font-size: 13px;
+    min-width: 0;
   }
   .widget .mini-list li {
     padding: 5px 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .widget .mini-list a,
+  .widget-header,
+  .widget-header h2 {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .widget-action {
+    margin-top: 8px;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .widget-action .button {
+    display: flex;
+    width: 100%;
+    max-width: 100%;
+    min-height: 34px;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
   }
   @media (min-width: 1500px) {
+    .attention-head,
+    .attention-row {
+      grid-template-columns: 58px 92px minmax(120px, 0.75fr) minmax(260px, 1.9fr) minmax(128px, 0.78fr) 96px 118px;
+    }
+  }
+  @media (max-width: 1700px) {
     .main-grid {
-      grid-template-columns: minmax(0, 1fr) 340px;
+      grid-template-columns: minmax(0, 1fr) 360px;
     }
     .attention-head,
     .attention-row {
-      grid-template-columns: 58px 100px minmax(150px, 0.85fr) minmax(280px, 1.7fr) 150px 115px 164px;
+      grid-template-columns: 50px 72px minmax(90px, 0.65fr) minmax(150px, 1.8fr) minmax(100px, 0.7fr) 76px 92px;
+    }
+    .filters {
+      grid-template-columns: minmax(130px, 1fr) minmax(110px, 0.7fr) minmax(110px, 0.7fr) minmax(140px, 1fr) minmax(115px, 0.7fr) auto;
+    }
+  }
+  @media (max-width: 2600px) {
+    .dashboard-shell {
+      width: min(2300px, calc(100% - 120px));
     }
   }
   @media (max-width: 1200px) {
@@ -192,6 +272,14 @@
     }
     .attention-row > div:nth-child(n + 3) {
       grid-column: 2;
+    }
+    .dashboard-shell {
+      width: min(100% - 32px, 2300px);
+    }
+    .operational-metrics,
+    .command-metrics,
+    .source-metrics {
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     }
     .row-actions {
       justify-content: flex-start;
@@ -318,7 +406,7 @@
     <!-- Operational Status -->
     <div class="panel status-card">
       <h2>Operational Status</h2>
-      <div class="metric-row">
+      <div class="metric-row status-metrics operational-metrics">
         <div class="metric metric-sm">
           <strong><span class="status-dot {{ smoke_status.gmail_read.state }}"></span>{{ smoke_status.gmail_read.state.replace("_", " ").title() }}</strong>
           <span class="muted">Gmail read config</span>
@@ -358,16 +446,12 @@
         <span style="color:var(--ok)">&#x2713;</span> No provider blockers. System ready for triage.
       </div>
       {% endif %}
-      <div class="button-row">
-        <a class="button" href="/operational-smoke">Operational Smoke</a>
-        <a class="button" href="/providers">Provider matrix</a>
-      </div>
     </div>
 
     <!-- Command Center State -->
     <div class="panel status-card">
       <h2>Command Center State</h2>
-      <div class="metric-row">
+      <div class="metric-row status-metrics command-metrics">
         <div class="metric metric-sm">
           <strong class="cc-number {% if backlog_stats.pending_review_packages > 0 %}cc-pending{% elif backlog_stats.pending_review_packages == 0 %}cc-ok{% endif %}">{{ backlog_stats.pending_review_packages }}</strong>
           <span class="muted">Pending reviews</span>
@@ -385,18 +469,16 @@
           <span class="muted">Reviewed / total</span>
         </div>
       </div>
-      <div class="button-row">
-        <a class="button amber" href="/review-packages/next">Next review</a>
-        <a class="button" href="/assistant-profile">Assistant profile</a>
-        <a class="button" href="/executions/next">Next execution</a>
-        <a class="button primary" href="/process-next?queue_filter={{ queue_filter }}{% if filter_source %}&source={{ filter_source }}{% endif %}">Process next</a>
+      <div class="subtle-panel" style="font-size:12px">
+        <span class="muted">Next:</span>
+        {% if backlog_stats.pending_review_packages > 0 %}review packages{% elif backlog_stats.ready_executions > 0 %}approve executions{% else %}continue triage{% endif %}
       </div>
     </div>
 
     <!-- Source Counts -->
     <div class="panel status-card">
       <h2>Source Counts and Runtime</h2>
-      <div class="metric-row">
+      <div class="metric-row status-metrics source-metrics">
         {% for row in source_counts %}
         <a class="metric metric-sm" href="/?source={{ row.key }}" style="text-decoration:none">
           <strong class="cc-number cc-info" style="font-size:18px">{{ row.unreviewed_attention_count }}</strong>
@@ -414,7 +496,7 @@
 
   <!-- ── Main Grid: Attention Queue + Widget Sidebar ── -->
   <div class="main-grid">
-    <section class="panel">
+    <section class="panel attention-panel">
       <h2>Needs My Attention</h2>
       <form class="filters" method="get" action="/">
         <label>
@@ -529,7 +611,7 @@
           {% endfor %}
         </ul>
         {% if backlog_stats.pending_review_packages > 0 %}
-        <div style="margin-top:8px"><a class="button amber" style="width:100%;justify-content:center" href="/review-packages/next">Process next</a></div>
+        <div class="widget-action"><a class="button amber" href="/review-packages/next">Process next</a></div>
         {% endif %}
       </section>
 
@@ -562,7 +644,7 @@
           {% endfor %}
         </ul>
         {% if backlog_stats.ready_executions > 0 %}
-        <div style="margin-top:8px"><a class="button amber" style="width:100%;justify-content:center" href="/executions/next">Review next</a></div>
+        <div class="widget-action"><a class="button amber" href="/executions/next">Review next</a></div>
         {% endif %}
       </section>
 
