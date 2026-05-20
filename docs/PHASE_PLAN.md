@@ -1,58 +1,73 @@
 # RTH CommsDesk Phase Plan
 
-This plan tracks focused LLM-assisted delivery. Earlier phases used small reviewable increments while OAuth, provider status, execution safety, and audit trails were still unstable. That era is done.
+This plan tracks phased LLM-assisted delivery.
 
-Going forward, phases are large acceleration sprints. The project is now in the endgame track documented in `docs/ENDGAME_ROADMAP.md`.
+Earlier phases were too small for the cost/credit burn. From this point forward, phases must be acceleration sprints: large, operator-facing chunks that materially move the app toward daily use. Avoid copy-only phase churn, cosmetic-only work, and repeated full-suite test runs when a focused validation pass is enough for the change type.
 
 ## Product target
 
 RTH CommsDesk is a local-first communications operations console:
 
 ```text
-sync Gmail + Outlook
-→ capture full thread context
+sync Gmail + Outlook + future messaging channels
+→ capture full thread/context where APIs permit
 → classify and prioritize
 → summarize and recommend next actions
 → draft in approved voice
-→ prepare calendar/cleanup/reply actions
+→ prepare calendar/cleanup/reply/message actions
 → approve and confirm external changes
-→ execute through the correct provider
+→ execute through the correct provider/channel
 → audit every attempt
 → show persistent life-to-date value metrics
 ```
 
-## Current active phase
+## Pause / resume checkpoint
+
+Development is paused after Phase 29 because credits are low.
+
+Phase 29 implemented Microsoft Graph write parity, but Outlook integration is only half smoke-tested. The next session must resume with Outlook smoke completion before starting new channel implementation.
+
+Phase 30 is **not** deployment and is **not** release-candidate hardening. The app still needs a decision and implementation path for WhatsApp, Facebook Messenger, Instagram Messaging, and SMS text messages before production readiness.
+
+## Current active / next phase
 
 | Phase | Title | Status |
 | --- | --- | --- |
-| 29 | Microsoft Write Cutover and Provider Parity | Completed / human review |
+| 30 | Outlook Integration Smoke Completion and Omnichannel Planning | Next |
 
-Phase 29 added full Microsoft Graph write parity: Outlook draft creation, Outlook send/reply, Outlook mail modify (categories/read/flag/archive), and Outlook calendar event creation. All surfaces are gated by explicit feature flags (`OUTLOOK_DRAFT_CREATE_ENABLED`, `OUTLOOK_SEND_ENABLED`, `OUTLOOK_MAIL_MODIFY_ENABLED`, `OUTLOOK_CALENDAR_WRITE_ENABLED`) and the existing approve → confirm → execute → audit pipeline. Provider-aware routing ensures Microsoft-originated work never falls back to Gmail. All flags default to `false`; `EXTERNAL_WRITE_DRY_RUN` provides an additional dry-run layer.
-
-## Remaining endgame phases
+## Next acceleration phases
 
 | Phase | Title | Outcome |
 | --- | --- | --- |
-| 28 | Daily-Use Cutover, Operator Console, and About Statistics | One dashboard-led morning workflow plus `/about` with app info, durable life-to-date stats, and transparent estimated hours saved from the go-live baseline. |
-| 29 | Outlook Draft Write and Cross-Provider Parity | Full Microsoft Graph write parity (draft, send, reply, mail modify, calendar) behind explicit flags and approval/confirmation/audit. Provider-aware routing. Default: all flags off. |
-| 30 | Release Candidate and Production Readiness | Scope freeze, hardening, route smoke, runbook, config sanity, backup/restore/reauth guidance, and first daily-use release candidate. |
+| 30 | Outlook Integration Smoke Completion and Omnichannel Planning | Finish Outlook smoke testing; document exact Graph readiness, scopes, dry-run/live posture, known failures, and the practical channel strategy for WhatsApp/Facebook Messenger/Instagram/SMS. |
+| 31 | Omnichannel Connector Foundation Sprint | Add a normalized messaging-channel model and webhook/provider abstraction for WhatsApp, Messenger, Instagram, and SMS-style messages. Ingest safe sample payloads into the existing thread/message/review pipeline with source confidence and provider status. |
+| 32 | Messaging Channel Live Adapter Sprint | Implement the first practical live channel adapter(s) based on available accounts/APIs, likely Twilio/Meta Graph or another chosen provider. Include OAuth/token posture, webhook verification, replay-safe ingestion, provider status, and focused tests. |
+| 33 | Omnichannel Review and Execution Sprint | Extend review packages, drafts, voice guidance, and execution records for messaging replies where provider APIs allow outbound messaging. Keep all sends gated by prepare → approve → confirm → execute → audit. |
+| 34 | Daily-Use Release Candidate Hardening | Only after Outlook smoke and messaging-channel direction are stable: harden startup, backup, reauth, config checks, route smoke, docs, and daily-use runbook for a first release candidate. |
 
 ## Phase documents
 
-- `docs/ENDGAME_ROADMAP.md`
-- `docs/phases/phase-27-operator-polish-daily-use-hardening.md`
-- `docs/phases/PHASE_28_DAILY_USE_CUTOVER_OPERATOR_CONSOLE.md`
-- `docs/phases/PHASE_29_OUTLOOK_DRAFT_WRITE_PARITY.md`
-- `docs/phases/PHASE_30_RELEASE_CANDIDATE_PRODUCTION_READINESS.md`
+- `docs/RESUME_HANDOFF.md`
+- `docs/phases/PHASE_30_OUTLOOK_SMOKE_AND_OMNICHANNEL_PLANNING.md`
+- `docs/phases/PHASE_31_OMNICHANNEL_CONNECTOR_FOUNDATION.md`
+- `docs/phases/PHASE_32_MESSAGING_CHANNEL_LIVE_ADAPTERS.md`
+- `docs/phases/PHASE_33_OMNICHANNEL_REVIEW_EXECUTION.md`
+- `docs/phases/PHASE_34_RELEASE_CANDIDATE_HARDENING.md`
 
-## Delivery rule
+Older endgame documents may still exist for history, but the active plan above supersedes any older Phase 30 deployment/release-candidate language.
 
-- No cosmetic-only phases.
-- No tiny visibility-only phases.
-- No broad new side quests before release candidate.
-- Keep focused tests, not giant test matrices.
-- Keep docs useful and current.
+## Delivery rules from resume point forward
+
+- Large chunks only. Each phase should deliver an operator-facing capability bundle, not a tiny breadcrumb.
+- Outlook smoke completion comes before new channel implementation.
+- No deployment/release-candidate work until the messaging-channel strategy is decided and implemented enough to validate.
+- Use focused tests for changed behavior; run full suite at major integration cut points.
+- Do not create giant test matrices for doc-only or copy-only edits.
 - Keep external-provider changes gated, visible, and audited.
+- Do not enable destructive or external-write actions by default.
+- Microsoft/Meta/SMS outbound actions must follow prepare → approve → confirm → execute → audit.
+- Do not add hidden mock fallback that looks like a successful live provider call.
+- Do not leak review notes/internal caveats into external drafts/messages.
 
 ## Completed phases
 
@@ -88,3 +103,5 @@ Phase 29 added full Microsoft Graph write parity: Outlook draft creation, Outloo
 | 25 | Controlled Live Gmail Cleanup Execution and Recovery | Completed |
 | 26 | Bulk Triage Live Smoke and Execution Verification | Completed / smoke-reviewed |
 | 27 | Operator Polish and Daily-Use Hardening | Completed |
+| 28 | Daily-Use Cutover and Operator Console | Completed |
+| 29 | Microsoft Write Cutover and Provider Parity | Implemented / Outlook smoke incomplete |
