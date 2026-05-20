@@ -1,70 +1,70 @@
-# RTH CommsDesk Endgame Roadmap
+# RTH CommsDesk Roadmap After Phase 29 Pause
 
 ## Current position
 
-Phase 29 is complete or in final smoke review. It added full Microsoft Graph write parity: Outlook draft creation, Outlook send/reply, Outlook mail modify, and Outlook calendar event creation — all behind explicit feature flags, the approval/confirmation/audit pipeline, and `EXTERNAL_WRITE_DRY_RUN`. Provider-aware routing blocks cross-provider mutations at the execution layer.
+Development is paused after Phase 29 because credits are low.
 
-One phase remains before the release candidate.
+Phase 29 implemented Microsoft Graph write parity: Outlook draft creation, Outlook send/reply, Outlook mail modify, and Outlook calendar event creation. All are behind explicit feature flags, provider-aware routing, approval/confirmation/audit, and dry-run posture.
+
+Outlook integration is only half smoke-tested. Treat it as implemented but not operationally trusted until Phase 30 completes smoke testing.
+
+## Important correction
+
+The old roadmap said one phase remained before release candidate. That is no longer accurate.
+
+Phase 30 is not deployment and not release-candidate hardening. The app still needs a practical path for these channels before production readiness:
+
+- WhatsApp;
+- Facebook Messenger;
+- Instagram Messaging;
+- SMS text messages.
 
 ## End goal
 
 RTH CommsDesk should be a local-first daily communications console:
 
-1. sync Gmail and Outlook read surfaces;
+1. sync Gmail, Outlook, and selected messaging channels;
 2. show one practical operator queue;
 3. recommend the next useful action;
-4. prepare drafts, calendar actions, cleanup actions, or local review outcomes;
+4. prepare drafts, replies, calendar actions, cleanup actions, or local review outcomes;
 5. require approval and final confirmation before external changes;
-6. execute through the correct provider;
+6. execute through the correct provider/channel;
 7. audit every attempt;
 8. provide backup, recovery, and reauth guidance;
 9. show persistent life-to-date value metrics from the go-live baseline onward.
 
-## Remaining phases
+## Active next phases
 
 | Phase | Name | Purpose |
 | --- | --- | --- |
-| 29 | Microsoft Write Cutover and Provider Parity | Add real Microsoft Graph write parity for Outlook drafts, Outlook send, Outlook calendar, and mail modify seams behind explicit flags and the existing approval/confirmation/audit pipeline. |
-| 30 | Release Candidate and Production Readiness | Freeze scope, harden startup/backup/restore/reauth, clean docs/UI, validate route smoke, and prepare first daily-use release candidate. |
+| 30 | Outlook Integration Smoke Completion and Omnichannel Planning | Finish Outlook smoke testing and decide the practical channel strategy for WhatsApp, Messenger, Instagram, and SMS. |
+| 31 | Omnichannel Connector Foundation Sprint | Add normalized inbound messaging-channel foundation and safe sample ingestion for all requested channel families. |
+| 32 | Messaging Channel Live Adapter Sprint | Implement the first selected live/test provider adapter(s), webhook verification, replay-safe ingestion, and provider status. |
+| 33 | Omnichannel Review and Execution Sprint | Extend review packages, drafting, and guarded execution for messaging replies where provider APIs allow it. |
+| 34 | Daily-Use Release Candidate Hardening | Harden startup, backup, reauth, config checks, route smoke, docs, and daily-use runbook after Outlook and messaging work settle. |
 
-## Phase 29 stance
+## Phase 30 stance
 
-Phase 29 is no longer a cautious Outlook-draft-only phase. It is the Microsoft write cutover sprint.
+Phase 30 should be a smoke-and-decision sprint, not a timid documentation pass.
 
-Ship the real seams now:
+It should produce:
 
-- Outlook draft creation;
-- Outlook send;
-- Outlook reply/send in the correct conversation where identifiers allow it;
-- Outlook mail modify/category/archive or a clear blocked seam if Graph/data support is incomplete;
-- Outlook calendar event creation;
-- provider-aware routing so Microsoft-originated work never falls back to Gmail.
+- exact Outlook smoke results;
+- exact Graph scope/token status;
+- fixes for cheap smoke blockers;
+- current test failure posture;
+- a clear chosen direction for messaging channels;
+- adjusted Phase 31 scope if the channel decision changes.
 
-The approval/confirmation/audit lane remains because that is the app architecture, not a delay tactic.
+## What not to do immediately
 
-## About/statistics requirement
+- Do not deploy.
+- Do not start production hardening.
+- Do not create another tiny Microsoft visibility-only phase.
+- Do not run expensive full validation repeatedly for docs-only changes.
+- Do not enable external writes by default.
+- Do not add Teams unless it materially improves daily triage and does not distract from the requested channels.
 
-The release candidate should include `/about`, similar to a desktop app About screen. It should show basic app information plus life-to-date statistics from a durable SQLite baseline:
+## Success state before release candidate
 
-- Number of Emails Processed;
-- Number of Emails Drafted;
-- Number of Emails Deleted;
-- Number of Senders Identified as Spam/Noise;
-- Number of VIP Contacts;
-- Number of AI-Provided Content Items;
-- Number of Hours Saved.
-
-The Hours Saved value must be a transparent configurable estimate. Use audited activity, affected message counts, source/draft word counts where available, and configurable reading/typing/browser-overhead assumptions. Show the formula assumptions on the About page.
-
-Stats must persist across future upgrades and begin from the go-live baseline timestamp.
-
-## What not to do before release candidate
-
-- Do not add Teams unless it is effectively free and does not delay Microsoft mail/calendar write parity.
-- Do not add broad analytics dashboards.
-- Do not create cosmetic-only phases.
-- Do not expand the test matrix beyond focused regression coverage.
-
-## Success state
-
-The app is release-candidate ready when Rohan can open the dashboard, sync current mail, process the next important item, prepare/review/approve an action, execute it safely when needed across Gmail, Google Calendar, and Microsoft Graph where configured, recover/audit what happened, and see persistent lifetime value metrics without digging through raw routes or logs.
+The app is release-candidate ready only when Rohan can open the dashboard, sync current mail/messages, process the next important item, prepare/review/approve an action, execute it safely where configured, recover/audit what happened, and see persistent lifetime value metrics without digging through raw routes or logs.
