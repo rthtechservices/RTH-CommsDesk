@@ -209,6 +209,60 @@
     </div>
   </section>
 
+  <section class="panel" aria-label="Start here today">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
+      <div>
+        <h2>Start Here Today</h2>
+        <div class="metric-row">
+          <div class="metric metric-sm">
+            {% if daily_start.last_smoke %}
+            <strong><span class="status-dot {{ daily_start.last_smoke.overall_status.value }}"></span>{{ daily_start.last_smoke.overall_status.value.title() }}</strong>
+            <span class="muted">Last smoke run</span>
+            {% else %}
+            <strong><span class="status-dot dry_run"></span>Not run</strong>
+            <span class="muted">Last smoke run</span>
+            {% endif %}
+          </div>
+          <div class="metric metric-sm">
+            <strong style="font-size:13px">{{ sync_state.last_successful_sync_at if sync_state and sync_state.last_successful_sync_at else "Never" }}</strong>
+            <span class="muted">Last Gmail sync</span>
+          </div>
+          <div class="metric metric-sm">
+            <strong style="font-size:13px">{{ daily_start.last_outlook_sync.last_successful_sync_at if daily_start.last_outlook_sync and daily_start.last_outlook_sync.last_successful_sync_at else "Never" }}</strong>
+            <span class="muted">Last Outlook sync</span>
+          </div>
+          <div class="metric metric-sm">
+            <strong class="cc-number {% if backlog_stats.pending_review_packages > 0 %}cc-pending{% else %}cc-ok{% endif %}">{{ backlog_stats.pending_review_packages }}</strong>
+            <span class="muted">Pending review packages</span>
+          </div>
+          <div class="metric metric-sm">
+            <strong class="cc-number {% if backlog_stats.ready_executions > 0 %}cc-pending{% else %}cc-ok{% endif %}">{{ backlog_stats.ready_executions }}</strong>
+            <span class="muted">Ready executions</span>
+          </div>
+          <div class="metric metric-sm">
+            <strong class="cc-number {% if daily_start.pending_voice_guidance > 0 %}cc-pending{% else %}cc-ok{% endif %}">{{ daily_start.pending_voice_guidance }}</strong>
+            <span class="muted">Voice guidance pending</span>
+          </div>
+        </div>
+        {% if daily_start.provider_blockers %}
+        <div class="callout callout-red" style="margin-top:10px">
+          <div class="callout-title" style="color:var(--bad)">Provider blockers</div>
+          {{ daily_start.provider_blockers[0].label }} — {{ daily_start.provider_blockers[0].next_action }}
+        </div>
+        {% endif %}
+      </div>
+      <div class="button-row">
+        <form method="post" action="/operational-smoke/run"><button class="primary" type="submit">Run Smoke</button></form>
+        <form method="post" action="/sync/gmail"><button type="submit">Sync Gmail</button></form>
+        <form method="post" action="/sync/outlook"><button type="submit">Sync Outlook</button></form>
+        <a class="button outline" href="/review-packages">Review Packages</a>
+        <a class="button outline" href="/executions">Executions</a>
+        <a class="button outline" href="/assistant-profile">Assistant Profile</a>
+        <a class="button outline" href="/providers">Providers</a>
+      </div>
+    </div>
+  </section>
+
   {% if sync_error %}
   <section class="warning">Sync did not complete. Check OAuth setup and local configuration before running the workflow.</section>
   {% endif %}

@@ -11,6 +11,52 @@
   <h1>Operational Smoke</h1>
   <p class="help-text">Read-only system readiness check. All diagnostics here are non-destructive and do not trigger any operations.</p>
 
+  <section class="panel" style="margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
+      <div>
+        <h2>Latest Persisted Smoke Run</h2>
+        {% if latest_smoke_run %}
+        <div class="facts">
+          <div><strong class="label">Status</strong><span class="badge {% if latest_smoke_run.overall_status.value == 'passed' %}ok{% elif latest_smoke_run.overall_status.value == 'warning' %}amber{% else %}bad{% endif %}">{{ latest_smoke_run.overall_status.value }}</span></div>
+          <div><strong class="label">Started</strong><span class="muted">{{ latest_smoke_run.started_at }}</span></div>
+          <div><strong class="label">Mode</strong><span class="muted">{{ latest_smoke_run.mode.value }}</span></div>
+          <div><strong class="label">Run</strong><span><a href="/operational-smoke/runs/{{ latest_smoke_run.id }}">View detail</a></span></div>
+        </div>
+        {% else %}
+        <p class="muted">No persisted smoke run yet. Run one now to create a sanitized local history entry.</p>
+        {% endif %}
+      </div>
+      <div class="button-row">
+        <form method="post" action="/operational-smoke/run"><button class="primary" type="submit">Run Smoke Now</button></form>
+        <a class="button outline" href="/providers">Providers</a>
+        <a class="button outline" href="/executions">Executions</a>
+        <a class="button outline" href="/assistant-profile">Assistant Profile</a>
+        <a class="button outline" href="/admin">Admin</a>
+      </div>
+    </div>
+  </section>
+
+  {% if recent_smoke_runs %}
+  <section class="panel" style="margin-bottom:14px">
+    <h2>Recent Smoke History</h2>
+    <table>
+      <thead><tr><th>Run</th><th>Status</th><th>Mode</th><th>Started</th><th>Dry-run</th><th>Test mode</th></tr></thead>
+      <tbody>
+        {% for run in recent_smoke_runs %}
+        <tr>
+          <td><a href="/operational-smoke/runs/{{ run.id }}">#{{ run.id }}</a></td>
+          <td><span class="badge {% if run.overall_status.value == 'passed' %}ok{% elif run.overall_status.value == 'warning' %}amber{% else %}bad{% endif %}">{{ run.overall_status.value }}</span></td>
+          <td class="muted">{{ run.mode.value }}</td>
+          <td class="muted">{{ run.started_at }}</td>
+          <td>{% if run.external_write_dry_run %}<span class="badge amber">on</span>{% else %}<span class="badge ok">off</span>{% endif %}</td>
+          <td>{% if run.operational_test_mode %}<span class="badge ok">on</span>{% else %}<span class="badge grey">off</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+
   {% if smoke_status.blockers %}
   <div class="callout callout-red" style="margin-bottom:14px">
     <div class="callout-title" style="color:var(--bad)">Execution blockers detected</div>
@@ -29,7 +75,7 @@
   <div style="display:grid;gap:12px">
     <section class="panel">
       <h2>Operator Smoke Checklist</h2>
-      <p class="muted" style="font-size:13px;margin-bottom:8px">Sanitized readiness checklist. This page displays state only; it does not run live tests or persist smoke results yet.</p>
+      <p class="muted" style="font-size:13px;margin-bottom:8px">Sanitized readiness checklist. Use Run Smoke Now to persist a durable local smoke history entry.</p>
       <table>
         <thead>
           <tr><th>Test</th><th>Provider/action</th><th>Status</th><th>External write?</th><th>Sanitized result / next step</th></tr>

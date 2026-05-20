@@ -41,10 +41,34 @@
     </div>
   </section>
 
+  <section class="panel">
+    <h2>Local backup</h2>
+    <p class="muted">Creates a local ZIP with the SQLite database, <code>.env.example</code>, and key docs. It excludes <code>.env</code>, OAuth tokens, and client secrets.</p>
+    <form method="post" action="/admin/backup/create" style="margin:10px 0">
+      <button class="primary" type="submit">Create Local Backup</button>
+    </form>
+    <div class="callout callout-grey">
+      <div class="callout-title">Sensitive files excluded</div>
+      <div class="muted" style="font-size:13px"><code>.env</code>, <code>gmail_token.json</code>, <code>google_calendar_token.json</code>, <code>microsoft_graph_token.json</code>, and <code>client_secret.json</code> are never included by default.</div>
+    </div>
+    {% if latest_backup %}
+    <div class="facts" style="margin-top:10px">
+      <div><strong class="label">Latest backup</strong><span class="muted">{{ latest_backup.backup_path }}</span></div>
+      <div><strong class="label">Created</strong><span class="muted">{{ latest_backup.created_at }}</span></div>
+      <div><strong class="label">Size</strong><span class="muted">{{ latest_backup.size_bytes }} bytes</span></div>
+    </div>
+    {% else %}
+    <p class="muted" style="margin-top:10px">No local backup archive found.</p>
+    {% endif %}
+  </section>
+
   {% if retention_result %}
   <div class="notice" style="margin-top:10px">Retention result: {{ retention_result }}</div>
   {% endif %}
   {% if cache_result %}
   <div class="notice" style="margin-top:10px">Cache clear result: {{ cache_result }}</div>
+  {% endif %}
+  {% if backup_result %}
+  <div class="notice" style="margin-top:10px">Backup result: {{ backup_result }}</div>
   {% endif %}
 {% endblock %}

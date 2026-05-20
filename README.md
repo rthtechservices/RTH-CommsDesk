@@ -111,6 +111,7 @@ Use `GET /api/ai/status` for sanitized configuration status and `POST /api/ai/te
 Open `http://127.0.0.1:8000/providers` or call `GET /api/providers/status` to see each provider/action classified as live-ready, mock-only, adapter-shape-only, partially wired, or not implemented, with runtime state such as live, mock, disabled, missing configuration, dry-run, or failed. The page includes configuration snippets and restart guidance; it does not live-edit `.env`.
 
 Open `http://127.0.0.1:8000/operational-smoke` for the daily readiness panel. It shows Gmail read config, Outlook delegated Graph status, Outlook sync readiness, Azure/OpenAI test links, execution provider mode, dry-run state, Gmail write flags, Google Calendar write status, Microsoft write boundaries, source counts, and pending workflow queues.
+Smoke runs can now be persisted from the page or with `POST /api/operational-smoke/run`; recent sanitized smoke history is visible on `/operational-smoke`.
 
 External writes are disabled by default:
 
@@ -196,6 +197,21 @@ Teams, Outlook send, and Outlook Calendar remain disabled/not implemented. The c
 pytest -q
 ```
 
+## Windows daily scripts
+
+From the repository root:
+
+```powershell
+.\scripts\start-commsdesk.ps1
+.\scripts\smoke-commsdesk.ps1
+.\scripts\backup-commsdesk.ps1
+.\scripts\reauth-commsdesk.ps1 -Gmail
+.\scripts\reauth-commsdesk.ps1 -GoogleCalendar
+.\scripts\reauth-commsdesk.ps1 -MicrosoftGraph
+```
+
+The backup script excludes `.env`, OAuth token files, and `client_secret.json` by default.
+
 ## Local database lifecycle
 
 Local development uses SQLite at `commsdesk.db` by default. The app no longer creates tables directly with SQLAlchemy `create_all()` during startup. Startup runs Alembic migrations to the current head, and `alembic upgrade head` is the explicit setup command.
@@ -252,4 +268,4 @@ Do not delete or commit `client_secret.json`, `gmail_token.json`, `.env`, or any
 
 ## Current phase status
 
-Phases 01 through 20 are implemented. Phase 20 is ready for human review.
+Phases 01 through 22 are implemented. Phase 22 is ready for human review after validation.

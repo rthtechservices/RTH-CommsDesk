@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -24,8 +24,6 @@ from app.models.entities import (
     OperationalSmokeMode,
     OperationalSmokeRun,
     OperationalSmokeStatus,
-    ProposedActionReviewPackage,
-    ReviewPackageStatus,
     SourceSyncState,
     VoiceGuidance,
     InferenceStatus,

@@ -2,6 +2,62 @@
 
 Record completed work here at the end of every phase. Newest entries should be added at the top.
 
+## 2026-05-20 — Phase 22: Daily Operations Hardening and Persistent Smoke Sprint
+
+### Summary
+- Added `OperationalSmokeRun` and `OperationalSmokeCheck` persistence with sanitized summary/detail JSON and an explicit `external_write_performed=false` default.
+- Added `app/services/operational_smoke_runner.py` for route, provider, sync, execution audit, voice memory, database/Alembic, token guidance, backup readiness, and Microsoft boundary checks.
+- Added smoke APIs: `POST /api/operational-smoke/run`, `GET /api/operational-smoke/runs`, `GET /api/operational-smoke/runs/{run_id}`, and startup-mode API.
+- Enhanced `/operational-smoke` with Run Smoke Now, latest status, recent history, and smoke detail pages.
+- Added sanitized local backup service, admin backup API/UI, and backup metadata from filesystem scan.
+- Added Windows scripts for startup, smoke, backup, and token reauthorization.
+- Added dashboard Start Here Today lane with last smoke, last Gmail/Outlook sync, pending review/execution/guidance counts, provider blockers, and daily action buttons.
+- Improved provider guidance with exact reauth commands and required Gmail, Google Calendar, and Microsoft Graph scopes.
+- Kept Gmail/Calendar write controls intact and kept Outlook send, Outlook Calendar write, and Teams disabled/not implemented.
+
+### Files changed
+- `app/models/entities.py`
+- `alembic/versions/0014_operational_smoke_persistence.py`
+- `app/services/operational_smoke_runner.py`
+- `app/services/backup_service.py`
+- `app/services/provider_status_service.py`
+- `app/api/routes.py`
+- `app/web/routes.py`
+- `app/web/templates/operational_smoke.html`
+- `app/web/templates/operational_smoke_run.html`
+- `app/web/templates/admin.html`
+- `app/web/templates/dashboard.html`
+- `app/web/templates/providers.html`
+- `scripts/start-commsdesk.ps1`
+- `scripts/smoke-commsdesk.ps1`
+- `scripts/backup-commsdesk.ps1`
+- `scripts/reauth-commsdesk.ps1`
+- `tests/test_phase_22_daily_operations.py`
+- `README.md`
+- `docs/HELP.md`
+- `docs/PHASE_PLAN.md`
+- `docs/PHASE_STATUS.md`
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/phases/PHASE_22_DAILY_OPERATIONS_HARDENING.md`
+
+### Tests run
+- Focused tests: `python -m pytest tests/test_phase_22_daily_operations.py -q` — passed, 6 tests.
+- Focused ruff on changed files — passed.
+- `python -m ruff check .` — passed.
+- `python -m pytest -q` — passed, 234 tests.
+- `python -m alembic upgrade head` — passed.
+
+### Smoke tests
+- TestClient route smoke returned HTTP 200 for `/`, `/operational-smoke`, `/providers`, `/review-packages`, `/executions`, `/bulk-triage`, `/contacts`, `/drafts`, `/voice-calibration`, `/assistant-profile`, `/admin`, and `/healthz`.
+
+### Known issues
+- Smoke runner checks route registration/readiness and persisted metadata; browser-level rendering is still covered by route smoke.
+- Backup restore is intentionally not implemented in this phase.
+
+### Recommended next actions
+- Human review of Phase 22 daily operations flow after final validation.
+
 ## 2026-05-20 — Phase 21: Product Acceleration Sprint
 
 ### Summary

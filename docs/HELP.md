@@ -49,7 +49,7 @@ Current MVP features:
 - Show the latest sync/backfill counts: fetched, inserted, duplicates skipped, threads updated, and backlog cursor status.
 - Show compact dashboard status cards for provider readiness, operational smoke state, command-center queues, source counts, and next recommended operator actions.
 - Open the Provider Status page to see live, mock, disabled, missing configuration, dry-run, failed, and not-implemented states for each provider/action, plus copy/paste configuration guidance.
-- Open the Operational Smoke page to see Gmail read config, Outlook Graph status, Outlook sync readiness, Azure/OpenAI readiness, execution mode, dry-run state, write flags, source counts, blockers, and safe `.env` snippets.
+- Open the Operational Smoke page to see Gmail read config, Outlook Graph status, Outlook sync readiness, Azure/OpenAI readiness, execution mode, dry-run state, write flags, source counts, blockers, safe `.env` snippets, and persisted sanitized smoke history.
 - Open the Assistant Profile page to inspect approved voice memory, preferred sign-off, pending learned traits, disabled/rejected guidance, relationship overrides, and local draft-preview output.
 - Store message metadata and snippets by default.
 - Test delegated Microsoft Graph configuration with sanitized `POST /api/graph/test` output.
@@ -93,6 +93,7 @@ Current MVP features:
 - View execution audit trails with payload/result history.
 - Enforce web/API authentication when enabled for non-local deployment.
 - Provide admin retention controls to clear cached bodies/excerpts and purge aged audit rows.
+- Create local backups from `/admin` or `.\scripts\backup-commsdesk.ps1` while excluding `.env`, OAuth token files, and client secrets.
 
 ## What it does not do today
 
@@ -325,6 +326,8 @@ It shows:
 - Source counts for all, Gmail, Outlook, and notification-derived messages.
 - Pending review package and execution queues.
 - Operator smoke checklist for route smoke, Azure/OpenAI test, Microsoft Graph delegated test, Outlook sync readiness, Gmail draft dry-run/live readiness, Google Calendar readiness, and execution audit checks.
+- Run Smoke Now button that persists a sanitized local smoke run and per-check result history.
+- Recent smoke history and smoke detail pages with pass/warning/fail/skipped status and next actions.
 - Direct route smoke links, including `/assistant-profile`.
 - Plain-language token/config blockers.
 - Disabled Microsoft write boundaries: Outlook send, Outlook Calendar, and Teams.
@@ -341,16 +344,14 @@ EXTERNAL_WRITE_DRY_RUN=true
 
 Use exact test email addresses whenever possible. Explicit domain entries such as `@example.com` are supported, but non-allowlisted recipients remain blocked. Gmail send requires `EXTERNAL_WRITE_DRY_RUN=false` and still requires explicit approval plus final confirmation.
 
-Smoke result persistence is intentionally light in Phase 21: the page displays sanitized checklist state and links, but it does not create a new smoke-result table. Record live smoke outcomes in the phase notes or implementation log without private subjects, snippets, tokens, or message bodies.
+Smoke persistence stores only sanitized operational metadata, status counts, configuration booleans, route names, provider states, and next actions. It does not store OAuth tokens, private keys, message bodies, email body content, full external payloads, or private message text.
 
 ### Daily operator runbook
 
 From the repo root:
 
 ```powershell
-.\.venv\Scripts\Activate.ps1
-python -m alembic upgrade head
-python -m uvicorn app.main:app --reload
+.\scripts\start-commsdesk.ps1
 ```
 
 Open these in order:
@@ -364,22 +365,24 @@ http://127.0.0.1:8000/assistant-profile
 
 Daily workflow:
 
-1. Start the app and check `/operational-smoke`.
-2. Sync Gmail from the dashboard.
-3. Run `POST /api/ai/test` when live Azure/OpenAI analysis is expected.
-4. Run `POST /api/graph/test` before Outlook sync.
-5. Sync Outlook only after the Graph test is healthy.
-6. Review Assistant Profile for the active preferred sign-off and voice guidance.
-7. Process review packages and drafts locally.
-8. For Gmail draft or Calendar testing, use `OPERATIONAL_TEST_MODE=true`, `EXECUTION_PROVIDER=external`, `EXTERNAL_WRITE_DRY_RUN=true`, and an explicit `EXECUTION_TEST_EMAIL_ALLOWLIST`.
-9. Prepare, approve, confirm, and audit any dry-run/live execution from `/executions`.
+1. Start the app with `.\scripts\start-commsdesk.ps1`; it activates `.venv`, runs migrations, optionally backs up local SQLite, and starts Uvicorn.
+2. Run smoke from `/operational-smoke` or `.\scripts\smoke-commsdesk.ps1`.
+3. Use the dashboard Start Here Today lane to check last smoke, last Gmail sync, last Outlook sync, pending review packages, ready executions, pending voice guidance, and provider blockers.
+4. Sync Gmail from the dashboard.
+5. Run `POST /api/graph/test` before Outlook sync, then sync Outlook only after Graph is healthy.
+6. Review packages and local drafts.
+7. Prepare draft/execution records locally.
+8. Dry-run first. For Gmail draft or Calendar testing, use `OPERATIONAL_TEST_MODE=true`, `EXECUTION_PROVIDER=external`, `EXTERNAL_WRITE_DRY_RUN=true`, and an explicit `EXECUTION_TEST_EMAIL_ALLOWLIST`.
+9. Live Gmail draft creation requires operational test mode, allowlist, feature flags, approval, final confirmation, and `EXTERNAL_WRITE_DRY_RUN=false`.
+10. Verify `/executions` audit after any dry-run or live execution.
+11. Run `.\scripts\backup-commsdesk.ps1` before risky config changes.
 
 OAuth reauthorization:
 
-- Gmail read: delete `gmail_token.json` only when intentionally forcing Gmail reauthorization.
-- Gmail write scopes: enable the intended Gmail write flags first, then delete `gmail_token.json` and reauthorize so Google prompts for compose/send/modify scopes.
-- Microsoft Graph delegated auth: delete `microsoft_graph_token.json` only when intentionally forcing a new device-code login. The Entra app must allow public client flows for local delegated auth.
-- Google Calendar: delete `google_calendar_token.json` only when intentionally reauthorizing Calendar.
+- Gmail read/write: run `.\scripts\reauth-commsdesk.ps1 -Gmail`. Required scopes are `https://www.googleapis.com/auth/gmail.readonly`, `https://www.googleapis.com/auth/gmail.compose`, `https://www.googleapis.com/auth/gmail.send`, and `https://www.googleapis.com/auth/gmail.modify`.
+- Google Calendar: run `.\scripts\reauth-commsdesk.ps1 -GoogleCalendar`. Required scopes are `https://www.googleapis.com/auth/calendar.freebusy` and `https://www.googleapis.com/auth/calendar.events`.
+- Microsoft Graph delegated auth: run `.\scripts\reauth-commsdesk.ps1 -MicrosoftGraph`. Required scopes are `User.Read Mail.Read offline_access`. The Entra app must allow public client flows for local delegated auth.
+- The reauth script deletes only the selected token file. It does not delete `.env`, client secrets, or client configuration.
 
 Common blockers:
 
@@ -575,6 +578,8 @@ Opens the contact profile. Saving relationship, importance, alias, VIP/noise, ch
 ### Admin retention controls
 
 Open `/admin` to run retention cleanup and clear selected local cached content. These controls only affect local storage and do not modify external Gmail/Microsoft accounts.
+
+Use **Create Local Backup** before risky configuration changes. The backup ZIP includes local SQLite, `.env.example`, and key docs. It excludes `.env`, `gmail_token.json`, `google_calendar_token.json`, `microsoft_graph_token.json`, and `client_secret.json` by default.
 
 Supported relationship types:
 

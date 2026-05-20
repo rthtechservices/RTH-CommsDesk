@@ -82,41 +82,26 @@ Recent live smoke lessons to address:
 | 18.7 | Interaction hierarchy, triage ergonomics, and RTH palette alignment | Completed |
 | 19 | Test email execution enablement | Completed |
 | 20 | Assistant Intelligence, Voice, and Calendar Reasoning Quality | Completed |
+| 21 | Product Acceleration Sprint | Completed |
+| 22 | Daily Operations Hardening and Persistent Smoke Sprint | Completed |
 
 ## Active phase
 
-## Phase 20 — Assistant Intelligence, Voice, and Calendar Reasoning Quality
+## Phase 22 — Daily Operations Hardening and Persistent Smoke Sprint
 
-Primary outcome: fix the quality failures exposed by live smoke testing and make the assistant start sounding and reasoning like the operator's assistant.
+Primary outcome: make the local app practical to operate every day with persisted smoke history, one dashboard starting lane, local backups, exact reauth guidance, and Windows scripts.
 
-Scope:
+Completed scope:
 
-- Add realistic fixture conversations for action, no-reply, scheduling, reminders, noise, vague asks, latest-message-changes-action, and sent-mail voice examples.
-- Improve sent-mail learning so recurring sign-offs/signatures and global operator voice traits can be inferred, reviewed, approved, and applied.
-- Prevent generic draft placeholders such as `[Your Name]` and fake formal closings from entering send-ready drafts.
-- Improve calendar reasoning: no past reminders/events, no invented times, clarification or all-day tentative candidates for date-only meeting requests.
-- Add review-package correction controls for action type, reply/no-reply, summary, draft instruction, calendar interpretation, noise/not-noise.
-- Improve recommendation evidence display.
-- Preserve Phase 19 operational test-mode and allowlist enforcement.
+- Persisted `OperationalSmokeRun` and `OperationalSmokeCheck` rows with sanitized operational metadata.
+- Added a safe smoke runner and API endpoints for run/list/detail.
+- Enhanced `/operational-smoke` with Run Smoke Now, latest status, recent history, and run detail.
+- Added `/admin` local backup creation and backup metadata.
+- Added `scripts/start-commsdesk.ps1`, `scripts/smoke-commsdesk.ps1`, `scripts/backup-commsdesk.ps1`, and `scripts/reauth-commsdesk.ps1`.
+- Added a dashboard Start Here Today lane.
+- Preserved Gmail/Calendar gates and kept Outlook send, Outlook Calendar write, and Teams disabled/not implemented.
 
-Assigned file: `docs/phases/PHASE_20_INBOX_INTELLIGENCE_QUALITY_PASS.md`.
-
-## Next acceleration sprint
-
-## Phase 21 — Product Acceleration Sprint
-
-Primary outcome: combine the next practical assistant/profile/smoke/runbook work into one sprint instead of dragging it across several small phases.
-
-Scope:
-
-- Add Assistant Profile / Voice Memory page.
-- Show and manage preferred sign-off, approved global voice traits, pending learned traits, avoided phrases, tone/brevity guidance, and evidence counts.
-- Add local draft preview that demonstrates how current voice memory changes draft output without creating external drafts.
-- Add a practical live smoke harness/checklist for route smoke, Azure AI, Microsoft Graph, Outlook sync, Gmail draft dry-run/live readiness, Google Calendar dry-run/live readiness, and execution audit checks.
-- Refresh operator runbook for daily startup, OAuth reauth, dry-run/live posture, test allowlist, safe Gmail draft test, safe calendar test, and common blockers.
-- Keep Outlook write support planned only. Do not implement Outlook send/calendar yet.
-
-Assigned file: `docs/phases/PHASE_21_PRODUCT_ACCELERATION_SPRINT.md`.
+Assigned file: `docs/phases/PHASE_22_DAILY_OPERATIONS_HARDENING.md`.
 
 ## Later acceleration candidates
 

@@ -18,6 +18,7 @@ from app.models.entities import (
 from app.services.attention_service import build_attention_queue
 from app.services.analysis_service import analyze_message, update_review_package_status
 from app.services.admin_service import clear_cached_content, run_retention_cleanup
+from app.services.backup_service import create_local_backup, list_backups
 from app.services.bulk_triage_service import (
     apply_bulk_action,
     automation_candidates_for_dashboard,
@@ -56,6 +57,12 @@ from app.services.external_connectors_service import (
     sync_teams_messages,
 )
 from app.services.execution_test_policy import readiness_for_execution
+from app.services.operational_smoke_runner import (
+    recent_smoke_runs,
+    run_operational_smoke,
+    smoke_run_detail,
+    smoke_run_to_dict,
+)
 from app.services.voice_learning_service import (
     run_sent_mail_learning,
     update_vip_candidate_status,
@@ -63,6 +70,7 @@ from app.services.voice_learning_service import (
     vip_candidates_for_review,
     voice_guidance_for_review,
 )
+from app.models.entities import OperationalSmokeMode
 
 api_router = APIRouter()
 
@@ -153,6 +161,51 @@ def admin_cache_clear(
         clear_message_bodies=clear_message_bodies,
         clear_sent_learning_excerpts=clear_sent_learning_excerpts,
     ).as_dict()
+
+
+@api_router.post("/admin/backup/create")
+def admin_backup_create() -> dict:
+    return create_local_backup().as_dict()
+
+
+@api_router.get("/admin/backups")
+def admin_backups() -> list[dict]:
+    return [backup.as_dict() for backup in list_backups()]
+
+
+@api_router.post("/operational-smoke/run")
+def api_run_operational_smoke(db: Session = Depends(get_db)) -> dict:
+    run = run_operational_smoke(
+        db,
+        mode=OperationalSmokeMode.API,
+        triggered_by="api",
+    )
+    data = smoke_run_to_dict(run, include_checks=True)
+    return {"run_id": run.id, **data}
+
+
+@api_router.post("/operational-smoke/startup")
+def api_run_startup_operational_smoke(db: Session = Depends(get_db)) -> dict:
+    run = run_operational_smoke(
+        db,
+        mode=OperationalSmokeMode.STARTUP,
+        triggered_by="startup",
+    )
+    data = smoke_run_to_dict(run, include_checks=True)
+    return {"run_id": run.id, **data}
+
+
+@api_router.get("/operational-smoke/runs")
+def api_operational_smoke_runs(db: Session = Depends(get_db)) -> list[dict]:
+    return [smoke_run_to_dict(run) for run in recent_smoke_runs(db)]
+
+
+@api_router.get("/operational-smoke/runs/{run_id}")
+def api_operational_smoke_run_detail(run_id: int, db: Session = Depends(get_db)) -> dict:
+    run = smoke_run_detail(db, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Operational smoke run not found")
+    return smoke_run_to_dict(run, include_checks=True)
 
 
 @api_router.get("/sync/gmail/status")

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Smoke Run Detail | RTH CommsDesk{% endblock %}
+
+{% block main_class %}wide-wrap page-pad{% endblock %}
+
+{% block content %}
+  <a href="/operational-smoke">Back to operational smoke</a>
+  <div class="workflow" aria-label="Workflow">
+    <span>Sync</span><span>Triage</span><span>Analyze</span><span>Review</span><span>Prepare</span><span>Execute</span><span class="active">Audit</span>
+  </div>
+  {% if not run %}
+  <h1>Smoke run not found</h1>
+  <p class="warning">The requested smoke run does not exist.</p>
+  {% else %}
+  <h1>Smoke Run #{{ run.id }}</h1>
+  <section class="panel" style="margin-bottom:14px">
+    <div class="facts">
+      <div><strong class="label">Status</strong><span class="badge {% if run.overall_status.value == 'passed' %}ok{% elif run.overall_status.value == 'warning' %}amber{% else %}bad{% endif %}">{{ run.overall_status.value }}</span></div>
+      <div><strong class="label">Mode</strong><span class="muted">{{ run.mode.value }}</span></div>
+      <div><strong class="label">Started</strong><span class="muted">{{ run.started_at }}</span></div>
+      <div><strong class="label">Finished</strong><span class="muted">{{ run.finished_at }}</span></div>
+      <div><strong class="label">AI provider</strong><span class="muted">{{ run.ai_provider }}</span></div>
+      <div><strong class="label">Execution provider</strong><span class="muted">{{ run.execution_provider }}</span></div>
+      <div><strong class="label">External write dry-run</strong><span class="muted">{{ run.external_write_dry_run }}</span></div>
+      <div><strong class="label">Operational test mode</strong><span class="muted">{{ run.operational_test_mode }}</span></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Sanitized Checks</h2>
+    <table>
+      <thead>
+        <tr><th>Check</th><th>Category</th><th>Status</th><th>Detail</th><th>Next action</th><th>External write</th></tr>
+      </thead>
+      <tbody>
+        {% for check in run.checks %}
+        <tr>
+          <td>{{ check.label }}</td>
+          <td class="muted">{{ check.category }}</td>
+          <td><span class="badge {% if check.status.value == 'passed' %}ok{% elif check.status.value == 'warning' %}amber{% elif check.status.value == 'skipped' %}grey{% else %}bad{% endif %}">{{ check.status.value }}</span></td>
+          <td class="muted" style="font-size:12px">{{ check.detail }}</td>
+          <td class="muted" style="font-size:12px">{{ check.next_action }}</td>
+          <td>{% if check.external_write_performed %}<span class="badge bad">yes</span>{% else %}<span class="badge ok">no</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+{% endblock %}

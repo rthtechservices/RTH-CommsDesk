@@ -1,10 +1,23 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
 from app.core.config import Settings, get_settings
 from app.services.live_ai_client import ai_provider_status
+
+GMAIL_REQUIRED_SCOPES = (
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/gmail.compose",
+    "https://www.googleapis.com/auth/gmail.send",
+    "https://www.googleapis.com/auth/gmail.modify",
+)
+GOOGLE_CALENDAR_REQUIRED_SCOPES = (
+    "https://www.googleapis.com/auth/calendar.freebusy",
+    "https://www.googleapis.com/auth/calendar.events",
+)
+MICROSOFT_GRAPH_REQUIRED_SCOPES = ("User.Read", "Mail.Read", "offline_access")
 
 
 @dataclass(frozen=True)
@@ -23,9 +36,11 @@ def provider_status_rows(settings: Settings | None = None) -> list[ProviderStatu
     active = settings or get_settings()
     ai_status = ai_provider_status(active)
     gmail_read_configured = _path_exists(active.gmail_client_secrets_file)
+    gmail_token_exists = _path_exists(active.gmail_token_file)
     gmail_write_configured = gmail_read_configured
     graph_configured = _graph_configured(active)
     calendar_configured = _path_exists(active.gmail_client_secrets_file)
+    calendar_token_exists = _path_exists(active.google_calendar_token_file)
     webhook_configured = bool(active.notification_webhook_secret)
     dry_run = active.external_write_dry_run
     graph_auth_mode = _graph_auth_mode(active)
@@ -44,6 +59,8 @@ def provider_status_rows(settings: Settings | None = None) -> list[ProviderStatu
             ),
             next_action=(
                 "Ready for read-only sync."
+                if gmail_read_configured and gmail_token_exists
+                else r"Run .\scripts\reauth-commsdesk.ps1 -Gmail, then POST /api/sync/gmail."
                 if gmail_read_configured
                 else "Set GMAIL_CLIENT_SECRETS_FILE to a local OAuth client JSON file."
             ),
@@ -85,7 +102,7 @@ def provider_status_rows(settings: Settings | None = None) -> list[ProviderStatu
             next_action=(
                 "Set GOOGLE_CALENDAR_READ_ENABLED=true and authorize the calendar token."
                 if not active.google_calendar_read_enabled
-                else _config_action(calendar_configured)
+                else _calendar_action(calendar_configured, calendar_token_exists)
             ),
         ),
         ProviderStatusRow(
@@ -98,7 +115,7 @@ def provider_status_rows(settings: Settings | None = None) -> list[ProviderStatu
             next_action=(
                 "Set GOOGLE_CALENDAR_WRITE_ENABLED=true only after OAuth scopes are approved."
                 if not active.google_calendar_write_enabled
-                else _config_action(calendar_configured)
+                else _calendar_action(calendar_configured, calendar_token_exists)
             ),
             dry_run=active.google_calendar_write_enabled and dry_run,
         ),
@@ -237,6 +254,9 @@ def _gmail_write_status(
     feature_flag: str,
 ) -> ProviderStatusRow:
     state = _enabled_state(enabled, configured, dry_run=dry_run)
+    missing_scopes = _missing_gmail_write_scopes(settings)
+    if enabled and missing_scopes:
+        state = "missing_configuration"
     return ProviderStatusRow(
         key=key,
         label=label,
@@ -247,7 +267,12 @@ def _gmail_write_status(
         next_action=(
             f"Set {feature_flag}=true only after OAuth write scopes are intentionally authorized."
             if not enabled
-            else _config_action(configured)
+            else (
+                r"Run .\scripts\reauth-commsdesk.ps1 -Gmail after enabling Gmail write flags; missing scopes: "
+                + ", ".join(missing_scopes)
+                if missing_scopes
+                else _config_action(configured)
+            )
         ),
         dry_run=enabled and dry_run,
     )
@@ -267,6 +292,14 @@ def _config_action(configured: bool) -> str:
     if configured:
         return "Ready; external writes still require approval and final confirmation."
     return "Add the required OAuth client/token configuration before enabling live mode."
+
+
+def _calendar_action(configured: bool, token_exists: bool) -> str:
+    if not configured:
+        return "Add the Google OAuth client JSON before enabling Calendar."
+    if not token_exists:
+        return r"Run .\scripts\reauth-commsdesk.ps1 -GoogleCalendar, then retry Calendar readiness."
+    return "Ready; Calendar writes still require approval, final confirmation, and dry-run review."
 
 
 def _graph_next_action(settings: Settings, flag_name: str) -> str:
@@ -312,7 +345,7 @@ def _graph_delegated_next_action(settings: Settings) -> str:
     if not settings.microsoft_tenant_id or not settings.microsoft_client_id:
         return "Set MICROSOFT_TENANT_ID and MICROSOFT_CLIENT_ID."
     if not _path_exists(settings.microsoft_graph_token_file):
-        return "Run POST /api/graph/test to start delegated authorization."
+        return r"Run .\scripts\reauth-commsdesk.ps1 -MicrosoftGraph, then POST /api/graph/test."
     return "Token file exists; run POST /api/graph/test to verify the delegated session."
 
 
@@ -320,3 +353,23 @@ def _path_exists(value: str | None) -> bool:
     if not value:
         return False
     return Path(value).expanduser().exists()
+
+
+def _missing_gmail_write_scopes(settings: Settings) -> tuple[str, ...]:
+    if not _path_exists(settings.gmail_token_file):
+        return GMAIL_REQUIRED_SCOPES
+    path = Path(settings.gmail_token_file).expanduser()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return GMAIL_REQUIRED_SCOPES
+    raw = data.get("scopes") or data.get("scope") or ""
+    if isinstance(raw, str):
+        scopes = set(raw.split())
+    elif isinstance(raw, list):
+        scopes = {str(item) for item in raw}
+    else:
+        scopes = set()
+    if not scopes:
+        return ()
+    return tuple(scope for scope in GMAIL_REQUIRED_SCOPES if scope not in scopes)

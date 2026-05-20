@@ -74,8 +74,9 @@
     <h2>Configuration guidance</h2>
     <p class="muted" style="font-size:13px;margin-bottom:10px">Provider tokens and credentials are managed outside the UI. This page observes configuration only. No credentials are modified here.</p>
     <ul class="items">
-      <li><strong>Gmail:</strong> re-run the OAuth flow via <code>python -m app.connectors.gmail.oauth_setup</code></li>
-      <li><strong>Microsoft Graph:</strong> re-run via <code>python -m app.connectors.microsoft_graph.oauth_setup</code></li>
+      <li><strong>Gmail:</strong> run <code>.\scripts\reauth-commsdesk.ps1 -Gmail</code>. Required scopes: <code>https://www.googleapis.com/auth/gmail.readonly</code>, <code>https://www.googleapis.com/auth/gmail.compose</code>, <code>https://www.googleapis.com/auth/gmail.send</code>, <code>https://www.googleapis.com/auth/gmail.modify</code>.</li>
+      <li><strong>Google Calendar:</strong> run <code>.\scripts\reauth-commsdesk.ps1 -GoogleCalendar</code>. Required scopes: <code>https://www.googleapis.com/auth/calendar.freebusy</code>, <code>https://www.googleapis.com/auth/calendar.events</code>.</li>
+      <li><strong>Microsoft Graph:</strong> run <code>.\scripts\reauth-commsdesk.ps1 -MicrosoftGraph</code>. Required scopes: <code>User.Read Mail.Read offline_access</code>.</li>
       <li><strong>AI provider:</strong> set the <code>OPENAI_API_KEY</code> or equivalent environment variable</li>
     </ul>
   </section>

@@ -205,6 +205,9 @@ python -m pytest -q
 - Keep existing specialized pages, but make the dashboard point to the next useful workflow: attention items, proposed actions, approval queue, calendar candidates, noise candidates, or provider setup.
 - Operational smoke should aggregate readiness across sync, AI, execution mode, dry-run, write flags, and disabled connector boundaries so the operator does not have to infer readiness from several pages.
 - Smoke harnesses can be useful without a new persistence schema. A sanitized checklist with route links and explicit dry-run/test-mode/allowlist state is enough until repeated smoke history becomes a real product need.
+- Once smoke history is persisted, keep it operational-only: store route names, statuses, counts, config booleans, token-file presence, next actions, and sanitized provider states; never store OAuth token contents, raw provider payloads, private message bodies, snippets, or API keys.
+- Backup tooling should default to exclusion-first behavior. Include SQLite and non-secret docs/config examples, but explicitly exclude `.env`, OAuth token files, and OAuth client secrets unless a future task designs an encrypted secret backup flow.
+- Reauth helpers should delete only the selected token file and print the required scopes plus next test route. They should not delete `.env` or client configuration.
 - Process-next links are useful glue for smoke testing because they preserve the existing detail pages while removing repeated dashboard/list navigation.
 - Do not surface disabled future connectors as primary dashboard actions. A disabled provider row is enough until the phase explicitly opens that connector.
 - Dense operator dashboards need explicit status semantics. Use green for operational, amber for mock/dry-run/manual setup, red for blockers, and grey for disabled/not implemented.

@@ -23,6 +23,7 @@ from app.models.entities import (
     InferenceStatus,
     Message,
     MessageClassification,
+    OperationalSmokeMode,
     ProposedActionReviewPackage,
     ProposedActionType,
     ReviewPackageStatus,
@@ -31,6 +32,7 @@ from app.models.entities import (
     VoiceGuidance,
 )
 from app.services.admin_service import clear_cached_content, run_retention_cleanup
+from app.services.backup_service import create_local_backup, latest_backup_metadata
 from app.services.attention_service import build_attention_queue
 from app.services.analysis_service import (
     analyze_message,
@@ -102,6 +104,13 @@ from app.services.operational_status_service import (
     operational_smoke_status,
     source_filter_options,
     source_operational_counts,
+)
+from app.services.operational_smoke_runner import (
+    latest_smoke_run,
+    recent_smoke_runs,
+    run_operational_smoke,
+    smoke_run_detail,
+    smoke_run_to_dict,
 )
 from app.services.provider_status_service import provider_status_rows
 from app.services.voice_learning_service import (
@@ -314,6 +323,8 @@ def admin_panel(request: Request, db: Session = Depends(get_db)):
             "audit_count": audit_count,
             "retention_result": request.query_params.get("retention_result"),
             "cache_result": request.query_params.get("cache_result"),
+            "backup_result": request.query_params.get("backup_result"),
+            "latest_backup": latest_backup_metadata(),
         },
     )
 
@@ -340,6 +351,13 @@ def clear_cache(
     ).as_dict()
     serialized = ",".join(f"{key}:{value}" for key, value in result.items())
     return RedirectResponse(url=f"/admin?cache_result={quote(serialized, safe='')}", status_code=303)
+
+
+@web_router.post("/admin/backup/create")
+def web_create_backup():
+    result = create_local_backup().as_dict()
+    serialized = f"path:{result['backup_path']},size_bytes:{result['size_bytes']}"
+    return RedirectResponse(url=f"/admin?backup_result={quote(serialized, safe='')}", status_code=303)
 
 
 @web_router.get("/")
@@ -431,6 +449,14 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     ai_status = ai_provider_status(settings)
     provider_rows = provider_status_rows(settings)
     smoke_status = operational_smoke_status(db, settings)
+    last_smoke = latest_smoke_run(db)
+    outlook_sync_state = get_sync_state(db, source_type="outlook", account_identifier="microsoft-graph")
+    pending_voice_guidance = (
+        db.query(func.count(VoiceGuidance.id))
+        .filter(VoiceGuidance.status == InferenceStatus.PENDING)
+        .scalar()
+        or 0
+    )
     ready_readiness = [readiness_for_execution(record, settings) for record in ready_executions]
     first_blocker = next((item.blocked_reason for item in ready_readiness if item.blocked_reason), None)
     return templates.TemplateResponse(
@@ -472,6 +498,14 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "source_filter_options": source_filter_options(),
             "source_counts": source_operational_counts(db),
             "smoke_status": smoke_status,
+            "daily_start": {
+                "last_smoke": last_smoke,
+                "last_outlook_sync": outlook_sync_state,
+                "pending_voice_guidance": pending_voice_guidance,
+                "provider_blockers": [
+                    row for row in provider_rows if row.state in {"missing_configuration", "failed"}
+                ],
+            },
             "provider_warnings": [
                 row
                 for row in provider_rows
@@ -516,7 +550,32 @@ def operational_smoke_page(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(
         request,
         "operational_smoke.html",
-        {"smoke_status": operational_smoke_status(db, get_settings())},
+        {
+            "smoke_status": operational_smoke_status(db, get_settings()),
+            "latest_smoke_run": latest_smoke_run(db),
+            "recent_smoke_runs": recent_smoke_runs(db, limit=10),
+        },
+    )
+
+
+@web_router.post("/operational-smoke/run")
+def web_run_operational_smoke(db: Session = Depends(get_db)):
+    run = run_operational_smoke(
+        db,
+        mode=OperationalSmokeMode.MANUAL,
+        triggered_by="local-user",
+    )
+    return RedirectResponse(url=f"/operational-smoke/runs/{run.id}", status_code=303)
+
+
+@web_router.get("/operational-smoke/runs/{run_id}")
+def operational_smoke_run_detail(run_id: int, request: Request, db: Session = Depends(get_db)):
+    run = smoke_run_detail(db, run_id)
+    return templates.TemplateResponse(
+        request,
+        "operational_smoke_run.html",
+        {"run": run, "run_detail": smoke_run_to_dict(run, include_checks=True) if run else None},
+        status_code=200 if run else 404,
     )
 
 
