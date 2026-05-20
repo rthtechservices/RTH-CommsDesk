@@ -545,7 +545,7 @@ Delegated local setup uses:
 - `MICROSOFT_GRAPH_ENABLED=true`
 - `MICROSOFT_GRAPH_OUTLOOK_MAIL_ENABLED=true`
 - `MICROSOFT_GRAPH_AUTH_MODE=delegated`
-- `MICROSOFT_GRAPH_SCOPES=User.Read Mail.Read offline_access`
+- `MICROSOFT_GRAPH_SCOPES=User.Read Mail.Read Mail.ReadWrite Mail.Send Calendars.ReadWrite offline_access`
 - `MICROSOFT_GRAPH_TOKEN_FILE=./microsoft_graph_token.json`
 - `MICROSOFT_TENANT_ID`
 - `MICROSOFT_CLIENT_ID`
@@ -554,12 +554,34 @@ Use `POST /api/graph/test` before syncing Outlook. The test returns only sanitiz
 
 Outlook sync is read-only. It uses Graph `$select` to request only the fields needed for local triage and follows pages safely up to the requested limit.
 
-Future Outlook write planning only:
+### Outlook write surfaces (Phase 29)
 
-- Outlook send would require future delegated Graph write scopes such as `Mail.Send` and possibly `Mail.ReadWrite`.
-- Outlook calendar write would require future delegated calendar scopes such as `Calendars.ReadWrite`.
-- Any future Outlook write path must mirror Gmail execution gating: prepare, approve, confirm, audit, provider status, feature flags, operational test mode, allowlist where recipient-specific, and dry-run before live writes.
-- Current CommsDesk code makes no Outlook send or Outlook calendar write calls and shows these providers as disabled/not implemented.
+Microsoft Graph write surfaces are implemented behind explicit feature flags and the same approve → confirm → execute → audit pipeline used for Gmail:
+
+| Surface | Feature flag | Required Graph scope |
+|---|---|---|
+| Outlook draft creation | `OUTLOOK_DRAFT_CREATE_ENABLED=true` | `Mail.ReadWrite` |
+| Outlook send/reply | `OUTLOOK_SEND_ENABLED=true` | `Mail.Send` |
+| Outlook mail modify (categories, read, archive) | `OUTLOOK_MAIL_MODIFY_ENABLED=true` | `Mail.ReadWrite` |
+| Outlook calendar event creation | `OUTLOOK_CALENDAR_WRITE_ENABLED=true` | `Calendars.ReadWrite` |
+
+All four flags default to `false`. `EXTERNAL_WRITE_DRY_RUN=true` is an additional dry-run layer above the feature flags.
+
+**Enabling an Outlook write surface:**
+1. Ensure `MICROSOFT_GRAPH_ENABLED=true` and Graph delegated auth is working (`POST /api/graph/test` returns success).
+2. If the required scope is not already in your token, delete `microsoft_graph_token.json` and reauthorize:
+   ```powershell
+   Remove-Item '.\microsoft_graph_token.json' -Force -ErrorAction SilentlyContinue
+   # Then restart the app and complete the device-code flow at the login prompt
+   ```
+3. Update `MICROSOFT_GRAPH_SCOPES` to include the required scopes.
+4. Set the feature flag to `true` in `.env` and restart the app.
+5. Set `EXTERNAL_WRITE_DRY_RUN=false` only after verifying dry-run results.
+6. All writes still require approval, confirmation, and audit in the execution pipeline.
+
+Provider-aware routing is enforced at the execution dispatch layer: Outlook-originated items route to Microsoft Graph; Gmail-originated items route to Gmail. Cross-provider mutations are blocked with a clear error before any external write is attempted.
+
+Check `/providers` for per-surface readiness state and recovery guidance.
 
 ### Sync Teams
 

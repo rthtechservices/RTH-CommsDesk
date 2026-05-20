@@ -171,3 +171,21 @@ Run route smoke for:
 - Graph reauthorization steps are documented.
 - External writes remain approved, confirmed, and audited.
 - Ruff, pytest, Alembic, and route smoke pass.
+
+## Status
+
+✅ **Completed 2026-05-21**
+
+All acceptance criteria met:
+- Outlook-originated draft actions route to `CREATE_OUTLOOK_DRAFT` via Microsoft Graph. Gmail source never uses Graph write path and vice versa (provider mismatch guard at dispatch).
+- Outlook send execution implemented behind `OUTLOOK_SEND_ENABLED` with `create_and_send_reply` seam.
+- Outlook calendar event creation implemented behind `OUTLOOK_CALENDAR_WRITE_ENABLED` with past-event guard.
+- Outlook mail modify (categories, read flag, flag status, archive/move) implemented behind `OUTLOOK_MAIL_MODIFY_ENABLED`.
+- Provider pages report per-surface Microsoft write readiness (disabled/dry_run/available/misconfigured) at `/providers`.
+- Execution detail page shows Provider routing panel with source/target provider, feature flag, and readiness state.
+- Graph reauthorization documented in providers.html and HELP.md.
+- All writes go through approve → confirm → execute → audit pipeline.
+- `python -m ruff check .` — all checks passed.
+- `python -m pytest tests/test_phase_29_outlook_write_parity.py -v` — 34/34 passed.
+- `python -m pytest -q` — 382 passed, 3 pre-existing failures (unrelated).
+- `python -m alembic upgrade head` — migration 0018 applied cleanly.

@@ -2,6 +2,66 @@
 
 Record completed work here at the end of every phase. Newest entries should be added at the top.
 
+## 2026-05-21 - Phase 29: Microsoft Write Cutover and Provider Parity
+
+### Summary
+- Added 4 feature flags to `app/core/config.py`: `outlook_draft_create_enabled`, `outlook_send_enabled`, `outlook_mail_modify_enabled`, `outlook_calendar_write_enabled` (all default `false`). Updated `microsoft_graph_scopes` default to include `Mail.ReadWrite Mail.Send Calendars.ReadWrite`.
+- Added 4 new `ExecutionActionType` enum values to `app/models/entities.py`: `CREATE_OUTLOOK_DRAFT`, `SEND_OUTLOOK_REPLY`, `APPLY_OUTLOOK_MAIL_MODIFY`, `CREATE_OUTLOOK_CALENDAR_EVENT`.
+- Created Alembic migration `0018_outlook_write_action_types.py` (no DDL; SQLite stores StrEnum as VARCHAR; migration is documentation only).
+- Added full write method suite to `app/services/microsoft_graph_client.py`: `create_draft`, `send_draft`, `create_and_send_reply`, `modify_message`, `archive_message`, `create_calendar_event`. Each guarded by a `_require_*_enabled()` helper that also checks `MICROSOFT_GRAPH_ENABLED`. HTTP helpers: `_post_json`, `_post_empty` (handles 202 Accepted), `_patch_json`, `_build_recipients`. Calendar event creation blocks past events.
+- Rewired `app/services/execution_service.py` for full provider-aware routing:
+  - `ExecutionProvider` protocol extended with 4 Outlook method signatures.
+  - `MockExecutionProvider` returns `{"status": "...", "provider": "mock_outlook"}` for all 4.
+  - `GuardedExternalExecutionProvider` accepts `graph_client` parameter; implements all 4 Outlook methods behind feature-flag guards + `dry_run` short-circuit.
+  - `prepare_execution_for_draft`: routes Outlook-source drafts to `CREATE_OUTLOOK_DRAFT`; Gmail to `CREATE_EXTERNAL_GMAIL_DRAFT`.
+  - `_execute_with_provider`: provider mismatch guard blocks cross-provider writes (Outlook action + gmail source → ValueError; Gmail action + outlook source → ValueError). Dispatches all 4 new action types.
+  - New public function: `microsoft_write_readiness(settings)` — returns per-surface {state, reason, recovery} dict for UI display.
+- Updated `app/services/provider_status_service.py`: replaced old `microsoft_graph_outlook_mail_send` and `outlook_calendar_read` "not implemented" rows with 4 dynamic write readiness rows via `_microsoft_write_status()` helper. States: `misconfigured`/`disabled`/`dry_run`/`available`.
+- Updated `app/services/operational_smoke_runner.py`: `_microsoft_boundary_checks` now uses Phase 29 keys.
+- Updated `app/services/operational_status_service.py`: `disabled_boundaries` uses `.get()` with Phase 29 keys and filters `None`.
+- Updated `app/web/routes.py`: `execution_detail` route computes and passes `provider_detail` dict to template.
+- Updated `app/web/templates/providers.html`: replaced old static "Microsoft write boundaries" section with dynamic write readiness loop; updated scope guidance.
+- Updated `app/web/templates/execution_detail.html`: added "Provider routing" panel showing source/target provider, feature flag, and Microsoft write readiness when applicable.
+- Created `tests/test_phase_29_outlook_write_parity.py` with 34 tests.
+- Updated existing tests in `test_operational_workflow.py`, `test_phase_22_daily_operations.py`, `test_phase_25_gmail_cleanup_execution.py`, `test_provider_status.py`, `test_phase_18_6_visual_design.py`, `test_phase_18_7_interaction_hierarchy.py` to use Phase 29 provider keys.
+
+### Files changed
+- `app/core/config.py` — 4 new feature flags + updated scopes default
+- `app/models/entities.py` — 4 new ExecutionActionType values
+- `alembic/versions/0018_outlook_write_action_types.py` — new migration (no DDL)
+- `app/services/microsoft_graph_client.py` — full write method suite
+- `app/services/execution_service.py` — provider-aware routing + microsoft_write_readiness
+- `app/services/provider_status_service.py` — 4 write readiness rows + _microsoft_write_status helper
+- `app/services/operational_smoke_runner.py` — updated boundary check keys
+- `app/services/operational_status_service.py` — safe .get() for Phase 29 keys
+- `app/web/routes.py` — execution_detail passes provider_detail
+- `app/web/templates/providers.html` — write readiness section + scope guidance
+- `app/web/templates/execution_detail.html` — provider routing panel
+- `tests/test_phase_29_outlook_write_parity.py` — new Phase 29 test file (34 tests)
+- `tests/test_operational_workflow.py` — updated for Phase 29 keys
+- `tests/test_phase_22_daily_operations.py` — updated for Phase 29 keys
+- `tests/test_phase_25_gmail_cleanup_execution.py` — updated TestOutlookWriteDisabled
+- `tests/test_provider_status.py` — updated required keys + graph auth assertions
+- `tests/test_phase_18_6_visual_design.py` — updated boundary text assertions
+- `tests/test_phase_18_7_interaction_hierarchy.py` — updated boundary text assertions
+- `docs/PHASE_STATUS.md` — Phase 29 row completed
+- `docs/PHASE_PLAN.md` — updated current active phase
+- `docs/ENDGAME_ROADMAP.md` — updated current position
+- `docs/IMPLEMENTATION_LOG.md` — this entry
+- `docs/LESSONS_LEARNED.md` — Phase 29 lessons
+
+### Validation
+- `python -m ruff check .` — all checks passed.
+- `python -m pytest tests/test_phase_29_outlook_write_parity.py -v` — 34/34 passed.
+- `python -m pytest -q` — 382 passed, 3 pre-existing failures (same as Phase 28: `test_app_bootstrap::test_dashboard_loads` stale template string, two backup exclusion tests in Phase 22/27).
+- `python -m alembic upgrade head` — migration applied cleanly.
+
+### Known limitations
+- All Outlook write flags default to `false`. Enable one at a time after verifying Graph delegated auth has the required scopes and running dry-run first.
+- Microsoft Teams write remains not implemented (reserved for a future phase).
+- `source_message_id` must be present in the execution payload for `SEND_OUTLOOK_REPLY` to create a proper reply thread; falls back to standalone draft if missing.
+- Pre-existing test failures (3) remain unfixed: dashboard "Provider matrix" rename (Phase 16/18) and two backup exclusion tests (Phase 22/27).
+
 ## 2026-05-21 - Phase 28: Daily-Use Cutover, Operator Console, and About Statistics
 
 ### Summary

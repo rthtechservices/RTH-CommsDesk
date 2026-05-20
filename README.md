@@ -27,11 +27,11 @@ Each LLM session should complete one phase only, update documentation, and stop 
 - Local SQLite for development
 
 ## Known MVP limitations
-- Outlook mail read now supports delegated Microsoft Graph OAuth for local smoke testing; Outlook send, Outlook Calendar, and Teams remain disabled/not implemented.
+- Outlook mail read supports delegated Microsoft Graph OAuth for local smoke testing. Outlook write surfaces (draft, send, reply, mail modify, calendar event) are now implemented behind explicit feature flags (`OUTLOOK_DRAFT_CREATE_ENABLED`, `OUTLOOK_SEND_ENABLED`, `OUTLOOK_MAIL_MODIFY_ENABLED`, `OUTLOOK_CALENDAR_WRITE_ENABLED`), all defaulting to `false`. Enable one at a time after verifying Graph delegated auth has the required scopes. Teams remains disabled.
 - The `/about` page shows life-to-date statistics (emails processed, drafted, deleted, noise senders, VIPs, AI items, and estimated hours saved) backed by a durable `app_stat_records` SQLite table that survives restarts and upgrades. Initialize the go-live baseline from the About page admin form.
 - The dashboard now includes compact operational status, command-center, source/runtime cards, dense attention rows, workflow breadcrumbs, provider blockers, review packages, and execution approvals.
-- Provider status is visible at `/providers`; it includes copy/paste configuration guidance but does not edit `.env`. Microsoft Graph Teams, Outlook send, and Outlook Calendar remain disabled/not implemented.
-- AI classifier is provider-neutral but runs with deterministic logic/mock fallback by default.
+- Provider status is visible at `/providers`; it includes copy/paste configuration guidance but does not edit `.env`. Microsoft write readiness for each Outlook surface is shown with state (disabled/dry_run/available) and recovery guidance.
+- Outlook-originated executions now route to Microsoft Graph; cross-provider mutations (Outlook source → Gmail write, or Gmail source → Outlook write) are blocked at the execution dispatch layer.
 - Gmail sync is read-only and duplicate-safe. Recent sync handles the active inbox window, and manual backfill can page farther through the Gmail backlog.
 - Gmail conversation context can be fetched on demand so detail pages show a full thread timeline when full content is available.
 - Draft generation and AI analysis use deterministic mock/local providers by default; no paid AI credentials are required for local development. Live AI can be enabled through environment variables with mock fallback.
@@ -40,7 +40,7 @@ Each LLM session should complete one phase only, update documentation, and stop 
 - Voice Calibration now has HTML-safe Create New Profile and Import Sent Mail Samples pages; the import path remains preview/config-gated instead of returning raw JSON errors.
 - Assistant Profile shows local readiness, active voice-profile state, sign-off and guidance counts, and local-only preview controls even when no voice profile exists.
 - Draft and execution queues default to daily-use filters: Drafts hides cancelled/deleted local records by default, and Executions opens to pending items with status tabs and counts.
-- Outlook-originated draft suggestions remain local-only. Preparing an Outlook draft cleanly blocks with "Outlook draft creation is not implemented or not enabled." and never routes into Gmail draft creation.
+- AI classifier is provider-neutral but runs with deterministic logic/mock fallback by default.
 - The dashboard Start Here Today row is trimmed to daily actions: Sync Gmail, Sync Outlook, Process next, Review packages, Executions, and Run smoke.
 - The global navigation is larger, highlights the current page, and remains the consistent navigation surface.
 - Bulk triage mode supports paginated queue processing, local automation candidate generation, and reversible bulk actions.

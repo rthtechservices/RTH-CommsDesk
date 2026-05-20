@@ -2,6 +2,15 @@
 
 Document durable project knowledge here. Keep entries concise and actionable.
 
+## Phase 29: Microsoft Graph write parity
+
+- When replacing static "not implemented" provider rows with dynamic feature-flagged rows, update ALL downstream consumers at the same time: `operational_smoke_runner.py`, `operational_status_service.py`, and all tests that key into the old row names. A grepped list of old key references is the most reliable way to find everything.
+- `urllib` `with self._urlopen(request) as response:` — if the variable is not used, use `with self._urlopen(request):` to avoid the "assigned but never used" ruff warning. Graph send returns 202 Accepted with no body; handle that in `except HTTPError` rather than as a success response.
+- Provider mismatch guard: always check `source_provider` from the payload at dispatch time, not at prepare time. The prepare step might not always be reachable from the execute path (e.g. re-runs, clones, direct API calls).
+- `_execute_with_provider` must be a module-level function for tests to import and call it directly as `from app.services.execution_service import _execute_with_provider`.
+- Calendar event creation should block past events proactively at the service layer rather than letting the Graph API return a confusing error.
+- All 4 write methods on `GuardedExternalExecutionProvider` must check the flag AND `dry_run` independently; flag-off raises `RuntimeError`, dry-run returns `{"status": "dry_run"}` without calling Graph.
+
 ## Phase 28: Life-to-date stats service
 
 - Use `round(x, 1)` carefully: small values (e.g. 5 reviewed items × 20s = 100s = 0.028 hrs) round to `0.0`. For deterministic hours-saved tests, seed enough activity (≥200 items) to produce a visible non-zero rounded result.
