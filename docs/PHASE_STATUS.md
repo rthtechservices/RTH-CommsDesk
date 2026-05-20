@@ -30,7 +30,20 @@
 | 23 | Mailbox Cleanup, Sender Noise Automation, and Outlook Write Planning | ✅ Completed | 2026-05-20 |
 | 24 | Mailbox Cleanup Live Hardening, Real-Inbox Smoke, and Operator Trust Pass | ✅ Completed | 2026-05-20 |
 | 25 | Controlled Live Gmail Cleanup Execution and Recovery | ✅ Completed | 2026-05-21 |
+| 26 | Bulk Triage Live Smoke and Execution Verification | ✅ Smoke-reviewed | 2026-05-21 |
+| 27 | Operator Polish and Daily-Use Hardening | 🚧 In progress | 2026-05-21 |
+| 28 | Daily-Use Cutover and Operator Console | Planned | TBD |
+| 29 | Outlook Draft Write and Cross-Provider Parity | Planned | TBD |
+| 30 | Release Candidate and Production Readiness | Planned | TBD |
 
 ## Current recommendation
 
-Phase 25 complete. Run `scripts/test-gmail-cleanup-execution.ps1` to review current environment posture. Use `/bulk-triage/mailbox-cleanup` to review candidates, prepare executions, and confirm through the approve → confirm pipeline. Review the Gmail Cleanup Confirmation section on each execution detail page before confirming. Run with `EXTERNAL_WRITE_DRY_RUN=true` for dry-run validation before enabling live mode.
+Let Phase 27 finish. If it lands cleanly, run Phase 28 next. Phase 28 is the daily-use cutover: one dashboard-led operator queue, process-next workflow, local review actions, live smoke harness, backup/restore verification, startup checks, and reauth guidance.
+
+The remaining endgame is now intentionally short:
+
+1. Phase 28 — daily-use operator console.
+2. Phase 29 — Outlook draft creation only, safely gated.
+3. Phase 30 — release-candidate hardening and production readiness.
+
+Do not add new side quests before the release candidate unless smoke testing exposes a blocker.
