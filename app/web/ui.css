@@ -160,13 +160,13 @@ h3 {
 .topbar-inner {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 16px;
-  padding: 11px 0;
+  padding: 13px 0;
 }
 
 .brand {
-  font-size: 18px !important;
+  font-size: 20px !important;
   font-weight: 800 !important;
   letter-spacing: 0.03em !important;
   color: var(--brand) !important;
@@ -176,16 +176,16 @@ h3 {
 .nav-links {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px;
-  margin-top: 5px;
+  gap: 4px;
+  margin-top: 7px;
 }
 
 .nav-links a {
   border-radius: var(--radius-sm);
   color: var(--muted);
-  font-size: 14px;
-  font-weight: 700;
-  padding: 5px 9px;
+  font-size: 15px;
+  font-weight: 800;
+  padding: 7px 10px;
   transition: color 0.12s, background 0.12s;
 }
 
@@ -199,13 +199,6 @@ h3 {
 .nav-links a.active {
   border: 1px solid rgba(28, 186, 139, 0.35);
   color: var(--brand);
-}
-
-.sync-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  justify-content: flex-end;
 }
 
 /* --- Utilities --- */
@@ -972,10 +965,6 @@ hr {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
-  }
-
-  .sync-actions {
-    justify-content: flex-start;
   }
 
   .facts > div {

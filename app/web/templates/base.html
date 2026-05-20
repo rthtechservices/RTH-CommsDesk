@@ -27,16 +27,6 @@
             <a class="{% if current_path.startswith('/admin') %}active{% endif %}" href="/admin">Admin</a>
           </nav>
         </div>
-        <div class="sync-actions">
-          <form method="post" action="/sync/gmail"><button class="primary" type="submit">Sync Gmail</button></form>
-          <form method="post" action="/sync/gmail">
-            <input type="hidden" name="resync" value="true" />
-            <button type="submit">Resync recent</button>
-          </form>
-          <form method="post" action="/sync/gmail/backfill"><button type="submit">Backfill older</button></form>
-          <form method="post" action="/sync/outlook"><button type="submit">Sync Outlook</button></form>
-          <form method="post" action="/logout"><button type="submit">Sign out</button></form>
-        </div>
       </div>
     </header>
 

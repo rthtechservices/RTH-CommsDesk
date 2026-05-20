@@ -23,6 +23,30 @@
     grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
     gap: 7px;
   }
+  .daily-start {
+    display: grid;
+    gap: 12px;
+  }
+  .daily-start-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+  }
+  .daily-cta-row {
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    margin-left: auto;
+  }
+  .daily-cta-row .button,
+  .daily-cta-row button {
+    min-height: 34px;
+    white-space: nowrap;
+  }
+  .daily-metrics {
+    grid-template-columns: repeat(auto-fit, minmax(142px, 1fr));
+    width: 100%;
+  }
   /* Rebalanced metric sizes for secondary cards */
   .metric-sm strong {
     font-size: 16px;
@@ -172,6 +196,15 @@
     .row-actions {
       justify-content: flex-start;
     }
+    .daily-start-header {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+    .daily-cta-row {
+      justify-content: flex-start;
+      flex-wrap: wrap;
+      margin-left: 0;
+    }
   }
 </style>
 {% endblock %}
@@ -209,11 +242,20 @@
     </div>
   </section>
 
-  <section class="panel" aria-label="Start here today">
-    <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
-      <div>
-        <h2>Start Here Today</h2>
-        <div class="metric-row">
+  <section class="panel daily-start" aria-label="Start here today">
+    <div class="daily-start-header">
+      <h2>Start Here Today</h2>
+      <div class="button-row daily-cta-row">
+        <form method="post" action="/sync/gmail"><button class="primary" type="submit">Sync Gmail</button></form>
+        <form method="post" action="/sync/outlook"><button type="submit">Sync Outlook</button></form>
+        <a class="button primary" href="/process-next?queue_filter={{ queue_filter }}{% if filter_source %}&source={{ filter_source }}{% endif %}">Process next</a>
+        <a class="button outline" href="/review-packages">Review packages</a>
+        <a class="button outline" href="/executions">Executions</a>
+        <form method="post" action="/operational-smoke/run"><button type="submit">Run smoke</button></form>
+      </div>
+    </div>
+    <div>
+        <div class="metric-row daily-metrics">
           <div class="metric metric-sm">
             {% if daily_start.last_smoke %}
             <strong><span class="status-dot {{ daily_start.last_smoke.overall_status.value }}"></span>{{ daily_start.last_smoke.overall_status.value.title() }}</strong>
@@ -264,15 +306,6 @@
           {{ daily_start.provider_blockers[0].label }} — {{ daily_start.provider_blockers[0].next_action }}
         </div>
         {% endif %}
-      </div>
-      <div class="button-row daily-cta-row">
-        <form method="post" action="/sync/gmail"><button class="primary" type="submit">Sync Gmail</button></form>
-        <form method="post" action="/sync/outlook"><button type="submit">Sync Outlook</button></form>
-        <a class="button primary" href="/process-next?queue_filter={{ queue_filter }}{% if filter_source %}&source={{ filter_source }}{% endif %}">Process next</a>
-        <a class="button outline" href="/review-packages">Review packages</a>
-        <a class="button outline" href="/executions">Executions</a>
-        <form method="post" action="/operational-smoke/run"><button type="submit">Run smoke</button></form>
-      </div>
     </div>
   </section>
 
