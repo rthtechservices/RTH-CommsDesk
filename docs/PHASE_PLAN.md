@@ -1,6 +1,8 @@
 # RTH CommsDesk Phase Plan
 
-This plan breaks the build into bounded phases suitable for separate LLM sessions. Each session should complete one phase, update documentation, and stop.
+This plan tracks focused LLM-assisted delivery. Earlier phases intentionally used small reviewable increments while OAuth, external execution, provider status, and audit safety were still unstable. That phase of the project is over.
+
+Going forward, phases should be larger product acceleration sprints. Avoid tiny single-feature visibility phases. Each sprint should deliver a useful operator-facing capability and only document what materially changed.
 
 ## Product target
 
@@ -24,7 +26,7 @@ Every phase should move toward useful automation and insight while keeping actio
 
 Phases 01 through 20 built the operational foundation: Gmail ingestion, Outlook mail read through delegated Graph, contact intelligence, full Gmail thread context, Azure OpenAI analysis, review packages, sent-mail learning, bulk triage, calendar recommendations, approved execution records, provider/operational smoke status, a dark command-center UI, an operational test-mode lane for controlled Gmail/Calendar execution, and the first assistant-quality pass for voice, calendar reasoning, and teachable recommendations.
 
-The next product goal is not to add more connectors. The next product goal is to make CommsDesk become recognizably the operator's assistant:
+The next product goal is to make CommsDesk recognizably the operator's assistant, then quickly harden the app for daily use:
 
 ```text
 Understand the conversation
@@ -33,15 +35,25 @@ Understand the conversation
 → draft in Rohan's real voice
 → learn from sent mail and corrections
 → execute only when explicitly approved and safely gated
+→ provide one practical smoke/runbook path for daily operation
 ```
 
-Recent live smoke lessons to address next:
+Recent live smoke lessons to address:
 
 - Gmail draft execution works, but draft quality still shows generic placeholders such as `[Your Name]`.
 - The assistant should learn stable operator voice traits from sent mail, including recurring sign-off style such as `Cheers, Rohan.` when approved evidence supports it.
 - Calendar reasoning must not create reminders or events in the past.
 - A message asking to meet on a date with no time should generally become a clarifying reply or an all-day tentative candidate, not an invented timed reminder.
 - Phase 19 test-mode and allowlist controls must remain intact while intelligence improves.
+
+## Delivery rule from Phase 21 onward
+
+- Prefer larger practical sprints over tiny incremental phases.
+- Keep tests meaningful, not exhaustive for every wording change.
+- Keep docs current, not repetitive.
+- Do not split UI visibility, smoke checklists, and personalization controls into separate phases when they can ship together.
+- Preserve external-write safety controls.
+- Stop for review only at useful product checkpoints.
 
 ## Completed phases
 
@@ -71,72 +83,48 @@ Recent live smoke lessons to address next:
 | 19 | Test email execution enablement | Completed |
 | 20 | Assistant Intelligence, Voice, and Calendar Reasoning Quality | Completed |
 
-## Next phases
+## Active phase
 
-## Phase 21 — Voice Memory and Assistant Personalization Console
+## Phase 20 — Assistant Intelligence, Voice, and Calendar Reasoning Quality
 
-Primary outcome: turn voice learning from hidden inference into a visible, editable personalization system.
-
-Scope:
-
-- Add an Assistant Profile / Voice Memory page.
-- Show approved global writing traits, recurring sign-off, tone preferences, avoided phrases, and relationship-specific overrides.
-- Allow approving, rejecting, editing, and disabling learned traits.
-- Show evidence counts and recent examples without exposing full private sent-mail bodies unnecessarily.
-- Add a draft preview tool: given a sample context, show how current voice memory changes the draft.
-- Keep all outbound execution gated by Phase 19 controls.
-
-Assigned file to create later: `docs/phases/PHASE_21_VOICE_MEMORY_ASSISTANT_PERSONALIZATION.md`.
-
-## Phase 22 — Live Operational Smoke and Regression Harness
-
-Primary outcome: make repeated real-provider smoke testing safe, scripted, and auditable.
+Primary outcome: fix the quality failures exposed by live smoke testing and make the assistant start sounding and reasoning like the operator's assistant.
 
 Scope:
 
-- Add a manual smoke checklist page or CLI/script for Gmail draft, Gmail send dry-run, calendar dry-run/live test event, Outlook sync, Azure AI test, and route smoke.
-- Add disposable test artifact naming conventions, e.g. `CommsDesk Test - Safe to Delete`.
-- Add one-click cleanup guidance for test calendar events/drafts where feasible without destructive automation.
-- Persist smoke results locally for operator review.
-- Keep live sends/drafts/calendar writes test-mode and allowlist gated.
+- Add realistic fixture conversations for action, no-reply, scheduling, reminders, noise, vague asks, latest-message-changes-action, and sent-mail voice examples.
+- Improve sent-mail learning so recurring sign-offs/signatures and global operator voice traits can be inferred, reviewed, approved, and applied.
+- Prevent generic draft placeholders such as `[Your Name]` and fake formal closings from entering send-ready drafts.
+- Improve calendar reasoning: no past reminders/events, no invented times, clarification or all-day tentative candidates for date-only meeting requests.
+- Add review-package correction controls for action type, reply/no-reply, summary, draft instruction, calendar interpretation, noise/not-noise.
+- Improve recommendation evidence display.
+- Preserve Phase 19 operational test-mode and allowlist enforcement.
 
-Assigned file to create later: `docs/phases/PHASE_22_LIVE_OPERATIONAL_SMOKE_HARNESS.md`.
+Assigned file: `docs/phases/PHASE_20_INBOX_INTELLIGENCE_QUALITY_PASS.md`.
 
-## Phase 23 — Outlook Mail Draft/Send Planning, Not Implementation
+## Next acceleration sprint
 
-Primary outcome: prepare for Microsoft write support without adding it prematurely.
+## Phase 21 — Product Acceleration Sprint
 
-Scope:
-
-- Audit Graph delegated permissions and app registration needs for Outlook draft/send.
-- Design the Outlook execution provider seam to mirror Gmail's test-mode and allowlist controls.
-- Document payload shape, provider status, error handling, and audit requirements.
-- Add disabled UI guidance only. Do not implement Outlook send yet.
-
-Assigned file to create later: `docs/phases/PHASE_23_OUTLOOK_WRITE_PLANNING_ONLY.md`.
-
-## Phase 24 — Production Readiness and Packaging Review
-
-Primary outcome: decide how this local-first app should be run day-to-day without becoming fragile.
+Primary outcome: combine the next practical assistant/profile/smoke/runbook work into one sprint instead of dragging it across several small phases.
 
 Scope:
 
-- Review local service startup options, backups, token handling, logging, retention, and database maintenance.
-- Add operator runbook for normal use, smoke testing, reset, reauthorization, and troubleshooting.
-- Confirm `.env` editing remains manual unless an explicit config-management phase is opened.
-- Confirm secrets and token files remain local and gitignored.
+- Add Assistant Profile / Voice Memory page.
+- Show and manage preferred sign-off, approved global voice traits, pending learned traits, avoided phrases, tone/brevity guidance, and evidence counts.
+- Add local draft preview that demonstrates how current voice memory changes draft output without creating external drafts.
+- Add a practical live smoke harness/checklist for route smoke, Azure AI, Microsoft Graph, Outlook sync, Gmail draft dry-run/live readiness, Google Calendar dry-run/live readiness, and execution audit checks.
+- Refresh operator runbook for daily startup, OAuth reauth, dry-run/live posture, test allowlist, safe Gmail draft test, safe calendar test, and common blockers.
+- Keep Outlook write support planned only. Do not implement Outlook send/calendar yet.
 
-Assigned file to create later: `docs/phases/PHASE_24_PRODUCTION_READINESS_PACKAGING.md`.
+Assigned file: `docs/phases/PHASE_21_PRODUCT_ACCELERATION_SPRINT.md`.
 
-## Later backlog ideas
+## Later acceleration candidates
 
-- Outlook send after Gmail/Calendar intelligence and test execution are stable.
-- Outlook calendar read/write after Google Calendar behavior is stable.
-- Teams read-only ingestion after Outlook mail read is stable and useful.
-- Browser extension for quick triage.
-- Mobile-friendly approval console.
-- Notification digest.
-- Local LLM option for analysis and drafting.
-- Vector search over approved reply examples.
-- Contact/project/client tagging.
-- Reporting dashboard for communication volume, response backlog, noise rate, and automation time saved.
+These should be combined or reordered based on what blocks daily usefulness:
+
+- Daily-use hardening: startup scripts, health checks, backup/reset, token reauth helper guidance, and one-page operator runbook.
+- Outlook write implementation only after Gmail/Calendar behavior and voice quality are stable.
+- Outlook calendar only after Google Calendar behavior is stable.
+- Teams read-only only if it materially improves daily triage.
+- Browser/mobile approval console only if desktop workflow is already genuinely useful.
+- Search/reporting/analytics only after the inbox/action loop is reliable.
