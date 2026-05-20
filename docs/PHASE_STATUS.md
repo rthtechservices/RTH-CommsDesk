@@ -1,5 +1,7 @@
 # Phase Status
 
+Development is paused after Phase 29 because credits are low. Resume with Outlook smoke completion, not deployment.
+
 | Phase | Title | Status | Last Updated |
 | --- | --- | --- | --- |
 | 01 | Usability and Structured Feedback Loop | ✅ Completed | 2026-05-15 |
@@ -33,15 +35,32 @@
 | 26 | Bulk Triage Live Smoke and Execution Verification | ✅ Smoke-reviewed | 2026-05-21 |
 | 27 | Operator Polish and Daily-Use Hardening | ✅ Completed | 2026-05-21 |
 | 28 | Daily-Use Cutover and Operator Console | ✅ Completed | 2026-05-21 |
-| 29 | Outlook Draft Write and Cross-Provider Parity | ✅ Completed | 2026-05-21 |
-| 30 | Release Candidate and Production Readiness | Planned | TBD |
+| 29 | Microsoft Write Cutover and Provider Parity | ✅ Implemented / smoke incomplete | 2026-05-21 |
+| 30 | Outlook Integration Smoke Completion and Omnichannel Planning | Next | TBD |
+| 31 | Omnichannel Connector Foundation Sprint | Planned | TBD |
+| 32 | Messaging Channel Live Adapter Sprint | Planned | TBD |
+| 33 | Omnichannel Review and Execution Sprint | Planned | TBD |
+| 34 | Daily-Use Release Candidate Hardening | Planned | TBD |
 
 ## Current recommendation
 
-Phase 29 is complete and ready for human review. Phase 30 remains the final endgame phase before release candidate.
+When work resumes, do **not** deploy and do **not** start production hardening first.
 
-The remaining endgame is one phase:
+Start with Phase 30:
 
-1. Phase 30 — release-candidate hardening and production readiness.
+1. Finish Outlook integration smoke testing.
+2. Confirm Graph delegated auth, scopes, token freshness, Outlook read sync, provider readiness, dry-run behavior, and execution audit behavior.
+3. Document exact blockers and fixes.
+4. Decide the practical channel strategy for WhatsApp, Facebook Messenger, Instagram Messaging, and SMS.
+5. Prepare the next large implementation phase for omnichannel ingestion.
 
-Do not add new side quests before the release candidate unless smoke testing exposes a blocker.
+## Validation posture at pause
+
+Phase 29 reported:
+
+- `python -m ruff check .` passed.
+- Focused Phase 29 tests passed.
+- Alembic upgrade passed.
+- Full `pytest -q` reported 382 passed and 3 pre-existing failures.
+
+Re-run validation before making broad assumptions. Treat Outlook write parity as implemented but not operationally trusted until smoke testing finishes.
