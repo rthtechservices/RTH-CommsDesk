@@ -18,6 +18,7 @@ sync Gmail + Outlook
 → approve and confirm external changes
 → execute through the correct provider
 → audit every attempt
+→ show persistent life-to-date value metrics
 ```
 
 ## Current active phase
@@ -32,7 +33,7 @@ Phase 27 fixed the Phase 26 smoke-test friction: platform-aware drafts, draft li
 
 | Phase | Title | Outcome |
 | --- | --- | --- |
-| 28 | Daily-Use Cutover and Operator Console | One dashboard-led morning workflow: readiness, sync, process-next, local review actions, live smoke, backup/restore verification, and reauth guidance. |
+| 28 | Daily-Use Cutover, Operator Console, and About Statistics | One dashboard-led morning workflow plus `/about` with app info, durable life-to-date stats, and transparent estimated hours saved from the go-live baseline. |
 | 29 | Outlook Draft Write and Cross-Provider Parity | Safe Outlook draft creation only, behind explicit flags and approval/confirmation. Outlook send/calendar/Teams write remain parked. |
 | 30 | Release Candidate and Production Readiness | Scope freeze, hardening, route smoke, runbook, config sanity, backup/restore/reauth guidance, and first daily-use release candidate. |
 
