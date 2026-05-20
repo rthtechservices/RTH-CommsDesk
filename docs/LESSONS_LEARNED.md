@@ -2,6 +2,23 @@
 
 Document durable project knowledge here. Keep entries concise and actionable.
 
+## Phase 27: Platform-aware draft execution
+
+- Always derive draft execution provider from the source message/thread, not from the presence of send-ready draft text alone.
+- Outlook-originated drafts must fail closed before creating an execution record until Outlook draft writing has its own gated implementation.
+- Local draft lifecycle controls should only mutate CommsDesk records unless a separate confirmed provider-side delete action exists.
+
+## Phase 27: Queue defaults and route repair
+
+- Daily-use pages should default to the operator's next pending work, with tabs/counts for completed or cancelled history.
+- A broken HTML button that returns JSON 404 is a route-contract bug. Add explicit HTML GET/POST routes even if the backing feature is config-required or preview-only.
+- Assistant and Voice pages must be useful in an empty database; no-profile state is a normal first-run state, not an error.
+
+## Phase 27: Backup safety metadata
+
+- Backup UX should report what was included, especially SQLite, OAuth tokens, env snapshot state, size, and timestamp.
+- Secret-bearing backup options need explicit false-by-default config flags and must remain opt-in.
+
 ## Phase 25: Cleanup batch result shape consistency
 
 - When adding new fields to a result dict (`attempted_count`, `succeeded_count`, `failed_count`), update the mock provider at the same time. Tests that check result keys against the mock will fail if the mock returns the old shape.

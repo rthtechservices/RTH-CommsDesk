@@ -30,6 +30,7 @@ from app.models.entities import (
     SentMailLearningRecord,
     UserFeedback,
     VoiceGuidance,
+    VoiceProfile,
 )
 from app.services.admin_service import clear_cached_content, run_retention_cleanup
 from app.services.backup_service import create_local_backup, latest_backup_metadata
@@ -65,9 +66,13 @@ from app.services.draft_service import (
     DraftContext,
     MockDraftProvider,
     available_voice_profiles,
+    cancel_local_draft,
     create_draft_reply,
+    draft_status_counts,
+    list_drafts,
     normalize_draft_content,
     recent_drafts_for_message,
+    soft_delete_local_draft,
     suggested_voice_profile_id,
 )
 from app.services.feedback_service import (
@@ -373,7 +378,11 @@ def clear_cache(
 @web_router.post("/admin/backup/create")
 def web_create_backup():
     result = create_local_backup().as_dict()
-    serialized = f"path:{result['backup_path']},size_bytes:{result['size_bytes']}"
+    serialized = (
+        f"filename:{result['filename']},database_included:{result['database_included']},"
+        f"oauth_tokens_included:{result['oauth_tokens_included']},"
+        f"env_snapshot:{result['env_snapshot_status']},size_bytes:{result['size_bytes']}"
+    )
     return RedirectResponse(url=f"/admin?backup_result={quote(serialized, safe='')}", status_code=303)
 
 
@@ -623,6 +632,13 @@ def _assistant_profile_context(
         "voice_memory": summary,
         "guidance_rows": voice_guidance_for_review(db),
         "inference_statuses": list(InferenceStatus),
+        "voice_profile_count": db.query(func.count(VoiceProfile.id)).scalar() or 0,
+        "active_voice_profile_count": (
+            db.query(func.count(VoiceProfile.id))
+            .filter(VoiceProfile.is_enabled.is_(True))
+            .scalar()
+            or 0
+        ),
         "preview": preview,
         "preview_sample": sample,
         "profile_result": request.query_params.get("profile_result"),
@@ -1199,13 +1215,18 @@ def web_generate_draft(
 
 @web_router.get("/drafts")
 def drafts_index(request: Request, db: Session = Depends(get_db)):
-    drafts = (
-        db.query(DraftReply)
-        .order_by(DraftReply.created_at.desc(), DraftReply.id.desc())
-        .limit(100)
-        .all()
+    status_filter = request.query_params.get("status", "active")
+    return templates.TemplateResponse(
+        request,
+        "drafts.html",
+        {
+            "drafts": list_drafts(db, status_filter=status_filter),
+            "status_filter": status_filter,
+            "draft_counts": draft_status_counts(db),
+            "draft_result": request.query_params.get("draft_result"),
+            "draft_error": request.query_params.get("draft_error"),
+        },
     )
-    return templates.TemplateResponse(request, "drafts.html", {"drafts": drafts})
 
 
 @web_router.get("/voice-calibration")
@@ -1214,12 +1235,76 @@ def voice_calibration(request: Request, db: Session = Depends(get_db)):
         request,
         "voice_calibration.html",
         {
+            "profiles": db.query(VoiceProfile).order_by(VoiceProfile.name.asc()).all(),
             "vip_candidates": vip_candidates_for_review(db),
             "guidance_rows": voice_guidance_for_review(db),
             "inference_statuses": list(InferenceStatus),
             "learning_run": request.query_params.get("learning_run"),
         },
     )
+
+
+@web_router.get("/voice-calibration/new")
+def new_voice_profile(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "voice_profile_form.html",
+        {
+            "error": request.query_params.get("error"),
+            "profile": None,
+        },
+    )
+
+
+@web_router.post("/voice-calibration/new")
+def create_voice_profile(
+    profile_name: str = Form(...),
+    description: str | None = Form(None),
+    default_signoff: str | None = Form(None),
+    enabled: bool = Form(False),
+    db: Session = Depends(get_db),
+):
+    name = profile_name.strip()
+    if not name:
+        return RedirectResponse(url="/voice-calibration/new?error=name_required", status_code=303)
+    db.add(
+        VoiceProfile(
+            name=name,
+            audience_type="custom",
+            tone_description=(description or "").strip() or None,
+            formality_level=3,
+            humor_level=0,
+            signoff_style=(default_signoff or "").strip() or None,
+            is_enabled=enabled,
+        )
+    )
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        return RedirectResponse(url="/voice-calibration/new?error=duplicate", status_code=303)
+    return RedirectResponse(url="/voice-calibration?profile_created=1", status_code=303)
+
+
+@web_router.get("/voice-calibration/import-sent")
+def import_sent_samples_preview(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "voice_import_samples.html",
+        {"learning_run": request.query_params.get("learning_run")},
+    )
+
+
+@web_router.post("/voice-calibration/learn-from-sent")
+def web_import_sent_samples_html(db: Session = Depends(get_db)):
+    try:
+        run_sent_mail_learning(db)
+        return RedirectResponse(url="/voice-calibration/import-sent?learning_run=ok", status_code=303)
+    except Exception:
+        return RedirectResponse(
+            url="/voice-calibration/import-sent?learning_run=config_required",
+            status_code=303,
+        )
 
 
 @web_router.get("/bulk-triage")
@@ -1512,16 +1597,32 @@ def web_update_voice_guidance(
 def draft_detail(draft_id: int, request: Request, db: Session = Depends(get_db)):
     draft = db.get(DraftReply, draft_id)
     readiness = None
+    source_type = "unknown"
+    platform_block = None
     if draft:
-        readiness = readiness_for_payload(
-            ExecutionActionType.CREATE_EXTERNAL_GMAIL_DRAFT,
-            {"to": draft.message.sender_email if draft.message else None},
-            get_settings(),
-        )
+        source_type = (
+            (draft.message.source_type if draft.message else None)
+            or (draft.thread.source_type if draft.thread else None)
+            or "gmail"
+        ).strip().lower()
+        if source_type == "outlook":
+            platform_block = "Outlook draft creation is not implemented or not enabled."
+        else:
+            readiness = readiness_for_payload(
+                ExecutionActionType.CREATE_EXTERNAL_GMAIL_DRAFT,
+                {"to": draft.message.sender_email if draft.message else None},
+                get_settings(),
+            )
     return templates.TemplateResponse(
         request,
         "draft_review.html",
-        {"draft": draft, "test_readiness": readiness},
+        {
+            "draft": draft,
+            "test_readiness": readiness,
+            "source_type": source_type,
+            "platform_block": platform_block,
+            "draft_error": request.query_params.get("draft_error"),
+        },
         status_code=200 if draft else 404,
     )
 
@@ -1530,9 +1631,30 @@ def draft_detail(draft_id: int, request: Request, db: Session = Depends(get_db))
 def web_prepare_draft_execution(draft_id: int, db: Session = Depends(get_db)):
     try:
         prepared = prepare_execution_for_draft(db, draft_id, actor="local-user")
-    except ValueError:
-        return RedirectResponse(url="/drafts", status_code=303)
+    except ValueError as exc:
+        return RedirectResponse(
+            url=f"/drafts/{draft_id}?draft_error={quote(str(exc), safe='')}",
+            status_code=303,
+        )
     return RedirectResponse(url=f"/executions/{prepared.record.id}", status_code=303)
+
+
+@web_router.post("/drafts/{draft_id}/cancel")
+def web_cancel_local_draft(draft_id: int, db: Session = Depends(get_db)):
+    try:
+        cancel_local_draft(db, draft_id)
+    except ValueError:
+        return RedirectResponse(url="/drafts?draft_error=not_found", status_code=303)
+    return RedirectResponse(url=f"/drafts/{draft_id}?draft_result=cancelled", status_code=303)
+
+
+@web_router.post("/drafts/{draft_id}/delete")
+def web_delete_local_draft(draft_id: int, db: Session = Depends(get_db)):
+    try:
+        soft_delete_local_draft(db, draft_id)
+    except ValueError:
+        return RedirectResponse(url="/drafts?draft_error=not_found", status_code=303)
+    return RedirectResponse(url="/drafts?draft_result=deleted", status_code=303)
 
 
 @web_router.post("/review-packages/{package_id}/prepare-execution")
@@ -1691,11 +1813,48 @@ def web_correct_review_package(
 
 @web_router.get("/executions")
 def executions_index(request: Request, db: Session = Depends(get_db)):
-    records = list_execution_records(db)
+    status_filter = request.query_params.get("status", "pending")
+    query = db.query(ExecutionRecord)
+    if status_filter == "pending":
+        query = query.filter(
+            ExecutionRecord.status.in_(
+                [
+                    ExecutionStatus.PENDING_REVIEW,
+                    ExecutionStatus.APPROVED,
+                    ExecutionStatus.EXECUTING,
+                ]
+            )
+        )
+    elif status_filter == "executed":
+        query = query.filter(ExecutionRecord.status == ExecutionStatus.EXECUTED)
+    elif status_filter == "failed":
+        query = query.filter(ExecutionRecord.status == ExecutionStatus.FAILED)
+    elif status_filter in {"cancelled", "blocked"}:
+        query = query.filter(ExecutionRecord.status == ExecutionStatus.CANCELLED)
+    records = query.order_by(ExecutionRecord.created_at.desc(), ExecutionRecord.id.desc()).limit(200).all()
+    all_records = list_execution_records(db)
+    execution_counts = {
+        "pending": len(
+            [
+                record
+                for record in all_records
+                if record.status
+                in {
+                    ExecutionStatus.PENDING_REVIEW,
+                    ExecutionStatus.APPROVED,
+                    ExecutionStatus.EXECUTING,
+                }
+            ]
+        ),
+        "executed": len([record for record in all_records if record.status == ExecutionStatus.EXECUTED]),
+        "failed": len([record for record in all_records if record.status == ExecutionStatus.FAILED]),
+        "cancelled": len([record for record in all_records if record.status == ExecutionStatus.CANCELLED]),
+        "all": len(all_records),
+    }
     return templates.TemplateResponse(
         request,
         "executions.html",
-        {"records": records},
+        {"records": records, "status_filter": status_filter, "execution_counts": execution_counts},
     )
 
 

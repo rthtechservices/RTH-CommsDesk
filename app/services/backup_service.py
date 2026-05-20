@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import shutil
 import zipfile
 from dataclasses import dataclass
@@ -34,6 +35,13 @@ class BackupMetadata:
     included_files: tuple[str, ...]
     excluded_sensitive_files: tuple[str, ...]
     size_bytes: int
+    database_included: bool = False
+    oauth_tokens_included: bool = False
+    env_snapshot_status: str = "redacted"
+
+    @property
+    def filename(self) -> str:
+        return Path(self.backup_path).name
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -42,6 +50,10 @@ class BackupMetadata:
             "included_files": list(self.included_files),
             "excluded_sensitive_files": list(self.excluded_sensitive_files),
             "size_bytes": self.size_bytes,
+            "filename": self.filename,
+            "database_included": self.database_included,
+            "oauth_tokens_included": self.oauth_tokens_included,
+            "env_snapshot_status": self.env_snapshot_status,
         }
 
 
@@ -54,6 +66,9 @@ def create_local_backup(settings: Settings | None = None) -> BackupMetadata:
     archive_path = backups_dir / f"commsdesk-backup-{stamp}.zip"
     included: list[str] = []
     excluded = _existing_sensitive_files()
+    database_included = False
+    oauth_tokens_included = False
+    env_snapshot_status = "redacted"
 
     with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         db_path = sqlite_database_path(active)
@@ -62,11 +77,36 @@ def create_local_backup(settings: Settings | None = None) -> BackupMetadata:
             shutil.copy2(db_path, temp_db)
             archive.write(temp_db, arcname=db_path.name)
             included.append(db_path.name)
+            database_included = True
             temp_db.unlink(missing_ok=True)
+        archive.writestr(
+            "config-snapshot.redacted.json",
+            json.dumps(_redacted_config_snapshot(active), indent=2, sort_keys=True),
+        )
+        included.append("config-snapshot.redacted.json")
         env_example = PROJECT_ROOT / ".env.example"
         if env_example.exists():
             archive.write(env_example, arcname=".env.example")
             included.append(".env.example")
+        if active.backup_include_env_file and (PROJECT_ROOT / ".env").exists():
+            archive.write(PROJECT_ROOT / ".env", arcname=".env")
+            included.append(".env")
+            env_snapshot_status = "included"
+        if active.backup_include_oauth_tokens:
+            for token_file in (
+                active.gmail_token_file,
+                active.google_calendar_token_file,
+                active.microsoft_graph_token_file,
+            ):
+                path = (
+                    PROJECT_ROOT / token_file
+                    if not Path(token_file).is_absolute()
+                    else Path(token_file)
+                ).resolve()
+                if path.exists():
+                    archive.write(path, arcname=path.name)
+                    included.append(path.name)
+                    oauth_tokens_included = True
         for rel in DOC_BACKUP_FILES:
             path = PROJECT_ROOT / rel
             if path.exists():
@@ -79,6 +119,9 @@ def create_local_backup(settings: Settings | None = None) -> BackupMetadata:
         included_files=tuple(included),
         excluded_sensitive_files=excluded,
         size_bytes=archive_path.stat().st_size if archive_path.exists() else 0,
+        database_included=database_included,
+        oauth_tokens_included=oauth_tokens_included,
+        env_snapshot_status=env_snapshot_status,
     )
 
 
@@ -95,6 +138,12 @@ def latest_backup_metadata() -> BackupMetadata | None:
         included_files=tuple(_zip_names(path)),
         excluded_sensitive_files=_existing_sensitive_files(),
         size_bytes=path.stat().st_size,
+        database_included=_zip_has_database(path),
+        oauth_tokens_included=_zip_has_any(
+            path,
+            ("gmail_token.json", "google_calendar_token.json", "microsoft_graph_token.json"),
+        ),
+        env_snapshot_status="included" if _zip_has_any(path, (".env",)) else "redacted",
     )
 
 
@@ -114,6 +163,14 @@ def list_backups(limit: int = 20) -> list[BackupMetadata]:
                 included_files=tuple(_zip_names(path)),
                 excluded_sensitive_files=_existing_sensitive_files(),
                 size_bytes=path.stat().st_size,
+                database_included=_zip_has_database(path),
+                oauth_tokens_included=_zip_has_any(
+                    path,
+                    ("gmail_token.json", "google_calendar_token.json", "microsoft_graph_token.json"),
+                ),
+                env_snapshot_status=(
+                    "included" if _zip_has_any(path, (".env",)) else "redacted"
+                ),
             )
         )
     return rows
@@ -146,3 +203,23 @@ def _zip_names(path: Path) -> list[str]:
             return sorted(archive.namelist())
     except zipfile.BadZipFile:
         return []
+
+
+def _zip_has_database(path: Path) -> bool:
+    return any(name.endswith(".db") or name.endswith(".sqlite") for name in _zip_names(path))
+
+
+def _zip_has_any(path: Path, names: tuple[str, ...]) -> bool:
+    present = set(_zip_names(path))
+    return any(name in present for name in names)
+
+
+def _redacted_config_snapshot(settings: Settings) -> dict[str, object]:
+    data = settings.model_dump()
+    redacted_markers = ("secret", "token", "password", "api_key", "client_secret")
+    for key in list(data):
+        if any(marker in key.lower() for marker in redacted_markers):
+            data[key] = "[redacted]" if data[key] else None
+    data["backup_include_oauth_tokens"] = settings.backup_include_oauth_tokens
+    data["backup_include_env_file"] = settings.backup_include_env_file
+    return data

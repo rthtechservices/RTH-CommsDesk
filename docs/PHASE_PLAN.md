@@ -24,9 +24,9 @@ sync Gmail + Outlook
 
 | Phase | Title | Status |
 | --- | --- | --- |
-| 27 | Operator Polish and Daily-Use Hardening | In progress |
+| 27 | Operator Polish and Daily-Use Hardening | Completed / human review |
 
-Phase 27 is expected to fix the Phase 26 smoke-test friction: platform-aware drafts, draft lifecycle controls, execution filtering, repaired Voice/Assistant routes, complete local backups, and navigation/dashboard cleanup.
+Phase 27 fixed the Phase 26 smoke-test friction: platform-aware drafts, draft lifecycle controls, execution filtering, repaired Voice/Assistant routes, complete local backups, and navigation/dashboard cleanup.
 
 ## Remaining endgame phases
 
@@ -39,6 +39,7 @@ Phase 27 is expected to fix the Phase 26 smoke-test friction: platform-aware dra
 ## Phase documents
 
 - `docs/ENDGAME_ROADMAP.md`
+- `docs/phases/phase-27-operator-polish-daily-use-hardening.md`
 - `docs/phases/PHASE_28_DAILY_USE_CUTOVER_OPERATOR_CONSOLE.md`
 - `docs/phases/PHASE_29_OUTLOOK_DRAFT_WRITE_PARITY.md`
 - `docs/phases/PHASE_30_RELEASE_CANDIDATE_PRODUCTION_READINESS.md`
@@ -85,3 +86,4 @@ Phase 27 is expected to fix the Phase 26 smoke-test friction: platform-aware dra
 | 24 | Mailbox Cleanup Live Hardening, Real-Inbox Smoke, and Operator Trust Pass | Completed |
 | 25 | Controlled Live Gmail Cleanup Execution and Recovery | Completed |
 | 26 | Bulk Triage Live Smoke and Execution Verification | Completed / smoke-reviewed |
+| 27 | Operator Polish and Daily-Use Hardening | Completed |

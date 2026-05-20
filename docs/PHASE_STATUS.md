@@ -31,14 +31,14 @@
 | 24 | Mailbox Cleanup Live Hardening, Real-Inbox Smoke, and Operator Trust Pass | ✅ Completed | 2026-05-20 |
 | 25 | Controlled Live Gmail Cleanup Execution and Recovery | ✅ Completed | 2026-05-21 |
 | 26 | Bulk Triage Live Smoke and Execution Verification | ✅ Smoke-reviewed | 2026-05-21 |
-| 27 | Operator Polish and Daily-Use Hardening | 🚧 In progress | 2026-05-21 |
+| 27 | Operator Polish and Daily-Use Hardening | ✅ Completed | 2026-05-21 |
 | 28 | Daily-Use Cutover and Operator Console | Planned | TBD |
 | 29 | Outlook Draft Write and Cross-Provider Parity | Planned | TBD |
 | 30 | Release Candidate and Production Readiness | Planned | TBD |
 
 ## Current recommendation
 
-Let Phase 27 finish. If it lands cleanly, run Phase 28 next. Phase 28 is the daily-use cutover: one dashboard-led operator queue, process-next workflow, local review actions, live smoke harness, backup/restore verification, startup checks, and reauth guidance.
+Phase 27 is complete and ready for human review. Phase 28, Phase 29, and Phase 30 remain forward-planning placeholders only unless explicitly started.
 
 The remaining endgame is now intentionally short:
 

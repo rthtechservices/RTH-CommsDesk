@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Create Voice Profile | RTH CommsDesk{% endblock %}
+
+{% block main_class %}wrap page-pad{% endblock %}
+
+{% block content %}
+  <div class="workflow" aria-label="Workflow">
+    <span>Sync</span><span>Triage</span><span>Analyze</span><span>Review</span><span class="active">Prepare</span><span>Execute</span><span>Audit</span>
+  </div>
+  <h1>Create Voice Profile</h1>
+  <p class="help-text">Create a local draft voice profile. This does not call an AI provider or write to any mailbox.</p>
+  {% if error %}<div class="warning">Profile could not be created: {{ error }}.</div>{% endif %}
+  <section class="panel">
+    <form method="post" action="/voice-calibration/new" style="display:grid;gap:10px">
+      <label>Profile name<input name="profile_name" required /></label>
+      <label>Description / notes<textarea name="description" rows="5"></textarea></label>
+      <label>Default sign-off<input name="default_signoff" placeholder="Cheers, Rohan." /></label>
+      <label style="display:flex;gap:8px;align-items:center">
+        <input type="checkbox" name="enabled" value="true" checked style="width:auto" />
+        Enabled
+      </label>
+      <div class="button-row">
+        <button class="primary" type="submit">Create profile</button>
+        <a class="button outline" href="/voice-calibration">Cancel</a>
+      </div>
+    </form>
+  </section>
+{% endblock %}

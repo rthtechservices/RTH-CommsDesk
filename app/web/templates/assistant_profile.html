@@ -4,7 +4,6 @@
 {% block main_class %}wide-wrap page-pad{% endblock %}
 
 {% block content %}
-  <a href="/">Back to dashboard</a>
   <div class="workflow" aria-label="Workflow">
     <span class="done">Sync</span><span class="done">Triage</span><span class="done">Analyze</span><span class="done">Review</span><span class="active">Prepare</span><span>Execute</span><span>Audit</span>
   </div>
@@ -16,6 +15,18 @@
   {% elif profile_result == "invalid" %}
   <div class="callout callout-red" style="margin-bottom:14px">Voice memory update could not be applied.</div>
   {% endif %}
+
+  <section class="panel" style="margin-bottom:14px">
+    <h2>Assistant Readiness</h2>
+    <div class="facts">
+      <div><strong class="label">Assistant usable</strong><span><span class="badge ok">Yes, local preview and guidance review available</span></span></div>
+      <div><strong class="label">Active voice profiles</strong><span><span class="badge {% if active_voice_profile_count > 0 %}ok{% else %}amber{% endif %}">{{ active_voice_profile_count }}</span> <span class="muted">of {{ voice_profile_count }} total</span></span></div>
+      <div><strong class="label">Approved guidance</strong><span class="muted">{{ voice_memory.approved_global_traits|length }} global trait(s), {{ voice_memory.relationship_overrides|length }} relationship override(s)</span></div>
+      <div><strong class="label">Pending guidance</strong><span><span class="badge {% if voice_memory.pending_traits|length > 0 %}amber{% else %}ok{% endif %}">{{ voice_memory.pending_traits|length }}</span></span></div>
+      <div><strong class="label">Rejected/disabled</strong><span class="muted">{{ voice_memory.rejected_traits|length }} rejected, {{ voice_memory.disabled_traits|length }} disabled</span></div>
+      <div><strong class="label">Manage profiles</strong><span><a class="button" href="/voice-calibration">Voice Calibration</a> <a class="button primary" href="/voice-calibration/new">Create voice profile</a></span></div>
+    </div>
+  </section>
 
   <section class="panel" style="margin-bottom:14px">
     <h2>Preferred Sign-Off</h2>

@@ -2,6 +2,56 @@
 
 Record completed work here at the end of every phase. Newest entries should be added at the top.
 
+## 2026-05-21 - Phase 27: Operator Polish and Daily-Use Hardening
+
+### Summary
+- Made draft preparation source-aware: Outlook-originated draft suggestions now block before execution mutation with a clear readiness message and never attempt Gmail draft creation.
+- Added local draft lifecycle controls: cancel, soft-delete, default hidden cancelled/deleted rows, and status tabs/counts.
+- Updated `/executions` to default to pending work and added Pending, Executed, Failed, Cancelled/Blocked, and All tabs with counts while preserving immutable completed records.
+- Repaired Voice Calibration Create New Profile and Import Sent Mail Samples paths so they return HTML pages instead of JSON 404s.
+- Improved Assistant Profile first-run usefulness with readiness, active voice-profile state, guidance counts, create/manage links, and local-only preview.
+- Expanded local backup contents to include SQLite and a redacted config snapshot while excluding OAuth tokens and `.env` by default behind explicit opt-in flags.
+- Cleaned global/page navigation and dashboard Start Here Today actions for daily operation.
+
+### Files changed
+- `.env.example`
+- `app/core/config.py`
+- `app/models/entities.py`
+- `alembic/versions/0016_operator_polish_voice_profile_enabled.py`
+- `app/api/routes.py`
+- `app/services/backup_service.py`
+- `app/services/draft_service.py`
+- `app/services/execution_service.py`
+- `app/web/routes.py`
+- `app/web/templates/admin.html`
+- `app/web/templates/assistant_profile.html`
+- `app/web/templates/base.html`
+- `app/web/templates/dashboard.html`
+- `app/web/templates/draft_review.html`
+- `app/web/templates/drafts.html`
+- `app/web/templates/executions.html`
+- `app/web/templates/voice_calibration.html`
+- `app/web/templates/voice_import_samples.html`
+- `app/web/templates/voice_profile_form.html`
+- `app/web/ui.css`
+- `tests/test_phase_27_operator_polish.py`
+- `README.md`
+- `docs/HELP.md`
+- `docs/PHASE_STATUS.md`
+- `docs/PHASE_PLAN.md`
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/phases/phase-27-operator-polish-daily-use-hardening.md`
+
+### Validation
+- `python -m pytest tests/test_phase_27_operator_polish.py -q` - passed, 8 tests.
+- Full validation commands for final handoff: `python -m ruff check .`, `python -m pytest -q`, `python -m alembic upgrade head`, and route smoke.
+
+### Known limitations
+- Outlook draft creation remains blocked until a separate, safely gated Outlook draft implementation exists.
+- Outlook send, Outlook calendar write, and Teams write remain disabled/not implemented.
+- Backup token/env inclusion remains explicit opt-in and should not be used for normal daily backups.
+
 ## 2026-05-21 — Phase 25: Controlled Live Gmail Cleanup Execution and Recovery
 
 ### Summary

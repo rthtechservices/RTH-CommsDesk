@@ -4,7 +4,6 @@
 {% block main_class %}wrap page-pad{% endblock %}
 
 {% block content %}
-  <a href="/">Back to dashboard</a>
   <div class="workflow" aria-label="Workflow">
     <span>Sync</span><span>Triage</span><span>Analyze</span><span>Review</span><span>Prepare</span><span>Execute</span><span>Audit</span>
   </div>
@@ -43,7 +42,7 @@
 
   <section class="panel">
     <h2>Local backup</h2>
-    <p class="muted">Creates a local ZIP with the SQLite database, <code>.env.example</code>, and key docs. It excludes <code>.env</code>, OAuth tokens, and client secrets.</p>
+    <p class="muted">Creates a local ZIP with SQLite, a redacted config snapshot, <code>.env.example</code>, and key docs. It excludes <code>.env</code>, OAuth tokens, and client secrets by default.</p>
     <form method="post" action="/admin/backup/create" style="margin:10px 0">
       <button class="primary" type="submit">Create Local Backup</button>
     </form>
@@ -53,9 +52,13 @@
     </div>
     {% if latest_backup %}
     <div class="facts" style="margin-top:10px">
+      <div><strong class="label">Filename</strong><span class="muted">{{ latest_backup.filename }}</span></div>
       <div><strong class="label">Latest backup</strong><span class="muted">{{ latest_backup.backup_path }}</span></div>
       <div><strong class="label">Created</strong><span class="muted">{{ latest_backup.created_at }}</span></div>
-      <div><strong class="label">Size</strong><span class="muted">{{ latest_backup.size_bytes }} bytes</span></div>
+      <div><strong class="label">Database included</strong><span class="badge {% if latest_backup.database_included %}ok{% else %}bad{% endif %}">{{ "yes" if latest_backup.database_included else "no" }}</span></div>
+      <div><strong class="label">OAuth tokens included</strong><span class="badge {% if latest_backup.oauth_tokens_included %}bad{% else %}ok{% endif %}">{{ "yes" if latest_backup.oauth_tokens_included else "no" }}</span></div>
+      <div><strong class="label">Env snapshot</strong><span class="badge {% if latest_backup.env_snapshot_status == 'redacted' %}ok{% else %}bad{% endif %}">{{ latest_backup.env_snapshot_status }}</span></div>
+      <div><strong class="label">File size</strong><span class="muted">{{ latest_backup.size_bytes }} bytes</span></div>
     </div>
     {% else %}
     <p class="muted" style="margin-top:10px">No local backup archive found.</p>

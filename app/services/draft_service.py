@@ -415,7 +415,12 @@ def select_voice_profile(
 
 
 def available_voice_profiles(db: Session) -> list[VoiceProfile]:
-    return db.query(VoiceProfile).order_by(VoiceProfile.audience_type, VoiceProfile.name).all()
+    return (
+        db.query(VoiceProfile)
+        .filter(VoiceProfile.is_enabled.is_(True))
+        .order_by(VoiceProfile.audience_type, VoiceProfile.name)
+        .all()
+    )
 
 
 def suggested_voice_profile_id(db: Session, message: Message) -> int | None:
@@ -431,6 +436,62 @@ def recent_drafts_for_message(db: Session, message_id: int, limit: int = 5) -> l
         .limit(limit)
         .all()
     )
+
+
+def list_drafts(db: Session, *, status_filter: str = "active", limit: int = 100) -> list[DraftReply]:
+    query = db.query(DraftReply)
+    normalized = (status_filter or "active").strip().lower()
+    if normalized in {"active", "pending"}:
+        query = query.filter(DraftReply.status.in_([DraftStatus.GENERATED, DraftStatus.EDITED]))
+    elif normalized in {"created", "completed"}:
+        query = query.filter(DraftReply.status.in_([DraftStatus.APPROVED, DraftStatus.REJECTED]))
+    elif normalized == "cancelled":
+        query = query.filter(DraftReply.status == DraftStatus.CANCELLED)
+    elif normalized == "failed":
+        query = query.filter(DraftReply.status == DraftStatus.REJECTED)
+    elif normalized == "all":
+        pass
+    else:
+        query = query.filter(DraftReply.status != DraftStatus.DELETED)
+    if normalized != "all":
+        query = query.filter(DraftReply.status != DraftStatus.DELETED)
+    return query.order_by(DraftReply.created_at.desc(), DraftReply.id.desc()).limit(limit).all()
+
+
+def draft_status_counts(db: Session) -> dict[str, int]:
+    rows = db.query(DraftReply.status).all()
+    counts = {"active": 0, "created": 0, "cancelled": 0, "failed": 0, "all": len(rows)}
+    for (status,) in rows:
+        if status in {DraftStatus.GENERATED, DraftStatus.EDITED}:
+            counts["active"] += 1
+        elif status in {DraftStatus.APPROVED, DraftStatus.REJECTED}:
+            counts["created"] += 1
+        if status == DraftStatus.CANCELLED:
+            counts["cancelled"] += 1
+        if status == DraftStatus.REJECTED:
+            counts["failed"] += 1
+    return counts
+
+
+def cancel_local_draft(db: Session, draft_id: int) -> DraftReply:
+    draft = db.get(DraftReply, draft_id)
+    if not draft:
+        raise ValueError("Draft not found")
+    if draft.status not in {DraftStatus.APPROVED, DraftStatus.DELETED}:
+        draft.status = DraftStatus.CANCELLED
+        db.commit()
+        db.refresh(draft)
+    return draft
+
+
+def soft_delete_local_draft(db: Session, draft_id: int) -> DraftReply:
+    draft = db.get(DraftReply, draft_id)
+    if not draft:
+        raise ValueError("Draft not found")
+    draft.status = DraftStatus.DELETED
+    db.commit()
+    db.refresh(draft)
+    return draft
 
 
 def send_ready_email_for_draft(draft: DraftReply) -> SendReadyEmail:

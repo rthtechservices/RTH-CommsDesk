@@ -4,7 +4,6 @@
 {% block main_class %}wrap page-pad{% endblock %}
 
 {% block content %}
-  <a href="/">Back to dashboard</a>
   <div class="workflow" aria-label="Workflow">
     <span>Sync</span><span>Triage</span><span>Analyze</span><span>Review</span><span class="active">Prepare</span><span>Execute</span><span>Audit</span>
   </div>
@@ -30,10 +29,7 @@
             {% endif %}
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0">
-            <a href="/voice-calibration/{{ profile.id }}">Edit</a>
-            <form method="post" action="/voice-calibration/{{ profile.id }}/delete" style="display:inline">
-              <button class="danger" type="submit" style="font-size:12px">Delete</button>
-            </form>
+            <span class="badge {% if profile.is_enabled %}ok{% else %}grey{% endif %}">{{ "enabled" if profile.is_enabled else "disabled" }}</span>
           </div>
         </div>
       </li>
@@ -51,9 +47,7 @@
     <h2>Sent-mail learning</h2>
     <p class="help-text">Import sent mail to calibrate the AI on your communication style. This reads from your sent folder only — no mail is sent.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <form method="post" action="/voice-calibration/learn-from-sent">
-        <button type="submit">Import sent mail samples</button>
-      </form>
+      <a class="button" href="/voice-calibration/import-sent">Import sent mail samples</a>
     </div>
     {% if learning_samples %}
     <div style="margin-top:12px">

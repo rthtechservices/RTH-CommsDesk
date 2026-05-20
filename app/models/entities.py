@@ -44,6 +44,8 @@ class DraftStatus(StrEnum):
     EDITED = "edited"
     APPROVED = "approved"
     REJECTED = "rejected"
+    CANCELLED = "cancelled"
+    DELETED = "deleted"
 
 
 class ProposedActionType(StrEnum):
@@ -345,6 +347,7 @@ class VoiceProfile(Base):
     preferred_phrases: Mapped[str | None] = mapped_column(Text)
     banned_phrases: Mapped[str | None] = mapped_column(Text)
     max_length_preference: Mapped[int | None] = mapped_column(Integer)
+    is_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
 
     drafts: Mapped[list[DraftReply]] = relationship(back_populates="voice_profile")
 

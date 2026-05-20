@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Import Sent Mail Samples | RTH CommsDesk{% endblock %}
+
+{% block main_class %}wrap page-pad{% endblock %}
+
+{% block content %}
+  <div class="workflow" aria-label="Workflow">
+    <span>Sync</span><span>Triage</span><span>Analyze</span><span>Review</span><span class="active">Prepare</span><span>Execute</span><span>Audit</span>
+  </div>
+  <h1>Import Sent Mail Samples</h1>
+  <p class="help-text">This is a local voice-learning workflow. It reads sent-mail samples only when Gmail OAuth is configured and never sends mail.</p>
+  {% if learning_run == "ok" %}
+  <div class="success-banner">Sent-mail learning completed. Review inferred guidance on Voice Calibration.</div>
+  {% elif learning_run == "config_required" %}
+  <div class="warning">Sent-mail import needs Gmail OAuth configuration before it can run.</div>
+  {% endif %}
+  <section class="panel">
+    <h2>Safe import preview</h2>
+    <div class="facts">
+      <div><strong class="label">Mode</strong><span><span class="badge amber">Review-only learning</span></span></div>
+      <div><strong class="label">External writes</strong><span><span class="badge ok">None</span></span></div>
+      <div><strong class="label">Stored content</strong><span class="muted">Excerpted evidence only, capped and reviewed locally.</span></div>
+      <div><strong class="label">If not configured</strong><span class="muted">Use Gmail OAuth setup, then return here.</span></div>
+    </div>
+    <form method="post" action="/voice-calibration/learn-from-sent" style="margin-top:12px">
+      <button class="primary" type="submit">Run import preview / learning</button>
+    </form>
+  </section>
+{% endblock %}

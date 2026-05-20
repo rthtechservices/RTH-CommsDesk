@@ -167,6 +167,15 @@ def prepare_execution_for_draft(
     draft = db.get(DraftReply, draft_id)
     if not draft:
         raise ValueError("Draft not found")
+    source_type = (
+        (draft.message.source_type if draft.message else None)
+        or (draft.thread.source_type if draft.thread else None)
+        or "gmail"
+    ).strip().lower()
+    if source_type == "outlook":
+        raise ValueError("Outlook draft creation is not implemented or not enabled.")
+    if source_type != "gmail":
+        raise ValueError(f"External draft creation is not implemented for source: {source_type}.")
     action = ExecutionActionType.CREATE_EXTERNAL_GMAIL_DRAFT
     send_ready = send_ready_email_for_draft(draft)
     payload = {

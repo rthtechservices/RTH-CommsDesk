@@ -4,15 +4,23 @@
 {% block main_class %}wide-wrap page-pad{% endblock %}
 
 {% block content %}
-  <a href="/">Back to dashboard</a>
   <div class="workflow" aria-label="Workflow">
     <span>Sync</span><span>Triage</span><span>Analyze</span><span>Review</span><span class="active">Prepare</span><span>Execute</span><span>Audit</span>
   </div>
   <h1>Drafts</h1>
   <p class="help-text">What this page is for: review locally generated drafts before deciding to approve them for execution preparation. Nothing is sent from here.</p>
   <p class="notice">Local drafts only. No email is created in Gmail, no message is sent, and no labels are applied from this page.</p>
+  {% if draft_result %}<div class="success-banner">Draft action completed: {{ draft_result }}.</div>{% endif %}
+  {% if draft_error %}<div class="warning">Draft action failed: {{ draft_error }}.</div>{% endif %}
 
   <section class="panel">
+    <div class="button-row" style="margin-bottom:12px">
+      <a class="button {% if status_filter in ['active','pending'] %}primary{% else %}outline{% endif %}" href="/drafts?status=active">Active/Pending ({{ draft_counts.active }})</a>
+      <a class="button {% if status_filter == 'created' %}primary{% else %}outline{% endif %}" href="/drafts?status=created">Created/Completed ({{ draft_counts.created }})</a>
+      <a class="button {% if status_filter == 'cancelled' %}primary{% else %}outline{% endif %}" href="/drafts?status=cancelled">Cancelled ({{ draft_counts.cancelled }})</a>
+      <a class="button {% if status_filter == 'failed' %}primary{% else %}outline{% endif %}" href="/drafts?status=failed">Failed ({{ draft_counts.failed }})</a>
+      <a class="button {% if status_filter == 'all' %}primary{% else %}outline{% endif %}" href="/drafts?status=all">All ({{ draft_counts.all }})</a>
+    </div>
     <table>
       <thead>
         <tr>
@@ -22,19 +30,29 @@
           <th>Status</th>
           <th>Voice profile</th>
           <th>Created</th>
-          <th></th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
         {% for draft in drafts %}
         <tr>
           <td><a href="/drafts/{{ draft.id }}">#{{ draft.id }}</a></td>
-          <td>{{ draft.subject or "(no subject)" }}</td>
-          <td class="muted" style="font-size:12px">{{ draft.to_address }}</td>
-          <td><span class="badge {% if draft.status == 'approved' %}ok{% elif draft.status == 'rejected' %}bad{% endif %}">{{ draft.status or "pending" }}</span></td>
-          <td class="muted" style="font-size:12px">{{ draft.voice_profile_name or "-" }}</td>
+          <td>{{ draft.send_ready_subject or (draft.message.subject if draft.message else "") or "(no subject)" }}</td>
+          <td class="muted" style="font-size:12px">{{ draft.message.sender_email if draft.message else "-" }}</td>
+          <td><span class="badge {% if draft.status.value in ['approved'] %}ok{% elif draft.status.value in ['rejected','cancelled','deleted'] %}bad{% else %}amber{% endif %}">{{ draft.status.value.replace("_", " ").title() }}</span></td>
+          <td class="muted" style="font-size:12px">{{ draft.voice_profile.name if draft.voice_profile else "-" }}</td>
           <td class="muted" style="font-size:12px">{{ draft.created_at.strftime("%Y-%m-%d %H:%M") if draft.created_at else "-" }}</td>
-          <td><a href="/drafts/{{ draft.id }}">Review</a></td>
+          <td>
+            <div class="button-row">
+              <a class="button primary" href="/drafts/{{ draft.id }}">Review</a>
+              {% if draft.status.value not in ['cancelled','deleted','approved'] %}
+              <form method="post" action="/drafts/{{ draft.id }}/cancel"><button class="outline" type="submit">Cancel local draft</button></form>
+              {% endif %}
+              {% if draft.status.value != 'deleted' %}
+              <form method="post" action="/drafts/{{ draft.id }}/delete"><button class="danger" type="submit">Delete local record</button></form>
+              {% endif %}
+            </div>
+          </td>
         </tr>
         {% else %}
         <tr><td colspan="7" class="muted">No drafts yet. Generate one from a message detail page.</td></tr>

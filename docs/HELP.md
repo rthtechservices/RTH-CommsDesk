@@ -51,6 +51,8 @@ Current MVP features:
 - Open the Provider Status page to see live, mock, disabled, missing configuration, dry-run, failed, and not-implemented states for each provider/action, plus copy/paste configuration guidance.
 - Open the Operational Smoke page to see Gmail read config, Outlook Graph status, Outlook sync readiness, Azure/OpenAI readiness, execution mode, dry-run state, write flags, source counts, blockers, safe `.env` snippets, and persisted sanitized smoke history.
 - Open the Assistant Profile page to inspect approved voice memory, preferred sign-off, pending learned traits, disabled/rejected guidance, relationship overrides, and local draft-preview output.
+- Use Drafts status tabs to focus on active/pending local drafts by default while still being able to inspect created/completed, cancelled, failed, and all local draft records.
+- Use Executions status tabs to focus on pending approval/confirmation by default while keeping executed, failed, cancelled/blocked, and all immutable records accessible.
 - Store message metadata and snippets by default.
 - Test delegated Microsoft Graph configuration with sanitized `POST /api/graph/test` output.
 - Fetch and store full Gmail conversation content manually from a message detail page.
@@ -76,7 +78,7 @@ Current MVP features:
 - Review/approve/reject/edit inferred VIP and voice guidance from the Voice Calibration page.
 - Approve, reject, edit, disable, or reset learned voice guidance from the Assistant Profile page.
 - Generate a local-only draft preview that shows how approved voice memory affects draft wording without creating a Gmail draft, execution record, send, or calendar item.
-- Review local draft suggestions from the Drafts page.
+- Review local draft suggestions from the Drafts page, cancel local drafts, or soft-delete local records. These controls do not delete provider-side Gmail or Outlook drafts.
 - Analyze a stored Gmail conversation with the mock AI provider by default or an OpenAI-compatible/Azure OpenAI provider when explicitly configured.
 - Store and view local conversation summaries.
 - Store and view proposed action review packages with a recommendation, plain-language evidence, confidence score, optional draft response, correction controls, and local review status.
@@ -93,7 +95,7 @@ Current MVP features:
 - View execution audit trails with payload/result history.
 - Enforce web/API authentication when enabled for non-local deployment.
 - Provide admin retention controls to clear cached bodies/excerpts and purge aged audit rows.
-- Create local backups from `/admin` or `.\scripts\backup-commsdesk.ps1` while excluding `.env`, OAuth token files, and client secrets.
+- Create local backups from `/admin` or `.\scripts\backup-commsdesk.ps1`; backups include SQLite and a redacted config snapshot while excluding `.env`, OAuth token files, and client secrets by default.
 
 ## What it does not do today
 
@@ -130,7 +132,11 @@ The Contacts page is linked from the dashboard header. Use it to edit contact pr
 
 ### Drafts
 
-The Drafts page lists local draft suggestions. Drafts are stored only in the local CommsDesk database and are not sent or created in Gmail.
+The Drafts page lists local draft suggestions. Drafts are stored only in the local CommsDesk database and are not sent or created in Gmail until a separate execution is prepared, approved, confirmed, and executed.
+
+The default Drafts view shows active/pending local records and hides cancelled or soft-deleted drafts. Use the status tabs for Created/Completed, Cancelled, Failed, or All. Cancel and Delete local record are local lifecycle controls only; they do not delete provider-side Gmail or Outlook drafts.
+
+Gmail-originated draft suggestions may prepare Gmail draft creation only through the guarded execution lifecycle. Outlook-originated draft suggestions do not prepare Gmail drafts. Until Outlook draft writing is implemented and enabled, the draft review page blocks with: "Outlook draft creation is not implemented or not enabled."
 
 ### Voice Calibration
 
@@ -144,6 +150,8 @@ The Voice Calibration page lets you refresh Sent-mail learning inferences and re
 
 Guidance only affects draft tone after you approve it. Recurring approved sign-off guidance, such as a repeated closing found in sent mail, can be applied to drafts globally unless contact-specific guidance overrides it.
 
+Create New Profile opens a local HTML form for profile name, description/notes, default sign-off, and enabled state. Import Sent Mail Samples opens a safe preview/config page; if import prerequisites are not available, it returns an HTML config-required result instead of a raw JSON error.
+
 ### Assistant Profile
 
 The Assistant Profile page is linked from the main navigation and dashboard. Use it to inspect what the assistant currently knows about the operator's writing style.
@@ -151,6 +159,7 @@ The Assistant Profile page is linked from the main navigation and dashboard. Use
 It shows:
 
 - preferred sign-off, status, evidence count, and whether drafts will currently use it
+- assistant readiness and whether an enabled voice profile exists
 - approved global voice traits
 - pending learned traits
 - rejected and disabled guidance
@@ -158,6 +167,8 @@ It shows:
 - relationship-specific overrides
 - safe evidence excerpts where stored
 - last sent-learning refresh date when available
+- links to create or manage voice profiles
+- a local-only preview panel when practical
 
 Guidance actions:
 
@@ -181,7 +192,9 @@ The Bulk Triage page lets you process large backlogs with:
 
 ### Executions
 
-The Executions page tracks outbound action records. Each record requires:
+The Executions page tracks outbound action records and defaults to pending approval/confirmation. Use the tabs to view Pending, Executed, Failed, Cancelled/Blocked, or All records. Completed records remain accessible and immutable.
+
+Each record requires:
 
 1. prepare (from a draft or review package)
 2. approve
@@ -716,7 +729,9 @@ Opens the contact profile. Saving relationship, importance, alias, VIP/noise, ch
 
 Open `/admin` to run retention cleanup and clear selected local cached content. These controls only affect local storage and do not modify external Gmail/Microsoft accounts.
 
-Use **Create Local Backup** before risky configuration changes. The backup ZIP includes local SQLite, `.env.example`, and key docs. It excludes `.env`, `gmail_token.json`, `google_calendar_token.json`, `microsoft_graph_token.json`, and `client_secret.json` by default.
+Use **Create Local Backup** before risky configuration changes. The backup ZIP includes local SQLite, a redacted config snapshot, `.env.example`, and key docs. It excludes `.env`, `gmail_token.json`, `google_calendar_token.json`, `microsoft_graph_token.json`, and `client_secret.json` by default.
+
+The Admin result shows filename, database included yes/no, OAuth tokens included yes/no, env snapshot redacted/not included, file size, and timestamp. `BACKUP_INCLUDE_OAUTH_TOKENS=false` and `BACKUP_INCLUDE_ENV_FILE=false` are the default safety posture; enable them only for an explicit local recovery workflow.
 
 Supported relationship types:
 

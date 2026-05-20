@@ -69,6 +69,8 @@ class Settings(BaseSettings):
     retention_message_body_days: int = 90
     retention_sent_learning_days: int = 180
     retention_execution_audit_days: int = 365
+    backup_include_oauth_tokens: bool = False
+    backup_include_env_file: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

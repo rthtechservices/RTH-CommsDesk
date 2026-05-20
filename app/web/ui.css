@@ -166,7 +166,7 @@ h3 {
 }
 
 .brand {
-  font-size: 16px !important;
+  font-size: 18px !important;
   font-weight: 800 !important;
   letter-spacing: 0.03em !important;
   color: var(--brand) !important;
@@ -183,16 +183,22 @@ h3 {
 .nav-links a {
   border-radius: var(--radius-sm);
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 600;
-  padding: 3px 7px;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 5px 9px;
   transition: color 0.12s, background 0.12s;
 }
 
-.nav-links a:hover {
+.nav-links a:hover,
+.nav-links a.active {
   background: var(--surface-2);
   color: var(--text);
   text-decoration: none;
+}
+
+.nav-links a.active {
+  border: 1px solid rgba(28, 186, 139, 0.35);
+  color: var(--brand);
 }
 
 .sync-actions {

@@ -718,7 +718,7 @@ def prepare_draft_execution(draft_id: int, actor: str = Form("local-user"), db: 
     try:
         prepared = prepare_execution_for_draft(db, draft_id, actor=actor)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return _execution_dict(prepared.record, already_exists=prepared.already_exists)
 
 

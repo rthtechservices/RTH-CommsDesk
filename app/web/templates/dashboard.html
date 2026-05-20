@@ -265,15 +265,13 @@
         </div>
         {% endif %}
       </div>
-      <div class="button-row">
-        <form method="post" action="/operational-smoke/run"><button class="primary" type="submit">Run Smoke</button></form>
-        <form method="post" action="/sync/gmail"><button type="submit">Sync Gmail</button></form>
+      <div class="button-row daily-cta-row">
+        <form method="post" action="/sync/gmail"><button class="primary" type="submit">Sync Gmail</button></form>
         <form method="post" action="/sync/outlook"><button type="submit">Sync Outlook</button></form>
-        <a class="button outline" href="/review-packages">Review Packages</a>
+        <a class="button primary" href="/process-next?queue_filter={{ queue_filter }}{% if filter_source %}&source={{ filter_source }}{% endif %}">Process next</a>
+        <a class="button outline" href="/review-packages">Review packages</a>
         <a class="button outline" href="/executions">Executions</a>
-        <a class="button outline" href="/bulk-triage/mailbox-cleanup">Mailbox Cleanup</a>
-        <a class="button outline" href="/assistant-profile">Assistant Profile</a>
-        <a class="button outline" href="/providers">Providers</a>
+        <form method="post" action="/operational-smoke/run"><button type="submit">Run smoke</button></form>
       </div>
     </div>
   </section>

@@ -36,6 +36,12 @@ Each LLM session should complete one phase only, update documentation, and stop 
 - Draft generation and AI analysis use deterministic mock/local providers by default; no paid AI credentials are required for local development. Live AI can be enabled through environment variables with mock fallback.
 - Local conversation summaries and proposed action review packages are stored for review only. They do not modify Gmail or calendars.
 - Sent-mail learning can infer VIP candidates, salutation/tone guidance, and recurring operator sign-off guidance, with explicit approve/reject/edit controls on the Voice Calibration page.
+- Voice Calibration now has HTML-safe Create New Profile and Import Sent Mail Samples pages; the import path remains preview/config-gated instead of returning raw JSON errors.
+- Assistant Profile shows local readiness, active voice-profile state, sign-off and guidance counts, and local-only preview controls even when no voice profile exists.
+- Draft and execution queues default to daily-use filters: Drafts hides cancelled/deleted local records by default, and Executions opens to pending items with status tabs and counts.
+- Outlook-originated draft suggestions remain local-only. Preparing an Outlook draft cleanly blocks with "Outlook draft creation is not implemented or not enabled." and never routes into Gmail draft creation.
+- The dashboard Start Here Today row is trimmed to daily actions: Sync Gmail, Sync Outlook, Process next, Review packages, Executions, and Run smoke.
+- The global navigation is larger, highlights the current page, and remains the consistent navigation surface.
 - Bulk triage mode supports paginated queue processing, local automation candidate generation, and reversible bulk actions.
 - Local calendar availability recommendations can prepare reminder/scheduling proposals with conflict reasoning for review packages; date-only meeting requests ask for a time instead of inventing one.
 - Approved outbound execution flows now support prepare/approve/confirm lifecycle with audit logs and mock provider execution.
@@ -211,7 +217,7 @@ From the repository root:
 .\scripts\reauth-commsdesk.ps1 -MicrosoftGraph
 ```
 
-The backup script excludes `.env`, OAuth token files, and `client_secret.json` by default.
+The backup script includes the local SQLite database, a redacted config snapshot, `.env.example`, and key docs. It excludes `.env`, OAuth token files, and `client_secret.json` by default. Use `BACKUP_INCLUDE_OAUTH_TOKENS=true` or `BACKUP_INCLUDE_ENV_FILE=true` only for an explicit, local, operator-controlled backup.
 
 ## Local database lifecycle
 

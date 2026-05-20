@@ -15,7 +15,6 @@
 {% block main_class %}wide-wrap page-pad{% endblock %}
 
 {% block content %}
-  <a href="/">Back to dashboard</a>
   <div class="workflow" aria-label="Workflow">
     <span class="done">Sync</span><span class="done">Triage</span><span class="done">Analyze</span><span class="done">Review</span><span class="done">Prepare</span><span class="active">Execute</span><span>Audit</span>
   </div>
@@ -25,6 +24,13 @@
     <a class="button primary" href="/executions/next">Process next pending approval or confirmation</a>
   </div>
   <section class="panel">
+    <div class="button-row" style="margin-bottom:12px">
+      <a class="button {% if status_filter == 'pending' %}primary{% else %}outline{% endif %}" href="/executions?status=pending">Pending ({{ execution_counts.pending }})</a>
+      <a class="button {% if status_filter == 'executed' %}primary{% else %}outline{% endif %}" href="/executions?status=executed">Executed ({{ execution_counts.executed }})</a>
+      <a class="button {% if status_filter == 'failed' %}primary{% else %}outline{% endif %}" href="/executions?status=failed">Failed ({{ execution_counts.failed }})</a>
+      <a class="button {% if status_filter in ['cancelled','blocked'] %}primary{% else %}outline{% endif %}" href="/executions?status=cancelled">Cancelled/Blocked ({{ execution_counts.cancelled }})</a>
+      <a class="button {% if status_filter == 'all' %}primary{% else %}outline{% endif %}" href="/executions?status=all">All ({{ execution_counts.all }})</a>
+    </div>
     <table>
       <thead>
         <tr>
