@@ -82,6 +82,41 @@
         <pre>{{ record.payload_json }}</pre>
       </section>
 
+      {% if cleanup_details %}
+      <section class="panel" style="border-left: 3px solid var(--amber)">
+        <h2>Gmail Cleanup Confirmation</h2>
+        <p class="help-text">Review every detail below before approving or confirming this action. Once confirmed, Gmail will be modified.</p>
+
+        {% if cleanup_details.large_batch_warning %}
+        <div class="warning" style="margin-bottom:12px;padding:10px 12px">
+          <strong>Large batch: {{ cleanup_details.message_count }} messages</strong><br>
+          This action affects more than {{ cleanup_details.message_count }} messages from a single sender. Verify the sender and mode are correct before confirming.
+          Review the payload and recovery guidance below.
+        </div>
+        {% endif %}
+
+        <div class="facts" style="margin-bottom:12px">
+          <div><strong class="label">Sender</strong><span>{{ cleanup_details.sender_email }}</span></div>
+          <div><strong class="label">Domain</strong><span>{{ cleanup_details.sender_domain }}</span></div>
+          <div><strong class="label">Messages affected</strong><span><strong>{{ cleanup_details.message_count }}</strong></span></div>
+          <div><strong class="label">Cleanup mode</strong><span><span class="badge info">{{ cleanup_details.cleanup_mode }}</span></span></div>
+          <div><strong class="label">Apply label</strong><span>{% if cleanup_details.is_label %}<span class="badge ok">Yes — {{ cleanup_details.label_name or "RTH-Cleanup" }}</span>{% else %}<span class="badge grey">No</span>{% endif %}</span></div>
+          <div><strong class="label">Archive (remove from inbox)</strong><span>{% if cleanup_details.is_archive %}<span class="badge warn">Yes</span>{% else %}<span class="badge grey">No</span>{% endif %}</span></div>
+          <div><strong class="label">Permanent delete</strong><span><span class="badge ok">No — messages are never permanently deleted</span></span></div>
+          <div><strong class="label">Provider posture</strong><span>{% if cleanup_details.dry_run_mode %}<span class="badge amber">Dry-run — no Gmail write will occur</span>{% else %}<span class="badge bad">Live — Gmail WILL be modified after confirmation</span>{% endif %}</span></div>
+        </div>
+
+        <div class="panel" style="background:var(--surface-2);margin-bottom:10px">
+          <h3 style="margin:0 0 6px 0;font-size:13px">Recovery guidance</h3>
+          <p style="font-size:13px;margin:0">{{ cleanup_details.recovery_guidance }}</p>
+        </div>
+
+        <div class="muted" style="font-size:12px;border-top:1px solid var(--line);padding-top:8px">
+          {{ cleanup_details.audit_statement }}
+        </div>
+      </section>
+      {% endif %}
+
       {% if record.result_json %}
       <section class="panel">
         <h2>Provider result</h2>
@@ -160,6 +195,12 @@
             {% if record.action_type.value == "delete_unsubscribe" %}
             <label class="muted" style="font-size:12px">Enter CONFIRM_DESTRUCTIVE for delete/unsubscribe:</label>
             <input name="destructive_confirm_token" />
+            {% endif %}
+            {% if cleanup_details and cleanup_details.large_batch_warning %}
+            <p class="muted" style="font-size:12px;border-left:3px solid var(--amber);padding-left:6px">
+              Large batch: <strong>{{ cleanup_details.message_count }} messages</strong> will be {{ cleanup_details.cleanup_mode.replace("_", " ") }}.
+              {% if not cleanup_details.dry_run_mode %}Gmail will be modified immediately after confirm.{% endif %}
+            </p>
             {% endif %}
             <button class="primary" type="submit">Confirm and execute</button>
           </form>

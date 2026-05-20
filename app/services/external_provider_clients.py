@@ -108,11 +108,22 @@ class GmailWriteClient:
           source_message_ids: list[str]   (Gmail message IDs to operate on)
           sender_email: str               (informational)
           cleanup_candidate_id: int       (informational)
+
+        Robustness guarantees:
+          - Duplicate message IDs are deduplicated before processing.
+          - Large message sets are processed in chunks of BATCH_CHUNK_SIZE.
+          - Partial failures are surfaced clearly with attempted/succeeded/failed counts.
+          - Returns "partial" status (not "applied") when any message fails.
+          - Does not store secrets, tokens, or private payloads in the return value.
         """
+        _BATCH_CHUNK_SIZE = 50
+
         service = self._build_service()
         mode = payload.get("cleanup_mode", "cleanup_label")
         label_name = payload.get("cleanup_label_name")
-        message_ids: list[str] = payload.get("source_message_ids") or []
+        # Deduplicate while preserving order
+        raw_ids: list[str] = payload.get("source_message_ids") or []
+        message_ids: list[str] = list(dict.fromkeys(mid for mid in raw_ids if mid))
         valid_modes = {"cleanup_label", "cleanup_archive", "cleanup_label_and_archive"}
 
         if mode not in valid_modes:
@@ -126,43 +137,65 @@ class GmailWriteClient:
             )
 
         if not message_ids:
-            return {"status": "skipped", "reason": "no_message_ids", "applied_count": 0}
+            return {
+                "status": "skipped",
+                "reason": "no_message_ids",
+                "attempted_count": 0,
+                "succeeded_count": 0,
+                "failed_count": 0,
+                "applied_count": 0,
+            }
 
         # Resolve label ID if needed
         label_id: str | None = None
         if mode in {"cleanup_label", "cleanup_label_and_archive"} and label_name:
             label_id = self._ensure_label_exists(service, label_name)
 
-        applied = 0
+        succeeded = 0
+        failed_ids: list[str] = []
         errors: list[str] = []
-        for msg_id in message_ids:
-            body: dict[str, list[str]] = {}
-            if label_id:
-                body["addLabelIds"] = [label_id]
-            if mode in {"cleanup_archive", "cleanup_label_and_archive"}:
-                body["removeLabelIds"] = ["INBOX"]
-            if not body:
-                continue
-            try:
-                _execute_google_request(
-                    service.users()
-                    .messages()
-                    .modify(userId=self.settings.gmail_account, id=msg_id, body=body),
-                    provider_label="Gmail cleanup batch",
-                    required_scopes=[GMAIL_MODIFY_SCOPE],
-                )
-                applied += 1
-            except Exception as exc:  # pragma: no cover - defensive path
-                errors.append(str(exc))
+
+        # Process in chunks to avoid overloading the API
+        for chunk_start in range(0, len(message_ids), _BATCH_CHUNK_SIZE):
+            chunk = message_ids[chunk_start : chunk_start + _BATCH_CHUNK_SIZE]
+            for msg_id in chunk:
+                body: dict[str, list[str]] = {}
+                if label_id:
+                    body["addLabelIds"] = [label_id]
+                if mode in {"cleanup_archive", "cleanup_label_and_archive"}:
+                    body["removeLabelIds"] = ["INBOX"]
+                if not body:
+                    continue
+                try:
+                    _execute_google_request(
+                        service.users()
+                        .messages()
+                        .modify(userId=self.settings.gmail_account, id=msg_id, body=body),
+                        provider_label="Gmail cleanup batch",
+                        required_scopes=[GMAIL_MODIFY_SCOPE],
+                    )
+                    succeeded += 1
+                except Exception as exc:  # pragma: no cover - defensive path
+                    failed_ids.append(msg_id)
+                    errors.append(str(exc))
+
+        attempted = len(message_ids)
+        failed = len(failed_ids)
+        # Only claim full success when every message succeeded
+        status = "applied" if failed == 0 else ("failed" if succeeded == 0 else "partial")
 
         return {
-            "status": "applied" if not errors else "partial",
+            "status": status,
             "cleanup_mode": mode,
-            "applied_count": applied,
-            "total": len(message_ids),
+            "attempted_count": attempted,
+            "succeeded_count": succeeded,
+            "failed_count": failed,
+            "applied_count": succeeded,
+            "total": attempted,
             "label_name": label_name,
-            "label_id": label_id,
-            "errors": errors[:5],  # cap error list for safety
+            # label_id omitted from audit result to keep audit records clean
+            "error_count": len(errors),
+            "errors": errors[:5],  # cap error list for safety; no private content
         }
 
     def _ensure_label_exists(self, service: Any, label_name: str) -> str:

@@ -506,6 +506,96 @@ def action_logs_for_candidate(
     )
 
 
+LARGE_BATCH_THRESHOLD = 50  # Extra confirmation copy shown above this message count
+
+
+def cleanup_execution_details(payload: dict | None, settings_or_posture: "dict | None" = None) -> dict:
+    """Return operator-facing confirmation details for a cleanup execution payload.
+
+    Used by execution_detail template to show exactly what will happen before
+    approve/confirm, including recovery guidance.
+
+    Args:
+        payload: The execution record's parsed payload_json dict.
+        settings_or_posture: Optional posture dict from cleanup_execution_posture().
+            If omitted, details still show what is in the payload.
+
+    Returns a dict with keys:
+        sender_email, sender_domain, message_count, cleanup_mode, label_name,
+        archive, permanent_delete, dry_run_mode, posture_label, feature_flags,
+        protection_status, large_batch_warning, audit_statement, recovery_guidance
+    """
+    if not payload:
+        return {}
+
+    mode = payload.get("cleanup_mode", "")
+    if not mode:
+        return {}
+    label_name = payload.get("cleanup_label_name") or None
+    sender_email = payload.get("sender_email") or payload.get("sender_key") or "-"
+    sender_domain = payload.get("sender_domain") or (
+        sender_email.split("@")[1] if "@" in sender_email else "-"
+    )
+    message_count = len(payload.get("source_message_ids") or [])
+    is_label = mode in {"cleanup_label", "cleanup_label_and_archive"}
+    is_archive = mode in {"cleanup_archive", "cleanup_label_and_archive"}
+
+    posture = settings_or_posture or {}
+    dry_run_mode = posture.get("dry_run", False)
+    posture_label = posture.get("label", "Unknown posture")
+
+    large_batch_warning = message_count > LARGE_BATCH_THRESHOLD
+
+    # Use a local variable so the label can be safely embedded in f-strings
+    _label_for_search = label_name or "RTH-Cleanup"
+
+    # Recovery guidance varies by mode
+    if mode == "cleanup_label":
+        recovery = (
+            f"Recovery: In Gmail, search for 'label:{_label_for_search}' "
+            f"to find labelled messages from {sender_email}. "
+            "Select all → Remove label. Messages remain in your inbox."
+        )
+    elif mode == "cleanup_archive":
+        recovery = (
+            f"Recovery: In Gmail, search 'from:{sender_email} in:archive' "
+            "to find archived messages. Select all → Move to inbox."
+        )
+    elif mode == "cleanup_label_and_archive":
+        recovery = (
+            f"Recovery: In Gmail, search 'label:{_label_for_search} from:{sender_email}' "
+            "to find labelled archived messages. "
+            "The label makes finding them easier. "
+            "Select all → Move to inbox → Remove label."
+        )
+    else:
+        recovery = "Recovery path unavailable for this cleanup mode."
+
+    _write_note = "Dry-run: no external Gmail write will occur." if dry_run_mode else "Live: Gmail will be modified after confirmation."
+    audit_statement = (
+        f"This execution will be recorded in the audit trail. "
+        f"Mode: {mode}. Messages: {message_count}. Sender: {sender_email}. "
+        f"Permanent delete: no. {_write_note}"
+    )
+
+    return {
+        "sender_email": sender_email,
+        "sender_domain": sender_domain,
+        "message_count": message_count,
+        "cleanup_mode": mode,
+        "label_name": label_name,
+        "archive": is_archive,
+        "permanent_delete": False,
+        "dry_run_mode": dry_run_mode,
+        "posture_label": posture_label,
+        "large_batch_warning": large_batch_warning,
+        "audit_statement": audit_statement,
+        "recovery_guidance": recovery,
+        "is_label": is_label,
+        "is_archive": is_archive,
+    }
+
+
 # ─── private helpers ──────────────────────────────────────────────────────────
 
 

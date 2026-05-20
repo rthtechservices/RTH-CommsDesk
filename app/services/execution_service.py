@@ -64,11 +64,18 @@ class MockExecutionProvider:
         return {"operation_id": _mock_id("label", payload), "status": "applied"}
 
     def apply_gmail_label_archive_batch(self, payload: dict) -> dict:
+        message_ids: list[str] = list(dict.fromkeys(
+            mid for mid in (payload.get("source_message_ids") or []) if mid
+        ))
+        count = len(message_ids)
         return {
             "operation_id": _mock_id("cleanup_batch", payload),
             "status": "applied",
-            "applied_count": payload.get("message_count", 0),
             "cleanup_mode": payload.get("cleanup_mode", "cleanup_label"),
+            "attempted_count": count,
+            "succeeded_count": count,
+            "failed_count": 0,
+            "applied_count": count,
         }
 
     def delete_or_unsubscribe(self, payload: dict) -> dict:

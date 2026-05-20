@@ -129,6 +129,7 @@ from app.services.mailbox_cleanup_service import (
     build_cleanup_rollups,
     cleanup_candidate_summary,
     cleanup_dashboard_stats,
+    cleanup_execution_details,
     get_cleanup_candidate,
     get_cleanup_candidates,
     mark_delete_candidate_local,
@@ -1700,7 +1701,17 @@ def executions_index(request: Request, db: Session = Depends(get_db)):
 
 @web_router.get("/executions/{execution_id}")
 def execution_detail(execution_id: int, request: Request, db: Session = Depends(get_db)):
+    import json as _json
     record = db.get(ExecutionRecord, execution_id)
+    settings = get_settings()
+    _payload: dict = {}
+    if record and record.payload_json:
+        try:
+            _payload = _json.loads(record.payload_json)
+        except Exception:
+            _payload = {}
+    _posture = cleanup_execution_posture(settings) if record else {}
+    _cleanup_details = cleanup_execution_details(_payload, _posture) if _payload.get("cleanup_mode") else {}
     return templates.TemplateResponse(
         request,
         "execution_detail.html",
@@ -1708,7 +1719,8 @@ def execution_detail(execution_id: int, request: Request, db: Session = Depends(
             "record": record,
             "audit": audit_entries_for_execution(db, execution_id) if record else [],
             "attempts": execution_attempt_history(db, record) if record else [],
-            "test_readiness": readiness_for_execution(record, get_settings()) if record else None,
+            "test_readiness": readiness_for_execution(record, settings) if record else None,
+            "cleanup_details": _cleanup_details,
         },
         status_code=200 if record else 404,
     )

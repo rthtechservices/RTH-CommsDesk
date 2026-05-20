@@ -2,7 +2,36 @@
 
 Record completed work here at the end of every phase. Newest entries should be added at the top.
 
-## 2026-05-19 — Phase 24: Mailbox Cleanup Live Hardening, Real-Inbox Smoke, and Operator Trust Pass
+## 2026-05-21 — Phase 25: Controlled Live Gmail Cleanup Execution and Recovery
+
+### Summary
+- Enhanced `GmailWriteClient.apply_label_archive_batch` with deduplication (preserving order), chunked processing at 50 messages per chunk, clear partial/failed status reporting with `attempted_count`/`succeeded_count`/`failed_count`, and `label_id` omitted from audit results to keep audit records clean.
+- Updated `MockExecutionProvider.apply_gmail_label_archive_batch` to match the new result shape: deduplicates IDs, returns `attempted_count`, `succeeded_count`, `failed_count`.
+- Added `LARGE_BATCH_THRESHOLD = 50` constant to `mailbox_cleanup_service` for consistent large-batch detection across service and template layers.
+- Added `cleanup_execution_details(payload, posture)` helper to `mailbox_cleanup_service` that returns structured operator-facing confirmation data: sender, domain, message count, mode, label/archive flags, permanent-delete (always false), dry-run mode, recovery guidance, large-batch warning, and audit statement.
+- Updated `execution_detail` web route to parse payload, call `cleanup_execution_details`, and pass `cleanup_details` to the template. `import json` is scoped inside the route to avoid any module-level side effect.
+- Added Gmail Cleanup Confirmation section to `execution_detail.html`: renders when `cleanup_details` is non-empty. Shows all operator-facing confirmation fields, large-batch warning block (>50 messages), recovery guidance panel, and audit statement. Extra large-batch copy added to the Confirm button in the sidebar.
+- Added `scripts/test-gmail-cleanup-execution.ps1`: read-only informational script showing current env posture, flag matrix, required configuration for live cleanup, and step-by-step operator workflow. Never performs Gmail writes.
+- Added `cleanup_execution_details` to `web/routes.py` import block.
+- Created `tests/test_phase_25_gmail_cleanup_execution.py` with 30 focused tests covering feature flag gates, dry-run, live routing, payload routing for all three modes, deduplication, empty-list handling, partial failures, result shape, cleanup_execution_details(), large-batch threshold, route rendering, cleanup execution posture, operational smoke, and Outlook write disabled.
+- Preserved all Phase 23/24 safety rules: no permanent delete, no direct Gmail mutation from cleanup pages, no Microsoft write, cleanup requires prepare → approve → confirm → execute → audit.
+
+### Files changed
+- `app/services/external_provider_clients.py` — enhanced `apply_label_archive_batch`
+- `app/services/execution_service.py` — updated `MockExecutionProvider.apply_gmail_label_archive_batch`
+- `app/services/mailbox_cleanup_service.py` — added `LARGE_BATCH_THRESHOLD`, `cleanup_execution_details()`
+- `app/web/routes.py` — imported `cleanup_execution_details`, updated `execution_detail` route
+- `app/web/templates/execution_detail.html` — added Gmail Cleanup Confirmation section and large-batch sidebar copy
+- `scripts/test-gmail-cleanup-execution.ps1` — new operator posture script
+- `tests/test_phase_25_gmail_cleanup_execution.py` — new Phase 25 test file
+- `docs/HELP.md` — daily cleanup runbook
+- `docs/IMPLEMENTATION_LOG.md` — this entry
+- `docs/LESSONS_LEARNED.md` — Phase 25 lessons
+- `docs/PHASE_STATUS.md` — Phase 25 row
+- `docs/PHASE_PLAN.md` — updated active phase
+- `docs/phases/PHASE_25_CONTROLLED_LIVE_GMAIL_CLEANUP.md` — new phase file
+
+
 
 ### Summary
 - Added `scripts/smoke-mailbox-cleanup.ps1` for real-inbox mailbox cleanup smoke with safe defaults: optional migrations, Gmail sync/backfill guidance, cleanup refresh call, posture reporting, and summary counts.

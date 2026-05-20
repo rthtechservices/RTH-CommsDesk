@@ -348,6 +348,114 @@ Use exact test email addresses whenever possible. Explicit domain entries such a
 
 Smoke persistence stores only sanitized operational metadata, status counts, configuration booleans, route names, provider states, and next actions. It does not store OAuth tokens, private keys, message bodies, email body content, full external payloads, or private message text.
 
+### Daily Gmail cleanup runbook
+
+Use this runbook when you want to process mailbox cleanup candidates with controlled Gmail label and archive actions.
+
+Prerequisites:
+- App is running (`.\scripts\start-commsdesk.ps1`).
+- Gmail is synced and has recent messages.
+- Cleanup candidates have been refreshed.
+
+**Step 1: Check environment posture**
+
+Run the operator script before doing anything:
+
+```powershell
+.\scripts\test-gmail-cleanup-execution.ps1
+```
+
+This shows current flag values and the effective posture (mock, dry-run, live, or blocked). It does not modify anything.
+
+**Step 2: Verify required flags**
+
+For dry-run validation:
+
+```env
+EXECUTION_PROVIDER=external
+GMAIL_WRITE_ENABLED=true
+GMAIL_LABEL_ARCHIVE_ENABLED=true
+OPERATIONAL_TEST_MODE=true
+EXTERNAL_WRITE_DRY_RUN=true   # keep true until dry-run is confirmed safe
+```
+
+For live Gmail cleanup (only after successful dry-run):
+
+```env
+EXTERNAL_WRITE_DRY_RUN=false
+```
+
+**Step 3: Refresh cleanup candidates**
+
+Open `/bulk-triage/mailbox-cleanup` or run:
+
+```powershell
+.\scripts\smoke-mailbox-cleanup.ps1
+```
+
+**Step 4: Review high-confidence senders**
+
+Open `/bulk-triage/mailbox-cleanup`. Review the sender list. Check:
+- Confidence score and recommended action
+- Protected status (never cleanup a protected sender)
+- Evidence summary and sample subjects
+
+**Step 5: Mark sender noise if not already done**
+
+Use the "Mark Sender as Noise" button on the cleanup detail page if needed. This updates the local contact and adjusts the rollup.
+
+**Step 6: Prepare a cleanup execution**
+
+On the cleanup candidate detail page, click one of:
+- **Prepare label** — adds RTH-Cleanup label to all messages from this sender. Messages stay in inbox.
+- **Prepare archive** — removes INBOX label. Messages move to archive.
+- **Prepare label + archive** — both. Label makes recovery easier.
+
+This creates an execution record. No Gmail write occurs yet. You are redirected to `/executions`.
+
+**Step 7: Review the execution detail page**
+
+Open the execution record in `/executions`. Read the **Gmail Cleanup Confirmation** section carefully:
+- Sender email and domain
+- Number of messages affected
+- Cleanup mode (label / archive / both)
+- Whether the action will actually write to Gmail (posture)
+- Recovery guidance
+
+If the message count is >50, an extra warning is shown. Double-check the sender is correct.
+
+**Step 8: Approve**
+
+Click **Approve** in the execution controls. Status changes to `approved`.
+
+**Step 9: Confirm and execute**
+
+Click **Confirm and execute**. If dry-run mode is on, the result will show `status: dry_run` and Gmail is not modified. If live mode is on, Gmail is modified.
+
+**Step 10: Verify the audit trail**
+
+Scroll to the audit trail section on the execution detail page. Confirm the result matches expectations. For dry-run: verify `status: dry_run`. For live: verify `status: applied` with `succeeded_count` matching `attempted_count`.
+
+**Recovery**
+
+If a cleanup action modified Gmail unintentionally:
+- For **cleanup_label**: search Gmail for `label:<label_name>` to find all affected messages. Select all and remove the label.
+- For **cleanup_archive**: search Gmail for `from:<sender_email> in:archive`. Select all and move to inbox.
+- For **cleanup_label_and_archive**: search Gmail for `label:<label_name> from:<sender_email>`. Select all, move to inbox, remove label.
+
+No messages are permanently deleted by any cleanup action. Cleanup is always reversible.
+
+**Rollback to safe mode**
+
+```env
+EXECUTION_PROVIDER=mock
+EXTERNAL_WRITE_DRY_RUN=true
+GMAIL_WRITE_ENABLED=false
+GMAIL_LABEL_ARCHIVE_ENABLED=false
+```
+
+Restart the app after changing `.env`.
+
 ### Daily operator runbook
 
 From the repo root:

@@ -2,7 +2,26 @@
 
 Document durable project knowledge here. Keep entries concise and actionable.
 
-## Jinja2 template writing via PowerShell
+## Phase 25: Cleanup batch result shape consistency
+
+- When adding new fields to a result dict (`attempted_count`, `succeeded_count`, `failed_count`), update the mock provider at the same time. Tests that check result keys against the mock will fail if the mock returns the old shape.
+- Use `dict.fromkeys()` for deduplication when preserving insertion order matters. `set()` does not preserve order, which makes test assertions non-deterministic.
+- `label_id` must be omitted from audit results — external resource IDs can change between runs and are not meaningful in an audit trail.
+- Always initialize constants (like `LARGE_BATCH_THRESHOLD`) at module scope, not inside functions. Test files that import the constant directly fail at import time if the constant is function-scoped.
+
+## Phase 25: Execution detail route cleanup integration
+
+- Parsing `payload_json` in a route handler should use a `try/except` around `json.loads` since stored JSON can be corrupt or empty in edge cases.
+- The `cleanup_execution_details()` helper is called only when `cleanup_mode` is present in the payload, so it safely returns `{}` for all non-cleanup executions.
+- Inline `import json as _json` inside the route function avoids any name collision with outer scope while keeping the route self-contained.
+
+## Phase 25: PowerShell operator scripts
+
+- Operator info scripts (like `test-gmail-cleanup-execution.ps1`) should load `.env` variables directly rather than requiring a running app, so they work before startup.
+- Always check `if (-not [System.Environment]::GetEnvironmentVariable($key))` before setting, so existing shell variables take precedence over `.env` file values.
+- Boolean env vars are strings — compare to `@("true","1","yes","True")` rather than strict bool equality.
+
+
 
 - PowerShell `python -c "..."` inline scripts break when template content contains semicolons, CSS properties, or special characters — PowerShell interprets semicolons as statement separators.
 - Solution: write templates to disk using the `create_file` tool as `.py` script files, then run `python script.py`, then delete the script.

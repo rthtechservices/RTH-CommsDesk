@@ -86,14 +86,15 @@ Recent live smoke lessons to address:
 | 22 | Daily Operations Hardening and Persistent Smoke Sprint | Completed |
 | 23 | Mailbox Cleanup, Sender Noise Automation, and Outlook Write Planning | Completed |
 | 24 | Mailbox Cleanup Live Hardening, Real-Inbox Smoke, and Operator Trust Pass | Completed |
+| 25 | Controlled Live Gmail Cleanup Execution and Recovery | Completed |
 
 ## Active phase
 
-No active implementation phase. Phase 24 is complete and ready for human review.
+No active implementation phase. Phase 25 is complete and ready for human review.
 
 Most recent phase file:
 
-- `docs/phases/PHASE_24_MAILBOX_CLEANUP_LIVE_HARDENING.md`
+- `docs/phases/PHASE_25_CONTROLLED_LIVE_GMAIL_CLEANUP.md`
 
 ## Later acceleration candidates
 

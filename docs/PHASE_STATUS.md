@@ -28,8 +28,9 @@
 | 21 | Product Acceleration Sprint | ✅ Completed | 2026-05-20 |
 | 22 | Daily Operations Hardening and Persistent Smoke Sprint | ✅ Completed | 2026-05-20 |
 | 23 | Mailbox Cleanup, Sender Noise Automation, and Outlook Write Planning | ✅ Completed | 2026-05-20 |
-| 24 | Mailbox Cleanup Live Hardening, Real-Inbox Smoke, and Operator Trust Pass | ✅ Completed | 2026-05-19 |
+| 24 | Mailbox Cleanup Live Hardening, Real-Inbox Smoke, and Operator Trust Pass | ✅ Completed | 2026-05-20 |
+| 25 | Controlled Live Gmail Cleanup Execution and Recovery | ✅ Completed | 2026-05-21 |
 
 ## Current recommendation
 
-Stop for human review of Phase 24. Use `scripts/smoke-mailbox-cleanup.ps1` against a real synced inbox, validate mailbox cleanup readiness on `/operational-smoke`, and verify Gmail cleanup actions remain gated through execution approvals.
+Phase 25 complete. Run `scripts/test-gmail-cleanup-execution.ps1` to review current environment posture. Use `/bulk-triage/mailbox-cleanup` to review candidates, prepare executions, and confirm through the approve → confirm pipeline. Review the Gmail Cleanup Confirmation section on each execution detail page before confirming. Run with `EXTERNAL_WRITE_DRY_RUN=true` for dry-run validation before enabling live mode.
