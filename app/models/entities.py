@@ -98,6 +98,26 @@ class ExecutionActionType(StrEnum):
     DELETE_UNSUBSCRIBE = "delete_unsubscribe"
 
 
+class OperationalSmokeMode(StrEnum):
+    MANUAL = "manual"
+    API = "api"
+    STARTUP = "startup"
+    CLI = "cli"
+
+
+class OperationalSmokeStatus(StrEnum):
+    PASSED = "passed"
+    WARNING = "warning"
+    FAILED = "failed"
+
+
+class OperationalSmokeCheckStatus(StrEnum):
+    PASSED = "passed"
+    WARNING = "warning"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+
+
 class Contact(Base):
     __tablename__ = "contacts"
 
@@ -608,3 +628,54 @@ class UserFeedback(Base):
 
     message: Mapped[Message | None] = relationship(foreign_keys=[message_id])
     contact: Mapped[Contact | None] = relationship(foreign_keys=[contact_id])
+
+
+class OperationalSmokeRun(Base):
+    __tablename__ = "operational_smoke_runs"
+    __table_args__ = (Index("ix_operational_smoke_runs_started", "started_at"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    triggered_by: Mapped[str | None] = mapped_column(String(255))
+    mode: Mapped[OperationalSmokeMode] = mapped_column(
+        Enum(OperationalSmokeMode), default=OperationalSmokeMode.MANUAL
+    )
+    overall_status: Mapped[OperationalSmokeStatus] = mapped_column(
+        Enum(OperationalSmokeStatus), default=OperationalSmokeStatus.WARNING
+    )
+    app_env: Mapped[str | None] = mapped_column(String(50))
+    ai_provider: Mapped[str | None] = mapped_column(String(100))
+    execution_provider: Mapped[str | None] = mapped_column(String(100))
+    external_write_dry_run: Mapped[bool] = mapped_column(Boolean, default=True)
+    operational_test_mode: Mapped[bool] = mapped_column(Boolean, default=False)
+    allowlist_configured: Mapped[bool] = mapped_column(Boolean, default=False)
+    summary_json: Mapped[str | None] = mapped_column(Text)
+    sanitized_detail_json: Mapped[str | None] = mapped_column(Text)
+
+    checks: Mapped[list[OperationalSmokeCheck]] = relationship(
+        back_populates="smoke_run", cascade="all, delete-orphan"
+    )
+
+
+class OperationalSmokeCheck(Base):
+    __tablename__ = "operational_smoke_checks"
+    __table_args__ = (Index("ix_operational_smoke_checks_run", "smoke_run_id", "status"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    smoke_run_id: Mapped[int] = mapped_column(
+        ForeignKey("operational_smoke_runs.id"), index=True
+    )
+    check_key: Mapped[str] = mapped_column(String(100))
+    label: Mapped[str] = mapped_column(String(255))
+    category: Mapped[str] = mapped_column(String(100))
+    status: Mapped[OperationalSmokeCheckStatus] = mapped_column(
+        Enum(OperationalSmokeCheckStatus), default=OperationalSmokeCheckStatus.WARNING
+    )
+    detail: Mapped[str | None] = mapped_column(Text)
+    next_action: Mapped[str | None] = mapped_column(Text)
+    external_write_performed: Mapped[bool] = mapped_column(Boolean, default=False)
+    sanitized_payload_json: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    smoke_run: Mapped[OperationalSmokeRun] = relationship(back_populates="checks")
