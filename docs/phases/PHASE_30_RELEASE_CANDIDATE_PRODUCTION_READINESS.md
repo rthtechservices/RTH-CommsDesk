@@ -1,53 +1,11 @@
-# Phase 30 — Release Candidate and Production Readiness
+# Phase 30 — Superseded
 
-## Goal
+This file is retained only to prevent confusion from older references.
 
-Freeze the first daily-use release candidate. Phase 30 is not a feature grab bag. It is the hardening sprint that turns the app into something safe to run every day.
+Phase 30 is **not** Release Candidate and Production Readiness anymore.
 
-## Scope
+Development is paused after Phase 29 with Outlook smoke testing incomplete and additional messaging channels still missing. The active Phase 30 file is:
 
-- Freeze scope for the first release candidate.
-- Validate the operator flow from dashboard to execution audit.
-- Finalize startup, shutdown, backup, restore, and reauthorization guidance.
-- Add or improve config sanity checks.
-- Ensure `.env.example` is safe and accurate.
-- Remove dead routes, broken buttons, duplicate navigation, and JSON 404s from web UI flows.
-- Confirm provider statuses distinguish available, disabled, not implemented, misconfigured, and failed.
-- Confirm backups include the SQLite database and exclude secrets/tokens by default.
-- Confirm external write actions remain gated.
-- Produce a concise daily-use runbook.
+`docs/phases/PHASE_30_OUTLOOK_SMOKE_AND_OMNICHANNEL_PLANNING.md`
 
-## Release-candidate checklist
-
-- Dashboard can drive daily work.
-- Sync status is obvious.
-- Provider readiness is explicit.
-- Pending executions are visible.
-- Failed/blocked executions are visible.
-- Drafts can be reviewed and cleared locally.
-- Voice profile/sign-off state is visible.
-- Backup and restore posture is documented.
-- Token reauthorization steps are documented.
-- No external action can run without approval and final confirmation.
-- No destructive action is enabled by default.
-
-## Acceptance criteria
-
-- Ruff passes.
-- Pytest passes.
-- Alembic upgrade passes.
-- Route smoke passes.
-- Real-data smoke checklist is documented.
-- Daily-use runbook is updated.
-- Known limitations are explicit.
-- First release-candidate tag/version recommendation is documented.
-
-## Required validation
-
-```powershell
-python -m ruff check .
-python -m pytest -q
-python -m alembic upgrade head
-```
-
-Run route smoke for all primary web routes and `/healthz`.
+Do not implement deployment/release-candidate work until the later hardening phase after Outlook smoke and omnichannel implementation work are complete.
