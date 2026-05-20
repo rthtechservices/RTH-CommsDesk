@@ -22,19 +22,26 @@ Every phase should move toward useful automation and insight while keeping actio
 
 ## Current direction
 
-Phases 01 through 17 built the core scaffolding: Gmail ingestion, contact intelligence, full Gmail thread context, AI review packages, sent-mail learning, bulk triage, calendar recommendations, approved execution records, provider status, live Azure OpenAI support, guarded Gmail/Google Calendar external execution seams, and delegated Microsoft Graph Outlook mail read.
+Phases 01 through 19 built the operational foundation: Gmail ingestion, Outlook mail read through delegated Graph, contact intelligence, full Gmail thread context, Azure OpenAI analysis, review packages, sent-mail learning, bulk triage, calendar recommendations, approved execution records, provider/operational smoke status, a dark command-center UI, and an operational test-mode lane for controlled Gmail/Calendar execution.
 
-The next round should prioritize a functional, intuitive, working local product over adding more connector surfaces. The current target is a useful test-email workflow:
+The next product goal is not to add more connectors. The next product goal is to make CommsDesk become recognizably the operator's assistant:
 
 ```text
-Sync Gmail/Outlook test inboxes
-→ identify messages needing attention
-→ analyze conversations
-→ review proposed actions
-→ prepare drafts/calendar/mailbox actions
-→ execute approved test actions
-→ audit what happened
+Understand the conversation
+→ recommend the correct next action
+→ reason about dates/times safely
+→ draft in Rohan's real voice
+→ learn from sent mail and corrections
+→ execute only when explicitly approved and safely gated
 ```
+
+Recent live smoke lessons to address next:
+
+- Gmail draft execution works, but draft quality still shows generic placeholders such as `[Your Name]`.
+- The assistant should learn stable operator voice traits from sent mail, including recurring sign-off style such as `Cheers, Rohan.` when approved evidence supports it.
+- Calendar reasoning must not create reminders or events in the past.
+- A message asking to meet on a date with no time should generally become a clarifying reply or an all-day tentative candidate, not an invented timed reminder.
+- Phase 19 test-mode and allowlist controls must remain intact while intelligence improves.
 
 ## Completed phases
 
@@ -57,57 +64,89 @@ Sync Gmail/Outlook test inboxes
 | 15 | Real provider wiring for Gmail, Calendar, and Microsoft Graph | Completed |
 | 16 | Product UX and workflow consolidation | Completed |
 | 17 | Microsoft Graph delegated OAuth and Outlook mail smoke | Completed |
+| 18 | Operational inbox workflow smoke and fast-path UX | Completed |
+| 18.5 | Dashboard and workflow UI polish | Completed |
+| 18.6 | Visual design system and dashboard polish | Completed |
+| 18.7 | Interaction hierarchy, triage ergonomics, and RTH palette alignment | Completed |
+| 19 | Test email execution enablement | Completed |
 
-## Next round phases
+## Next phases
 
-## Phase 18 — Operational Inbox Workflow Smoke and Fast-Path UX
+## Phase 20 — Assistant Intelligence, Voice, and Calendar Reasoning Quality
 
-Primary outcome: make the current Gmail, Outlook, AI analysis, review package, draft, and execution pieces usable as one practical daily workflow.
-
-Scope:
-
-- Add or refine a single operational dashboard path from sync to review package to execution.
-- Make Gmail and Outlook source items behave consistently in queue/detail views.
-- Add obvious source filters and counts.
-- Add a process-next style path for reviewing and analyzing backlog items.
-- Add a smoke-test page or dashboard panel showing provider/test readiness.
-- Keep Outlook send, Outlook calendar, and Teams disabled.
-
-Assigned file: `docs/phases/PHASE_18_OPERATIONAL_INBOX_WORKFLOW_SMOKE.md`.
-
-## Phase 19 — Test Email Execution Enablement
-
-Primary outcome: make outbound execution usable against controlled test recipients and calendars without enabling broad production-risk writes.
+Primary outcome: fix the quality failures exposed by live smoke testing and make the assistant start sounding and reasoning like the operator's assistant.
 
 Scope:
 
-- Add explicit operational test mode and execution email allowlist settings.
-- Streamline Gmail draft/send execution for allowlisted test recipients only.
-- Streamline Google Calendar test event/reminder execution.
-- Keep immutable execution attempts and audit trails.
-- Report exact blockers such as dry-run, missing flags, missing OAuth scopes, token problems, or non-allowlisted recipients.
-- Keep Outlook send/calendar and Teams out of scope.
-
-Assigned file: `docs/phases/PHASE_19_TEST_EMAIL_EXECUTION_ENABLEMENT.md`.
-
-## Phase 20 — Inbox Intelligence Quality Pass
-
-Primary outcome: improve AI and rules recommendation quality using concrete realistic email scenarios after the workflow is operational.
-
-Scope:
-
-- Add fixture conversations for client requests, friendly updates, scheduling, reminders, noise, vague action requests, and changed-thread-context cases.
-- Improve review-package correction capture.
-- Tune prompts and rules against actual failure patterns.
-- Improve recommendation evidence and correction controls in review package detail.
-- Preserve structured output validation and mock fallback.
+- Add realistic fixture conversations for action, no-reply, scheduling, reminders, noise, vague asks, latest-message-changes-action, and sent-mail voice examples.
+- Improve sent-mail learning so recurring sign-offs/signatures and global operator voice traits can be inferred, reviewed, approved, and applied.
+- Prevent generic draft placeholders such as `[Your Name]` and fake formal closings from entering send-ready drafts.
+- Improve calendar reasoning: no past reminders/events, no invented times, clarification or all-day tentative candidates for date-only meeting requests.
+- Add review-package correction controls for action type, reply/no-reply, summary, draft instruction, calendar interpretation, noise/not-noise.
+- Improve recommendation evidence display.
+- Preserve Phase 19 operational test-mode and allowlist enforcement.
 
 Assigned file: `docs/phases/PHASE_20_INBOX_INTELLIGENCE_QUALITY_PASS.md`.
 
+## Phase 21 — Voice Memory and Assistant Personalization Console
+
+Primary outcome: turn voice learning from hidden inference into a visible, editable personalization system.
+
+Scope:
+
+- Add an Assistant Profile / Voice Memory page.
+- Show approved global writing traits, recurring sign-off, tone preferences, avoided phrases, and relationship-specific overrides.
+- Allow approving, rejecting, editing, and disabling learned traits.
+- Show evidence counts and recent examples without exposing full private sent-mail bodies unnecessarily.
+- Add a draft preview tool: given a sample context, show how current voice memory changes the draft.
+- Keep all outbound execution gated by Phase 19 controls.
+
+Assigned file to create later: `docs/phases/PHASE_21_VOICE_MEMORY_ASSISTANT_PERSONALIZATION.md`.
+
+## Phase 22 — Live Operational Smoke and Regression Harness
+
+Primary outcome: make repeated real-provider smoke testing safe, scripted, and auditable.
+
+Scope:
+
+- Add a manual smoke checklist page or CLI/script for Gmail draft, Gmail send dry-run, calendar dry-run/live test event, Outlook sync, Azure AI test, and route smoke.
+- Add disposable test artifact naming conventions, e.g. `CommsDesk Test - Safe to Delete`.
+- Add one-click cleanup guidance for test calendar events/drafts where feasible without destructive automation.
+- Persist smoke results locally for operator review.
+- Keep live sends/drafts/calendar writes test-mode and allowlist gated.
+
+Assigned file to create later: `docs/phases/PHASE_22_LIVE_OPERATIONAL_SMOKE_HARNESS.md`.
+
+## Phase 23 — Outlook Mail Draft/Send Planning, Not Implementation
+
+Primary outcome: prepare for Microsoft write support without adding it prematurely.
+
+Scope:
+
+- Audit Graph delegated permissions and app registration needs for Outlook draft/send.
+- Design the Outlook execution provider seam to mirror Gmail's test-mode and allowlist controls.
+- Document payload shape, provider status, error handling, and audit requirements.
+- Add disabled UI guidance only. Do not implement Outlook send yet.
+
+Assigned file to create later: `docs/phases/PHASE_23_OUTLOOK_WRITE_PLANNING_ONLY.md`.
+
+## Phase 24 — Production Readiness and Packaging Review
+
+Primary outcome: decide how this local-first app should be run day-to-day without becoming fragile.
+
+Scope:
+
+- Review local service startup options, backups, token handling, logging, retention, and database maintenance.
+- Add operator runbook for normal use, smoke testing, reset, reauthorization, and troubleshooting.
+- Confirm `.env` editing remains manual unless an explicit config-management phase is opened.
+- Confirm secrets and token files remain local and gitignored.
+
+Assigned file to create later: `docs/phases/PHASE_24_PRODUCTION_READINESS_PACKAGING.md`.
+
 ## Later backlog ideas
 
-- Outlook send after Gmail and Google Calendar test execution are proven.
-- Outlook calendar read/write after Google Calendar test execution is stable.
+- Outlook send after Gmail/Calendar intelligence and test execution are stable.
+- Outlook calendar read/write after Google Calendar behavior is stable.
 - Teams read-only ingestion after Outlook mail read is stable and useful.
 - Browser extension for quick triage.
 - Mobile-friendly approval console.
