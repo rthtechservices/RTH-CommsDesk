@@ -2,6 +2,54 @@
 
 Record completed work here at the end of every phase. Newest entries should be added at the top.
 
+## 2026-05-21 - Phase 28: Daily-Use Cutover, Operator Console, and About Statistics
+
+### Summary
+- Added `AppStatRecord` ORM model with `stat_key`, `stat_value`, `first_tracked_at`, `last_recalculated_at`, `notes`, `stat_version`, and standard audit timestamps. Unique constraint on `stat_key`.
+- Added Alembic migration `0017_app_stat_records.py` creating `app_stat_records` table.
+- Added `app_stats_go_live_at` config field (ISO timestamp or blank until initialized) to `app/core/config.py`.
+- Implemented `app/services/productivity_stats_service.py` with:
+  - `LifetimeStats` dataclass (emails_processed, emails_drafted, emails_deleted, senders_noise, vip_contacts, ai_content_items, hours_saved, breakdown, missing data keys).
+  - `compute_lifetime_stats(db, settings)` — queries DB and returns fresh stats.
+  - `persist_lifetime_stats(db, stats)` — upserts all stat keys to `app_stat_records`.
+  - `load_persisted_stats(db)` — returns `{stat_key: stat_value}` dict.
+  - `initialize_go_live_baseline(db, settings)` — idempotently sets `app_stats_go_live_at` in DB and persists it.
+  - `_calculate_hours_saved(db, go_live_at)` — transparent configurable estimate using audited DB activity and visible constants: `MANUAL_REVIEW_SECONDS_PER_EMAIL=12`, `MANUAL_BULK_CLEANUP_SETUP_SECONDS=45`, `MANUAL_BULK_CLEANUP_SECONDS_PER_EMAIL=3`, `MANUAL_BROWSER_OPEN_THREAD_SECONDS=8`, `READING_WORDS_PER_MINUTE=225`, `TYPING_WORDS_PER_MINUTE=40`, `MANUAL_SEND_OVERHEAD_SECONDS=20`, `AI_REVIEW_OVERHEAD_SECONDS=10`.
+- Added `/about` route (GET) to `app/web/routes.py` — renders `about.html` with all stats, provider summary, backup summary, and app info.
+- Added `/admin/about/init-baseline` route (POST) — idempotently sets go-live baseline, redirects to `/about` with result flash.
+- Added `about.html` Jinja2 template with: app info panel, 7-stat life-to-date grid (6 stat tiles + hours-saved tile with expandable breakdown), go-live baseline form, provider summary sidebar, backup summary sidebar, quick links sidebar.
+- Updated `base.html` global nav with `About` link pointing to `/about`.
+- Created `tests/test_phase_28_about_statistics.py` with 19 focused tests covering route smoke, template content assertions, stats service logic, hours-saved determinism and monotonicity, baseline idempotency, and process-next operator workflow guards.
+
+### Files changed
+- `app/models/entities.py` — added `AppStatRecord` model
+- `alembic/versions/0017_app_stat_records.py` — new migration
+- `app/core/config.py` — added `app_stats_go_live_at` setting
+- `app/services/productivity_stats_service.py` — new service file
+- `app/web/routes.py` — added `/about` and `/admin/about/init-baseline` routes
+- `app/web/templates/about.html` — new template
+- `app/web/templates/base.html` — added About nav link
+- `tests/test_phase_28_about_statistics.py` — new Phase 28 test file
+- `docs/HELP.md` — about/stats guidance
+- `docs/PHASE_STATUS.md` — Phase 28 row completed
+- `docs/PHASE_PLAN.md` — updated current active phase
+- `docs/ENDGAME_ROADMAP.md` — updated current position and remaining phases
+- `docs/IMPLEMENTATION_LOG.md` — this entry
+- `docs/LESSONS_LEARNED.md` — Phase 28 lessons
+- `docs/phases/PHASE_28_DAILY_USE_CUTOVER_OPERATOR_CONSOLE.md` — phase complete marker
+- `README.md` — about/stats limitation note
+
+### Validation
+- `python -m ruff check .` — all checks passed.
+- `python -m pytest tests/test_phase_28_about_statistics.py -v` — 19/19 passed.
+- `python -m pytest -q` — 348 passed, 3 pre-existing failures (unrelated to Phase 28: `test_app_bootstrap::test_dashboard_loads` checks stale template string, two backup exclusion tests).
+- `python -m alembic upgrade head` — migration applied cleanly.
+
+### Known limitations
+- Pre-existing test failures in `test_app_bootstrap.py::test_dashboard_loads` (checks for "Provider matrix" which was renamed in Phase 16/18) and two backup exclusion tests in Phase 22/27 remain unfixed (out of scope).
+- Outlook draft creation remains blocked until Phase 29.
+- Outlook send, Outlook Calendar, and Teams write remain disabled/not implemented.
+
 ## 2026-05-21 - Phase 27: Operator Polish and Daily-Use Hardening
 
 ### Summary

@@ -28,6 +28,7 @@ Each LLM session should complete one phase only, update documentation, and stop 
 
 ## Known MVP limitations
 - Outlook mail read now supports delegated Microsoft Graph OAuth for local smoke testing; Outlook send, Outlook Calendar, and Teams remain disabled/not implemented.
+- The `/about` page shows life-to-date statistics (emails processed, drafted, deleted, noise senders, VIPs, AI items, and estimated hours saved) backed by a durable `app_stat_records` SQLite table that survives restarts and upgrades. Initialize the go-live baseline from the About page admin form.
 - The dashboard now includes compact operational status, command-center, source/runtime cards, dense attention rows, workflow breadcrumbs, provider blockers, review packages, and execution approvals.
 - Provider status is visible at `/providers`; it includes copy/paste configuration guidance but does not edit `.env`. Microsoft Graph Teams, Outlook send, and Outlook Calendar remain disabled/not implemented.
 - AI classifier is provider-neutral but runs with deterministic logic/mock fallback by default.

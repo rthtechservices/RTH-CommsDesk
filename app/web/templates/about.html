@@ -1,0 +1,335 @@
+{% extends "base.html" %}
+{% block title %}About | RTH CommsDesk{% endblock %}
+
+{% block main_class %}wrap page-pad{% endblock %}
+
+{% block styles %}
+<style>
+  .about-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: 18px;
+    align-items: start;
+  }
+  @media (max-width: 860px) {
+    .about-grid { grid-template-columns: 1fr; }
+  }
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+    margin: 12px 0;
+  }
+  .stat-tile {
+    background: var(--surface-raised, #1a1d23);
+    border: 1px solid var(--line, #2a2d34);
+    border-radius: 6px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .stat-tile .stat-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted, #8b919e);
+  }
+  .stat-tile .stat-value {
+    font-size: 26px;
+    font-weight: 900;
+    font-family: Consolas, 'Courier New', monospace;
+    color: var(--fg, #e0e4ef);
+    line-height: 1.1;
+  }
+  .stat-tile .stat-note {
+    font-size: 11px;
+    color: var(--muted, #8b919e);
+    margin-top: 2px;
+  }
+  .stat-tile.hours-saved .stat-value {
+    color: var(--ok, #4ade80);
+  }
+  .hours-breakdown {
+    background: var(--surface-raised, #1a1d23);
+    border: 1px solid var(--line, #2a2d34);
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-top: 6px;
+  }
+  .hours-breakdown summary {
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--muted, #8b919e);
+    user-select: none;
+  }
+  .hours-breakdown-body {
+    margin-top: 10px;
+    display: grid;
+    gap: 5px;
+  }
+  .hours-breakdown-body .breakdown-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted, #8b919e);
+    border-bottom: 1px solid var(--line, #2a2d34);
+    padding-bottom: 4px;
+  }
+  .hours-breakdown-body .breakdown-row:last-child {
+    border-bottom: none;
+  }
+  .provider-summary-list {
+    display: grid;
+    gap: 6px;
+  }
+  .provider-row-mini {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+  }
+  .provider-row-mini .pstate {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 10px;
+    flex-shrink: 0;
+  }
+  .pstate.live      { background: color-mix(in srgb, var(--ok,#4ade80) 15%, transparent); color: var(--ok,#4ade80); }
+  .pstate.mock      { background: color-mix(in srgb, var(--muted,#8b919e) 15%, transparent); color: var(--muted,#8b919e); }
+  .pstate.disabled  { background: color-mix(in srgb, var(--muted,#8b919e) 10%, transparent); color: var(--muted,#8b919e); }
+  .pstate.dry_run   { background: color-mix(in srgb, var(--amber,#f59e0b) 15%, transparent); color: var(--amber,#f59e0b); }
+  .pstate.missing_configuration { background: color-mix(in srgb, var(--danger,#ef4444) 15%, transparent); color: var(--danger,#ef4444); }
+  .pstate.failed    { background: color-mix(in srgb, var(--danger,#ef4444) 15%, transparent); color: var(--danger,#ef4444); }
+  .pstate.not_implemented { background: color-mix(in srgb, var(--muted,#8b919e) 10%, transparent); color: var(--muted,#8b919e); }
+  .docs-list {
+    display: grid;
+    gap: 5px;
+  }
+  .docs-list a {
+    font-size: 13px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+  <div class="workflow" aria-label="Workflow">
+    <span>Sync</span><span>Triage</span><span>Analyze</span><span>Review</span><span>Prepare</span><span>Execute</span><span>Audit</span>
+  </div>
+
+  <h1>About RTH CommsDesk</h1>
+  <p class="help-text">Application information and life-to-date statistics. This page is read-only.</p>
+
+  {% if baseline_result %}
+  <div class="notice" style="margin-bottom:12px">{{ baseline_result }}</div>
+  {% endif %}
+
+  <div class="about-grid">
+    <div>
+      <!-- App info panel -->
+      <section class="panel" style="margin-bottom:14px">
+        <h2>Application</h2>
+        <div class="facts">
+          <div><strong class="label">Name</strong><span>RTH CommsDesk</span></div>
+          <div><strong class="label">Description</strong><span class="muted">Privacy-first personal communications triage system. Gmail-first, read-only by default, local SQLite.</span></div>
+          <div><strong class="label">Version / Build</strong><span class="muted">{{ app_version }}</span></div>
+          <div><strong class="label">Environment</strong><span class="badge {% if env in ('production', 'prod', 'staging') %}warning{% else %}ok{% endif %}">{{ env }}</span></div>
+          <div><strong class="label">Database</strong><span class="muted">SQLite — {{ db_display }}</span></div>
+          <div><strong class="label">AI Provider</strong><span class="muted">{{ ai_provider }} / {{ ai_model }}</span></div>
+          <div><strong class="label">Release marker</strong><span class="muted">{{ phase_marker }}</span></div>
+          {% if go_live_at %}
+          <div><strong class="label">Stats go-live</strong><span class="muted">{{ go_live_at.strftime('%Y-%m-%d %H:%M UTC') }}</span></div>
+          {% else %}
+          <div><strong class="label">Stats go-live</strong><span class="muted warning">Not set — <a href="/about#baseline">initialize below</a></span></div>
+          {% endif %}
+          {% if stats.last_recalculated_at %}
+          <div><strong class="label">Stats recalculated</strong><span class="muted">{{ stats.last_recalculated_at.strftime('%Y-%m-%d %H:%M UTC') }}</span></div>
+          {% endif %}
+        </div>
+      </section>
+
+      <!-- Life-to-date stats -->
+      <section class="panel" style="margin-bottom:14px">
+        <h2>Life-to-date statistics</h2>
+        {% if not go_live_at %}
+        <div class="callout callout-grey" style="margin-bottom:12px">
+          <div class="callout-title">Go-live baseline not initialized</div>
+          <div class="muted" style="font-size:13px">Stats are tracked from all historical activity. To pin a go-live date, initialize the baseline below or set <code>APP_STATS_GO_LIVE_AT</code> in your <code>.env</code> file.</div>
+        </div>
+        {% endif %}
+
+        <div class="stat-grid">
+          <div class="stat-tile">
+            <div class="stat-label">Emails Processed</div>
+            {% if stats.emails_processed > 0 %}
+            <div class="stat-value">{{ stats.emails_processed }}</div>
+            {% else %}
+            <div class="stat-value" style="font-size:14px;color:var(--muted)">—</div>
+            <div class="stat-note">Not enough data yet</div>
+            {% endif %}
+          </div>
+
+          <div class="stat-tile">
+            <div class="stat-label">Emails Drafted</div>
+            {% if stats.emails_drafted > 0 %}
+            <div class="stat-value">{{ stats.emails_drafted }}</div>
+            {% else %}
+            <div class="stat-value" style="font-size:14px;color:var(--muted)">—</div>
+            <div class="stat-note">Not enough data yet</div>
+            {% endif %}
+          </div>
+
+          <div class="stat-tile">
+            <div class="stat-label">Emails Deleted</div>
+            {% if stats.emails_deleted > 0 %}
+            <div class="stat-value">{{ stats.emails_deleted }}</div>
+            {% else %}
+            <div class="stat-value" style="font-size:14px;color:var(--muted)">—</div>
+            <div class="stat-note">Tracking from audit logs</div>
+            {% endif %}
+          </div>
+
+          <div class="stat-tile">
+            <div class="stat-label">Senders Marked Noise</div>
+            {% if stats.senders_noise > 0 %}
+            <div class="stat-value">{{ stats.senders_noise }}</div>
+            {% else %}
+            <div class="stat-value" style="font-size:14px;color:var(--muted)">—</div>
+            <div class="stat-note">Not enough data yet</div>
+            {% endif %}
+          </div>
+
+          <div class="stat-tile">
+            <div class="stat-label">VIP Contacts</div>
+            <div class="stat-value">{{ stats.vip_contacts }}</div>
+          </div>
+
+          <div class="stat-tile">
+            <div class="stat-label">AI Content Items</div>
+            {% if stats.ai_content_items > 0 %}
+            <div class="stat-value">{{ stats.ai_content_items }}</div>
+            {% else %}
+            <div class="stat-value" style="font-size:14px;color:var(--muted)">—</div>
+            <div class="stat-note">Live AI provider required</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Hours saved — large tile -->
+        <div class="stat-tile hours-saved" style="margin-top:10px;flex-direction:row;align-items:center;gap:20px;flex-wrap:wrap">
+          <div>
+            <div class="stat-label">Estimated Hours Saved</div>
+            <div class="stat-value">{{ "%.1f"|format(stats.hours_saved) }}</div>
+          </div>
+          <div style="flex:1;min-width:200px">
+            <details class="hours-breakdown">
+              <summary>How is this calculated?</summary>
+              <div class="hours-breakdown-body">
+                <div class="breakdown-row"><span>Mark reviewed / local triage actions</span><span>{{ "%.2f"|format(stats.hours_saved_breakdown.get('mark_reviewed', 0)) }} hrs</span></div>
+                <div class="breakdown-row"><span>Bulk triage / cleanup batches</span><span>{{ "%.2f"|format(stats.hours_saved_breakdown.get('bulk_cleanup', 0)) }} hrs</span></div>
+                <div class="breakdown-row"><span>Draft generation (typing time)</span><span>{{ "%.2f"|format(stats.hours_saved_breakdown.get('draft_generation', 0)) }} hrs</span></div>
+                <div class="breakdown-row"><span>AI content (summaries, packages)</span><span>{{ "%.2f"|format(stats.hours_saved_breakdown.get('ai_content', 0)) }} hrs</span></div>
+              </div>
+              <p class="muted" style="font-size:11px;margin-top:8px">
+                Configurable assumptions: 12 s/email manual review, 8 s browser overhead, 225 wpm reading, 40 wpm typing, 20 s send overhead, −10 s AI review cost.
+                Estimate uses audited reviewed items, cleanup logs, draft word counts, and AI-generated content records.
+              </p>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <!-- Go-live baseline -->
+      <section class="panel" id="baseline">
+        <h2>Go-live baseline</h2>
+        <p class="muted" style="font-size:13px">
+          The go-live baseline pins the start date for life-to-date stats. Once set, it is stored in the database and survives app restarts and migrations.
+          It will not be reset automatically. You can also set <code>APP_STATS_GO_LIVE_AT</code> in your <code>.env</code> to an ISO timestamp.
+        </p>
+        {% if go_live_at %}
+        <div class="callout callout-grey">
+          <div class="callout-title">Baseline already set</div>
+          <div class="muted" style="font-size:13px">Go-live baseline: {{ go_live_at.strftime('%Y-%m-%d %H:%M UTC') }}. This action is idempotent — running it again will not overwrite the existing baseline.</div>
+        </div>
+        {% else %}
+        <div class="warning" style="font-size:13px;margin-bottom:10px">No go-live baseline has been set. Stats are counting from all available historical data.</div>
+        {% endif %}
+        <form method="post" action="/admin/about/init-baseline" style="margin-top:10px">
+          <button type="submit" class="{% if go_live_at %}button{% else %}primary{% endif %}">
+            {% if go_live_at %}Re-initialize baseline (idempotent){% else %}Initialize go-live baseline now{% endif %}
+          </button>
+        </form>
+      </section>
+    </div>
+
+    <div>
+      <!-- Provider summary -->
+      <section class="panel" style="margin-bottom:14px">
+        <h2>Provider summary</h2>
+        <div class="provider-summary-list">
+          {% for row in provider_rows %}
+          <div class="provider-row-mini">
+            <span class="pstate {{ row.state }}">{{ row.state.replace('_', ' ') }}</span>
+            <span style="color:var(--muted)">{{ row.label }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        <div style="margin-top:10px">
+          <a href="/providers" class="button" style="font-size:12px">Full provider detail →</a>
+        </div>
+      </section>
+
+      <!-- Backup summary -->
+      <section class="panel" style="margin-bottom:14px">
+        <h2>Backup</h2>
+        {% if latest_backup %}
+        <div class="facts">
+          <div><strong class="label">Latest backup</strong><span class="muted">{{ latest_backup.filename }}</span></div>
+          <div><strong class="label">Created</strong><span class="muted">{{ latest_backup.created_at.strftime('%Y-%m-%d %H:%M') if latest_backup.created_at else '—' }}</span></div>
+          <div><strong class="label">Database included</strong><span class="badge {% if latest_backup.database_included %}ok{% else %}bad{% endif %}">{{ 'yes' if latest_backup.database_included else 'no' }}</span></div>
+          <div><strong class="label">Size</strong><span class="muted">{{ latest_backup.size_bytes }} bytes</span></div>
+        </div>
+        {% else %}
+        <p class="muted">No local backup found.</p>
+        {% endif %}
+        <div style="margin-top:10px">
+          <a href="/admin" class="button" style="font-size:12px">Admin / Create Backup →</a>
+        </div>
+      </section>
+
+      <!-- Quick links -->
+      <section class="panel">
+        <h2>Quick links</h2>
+        <div class="docs-list">
+          <a href="/">Dashboard</a>
+          <a href="/providers">Providers</a>
+          <a href="/operational-smoke">Smoke / Readiness</a>
+          <a href="/admin">Admin</a>
+          <a href="/executions">Executions</a>
+          <a href="/bulk-triage">Bulk Triage</a>
+          <a href="/bulk-triage/mailbox-cleanup">Mailbox Cleanup</a>
+        </div>
+        <div style="margin-top:14px;font-size:12px;color:var(--muted)">
+          <strong>Startup (Windows):</strong><br>
+          <code>.\scripts\start-commsdesk.ps1</code>
+          <br><br>
+          <strong>Reauth Gmail:</strong><br>
+          <code>.\scripts\reauth-commsdesk.ps1 -Gmail</code>
+          <br><br>
+          <strong>Reauth Calendar:</strong><br>
+          <code>.\scripts\reauth-commsdesk.ps1 -Calendar</code>
+          <br><br>
+          <strong>Reauth Microsoft Graph:</strong><br>
+          <code>.\scripts\reauth-commsdesk.ps1 -MicrosoftGraph</code>
+          <br><br>
+          <strong>Smoke check:</strong><br>
+          <code>.\scripts\smoke-commsdesk.ps1</code>
+        </div>
+      </section>
+    </div>
+  </div>
+{% endblock %}

@@ -2,7 +2,7 @@
 
 ## Current position
 
-Phase 27 is complete or in final smoke review. It should have cleaned up the Phase 26 friction: platform-aware drafts, draft lifecycle controls, execution filtering, Voice/Assistant repairs, complete local backup contents, and navigation/dashboard cleanup.
+Phase 28 is complete or in final smoke review. It added the `/about` life-to-date statistics page: persistent `app_stat_records` SQLite table, configurable transparent hours-saved estimate, go-live baseline support, and all-route navigation smoke coverage.
 
 The project now moves into three large remaining sprints. No more endless phase train.
 
@@ -24,7 +24,6 @@ RTH CommsDesk should be a local-first daily communications console:
 
 | Phase | Name | Purpose |
 | --- | --- | --- |
-| 28 | Daily-Use Cutover, Operator Console, and About Statistics | Consolidate the dashboard into the real morning workflow and add an About screen with persistent life-to-date statistics and estimated hours saved. |
 | 29 | Outlook Draft Write and Cross-Provider Parity | Add safe Outlook draft creation only, behind flags and approval. Keep Outlook send/calendar/Teams write disabled. |
 | 30 | Release Candidate and Production Readiness | Freeze scope, harden startup/backup/restore/reauth, clean docs/UI, validate route smoke, and prepare first daily-use release candidate. |
 

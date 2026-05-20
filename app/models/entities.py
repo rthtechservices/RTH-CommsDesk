@@ -759,6 +759,25 @@ class MailboxCleanupCandidate(Base):
     )
 
 
+class AppStatRecord(Base):
+    """Durable life-to-date stat record.  One row per stat key.  Survives upgrades/restores."""
+
+    __tablename__ = "app_stat_records"
+    __table_args__ = (UniqueConstraint("stat_key", name="uq_app_stat_key"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    stat_key: Mapped[str] = mapped_column(String(100))
+    stat_value: Mapped[float] = mapped_column(Numeric(18, 4), default=0)
+    first_tracked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_recalculated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    notes: Mapped[str | None] = mapped_column(Text)
+    stat_version: Mapped[int] = mapped_column(Integer, default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+
 class MailboxCleanupActionLog(Base):
     """Audit log for mailbox cleanup decisions and actions."""
 

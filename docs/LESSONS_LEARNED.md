@@ -2,6 +2,13 @@
 
 Document durable project knowledge here. Keep entries concise and actionable.
 
+## Phase 28: Life-to-date stats service
+
+- Use `round(x, 1)` carefully: small values (e.g. 5 reviewed items × 20s = 100s = 0.028 hrs) round to `0.0`. For deterministic hours-saved tests, seed enough activity (≥200 items) to produce a visible non-zero rounded result.
+- SQLite round-trips strip tzinfo from `DateTime(timezone=True)` columns. When comparing timestamps in idempotency tests, strip tzinfo on both sides before asserting equality.
+- `multi_replace_string_in_file` `newString` must use real newlines, not escaped `\n` literals. If the replacement runs but the file contains literal `\n` strings, the Python file is syntactically broken and requires a corrective replacement.
+- Hours-saved formula constants should be module-level named constants, not magic numbers inside the calculation function — test files that import them directly fail at import time if they are function-scoped.
+
 ## Phase 27: Platform-aware draft execution
 
 - Always derive draft execution provider from the source message/thread, not from the presence of send-ready draft text alone.

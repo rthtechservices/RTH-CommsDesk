@@ -96,6 +96,8 @@ Current MVP features:
 - Enforce web/API authentication when enabled for non-local deployment.
 - Provide admin retention controls to clear cached bodies/excerpts and purge aged audit rows.
 - Create local backups from `/admin` or `.\scripts\backup-commsdesk.ps1`; backups include SQLite and a redacted config snapshot while excluding `.env`, OAuth token files, and client secrets by default.
+- View life-to-date statistics from `/about`: emails processed, drafted, deleted, senders identified as spam/noise, VIP contacts, AI-generated content items, and estimated hours saved (transparent configurable estimate using audited DB activity and visible formula assumptions).
+- Initialize the go-live statistics baseline from the About page admin form. Stats accumulate from the go-live timestamp stored in `app_stat_records` and survive app restarts and upgrades.
 
 ## What it does not do today
 

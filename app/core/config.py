@@ -72,6 +72,9 @@ class Settings(BaseSettings):
     backup_include_oauth_tokens: bool = False
     backup_include_env_file: bool = False
 
+    # Life-to-date stats go-live baseline (ISO timestamp or blank until initialized)
+    app_stats_go_live_at: str | None = None
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @property

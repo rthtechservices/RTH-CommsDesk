@@ -32,18 +32,17 @@
 | 25 | Controlled Live Gmail Cleanup Execution and Recovery | ✅ Completed | 2026-05-21 |
 | 26 | Bulk Triage Live Smoke and Execution Verification | ✅ Smoke-reviewed | 2026-05-21 |
 | 27 | Operator Polish and Daily-Use Hardening | ✅ Completed | 2026-05-21 |
-| 28 | Daily-Use Cutover and Operator Console | Planned | TBD |
+| 28 | Daily-Use Cutover and Operator Console | ✅ Completed | 2026-05-21 |
 | 29 | Outlook Draft Write and Cross-Provider Parity | Planned | TBD |
 | 30 | Release Candidate and Production Readiness | Planned | TBD |
 
 ## Current recommendation
 
-Phase 27 is complete and ready for human review. Phase 28, Phase 29, and Phase 30 remain forward-planning placeholders only unless explicitly started.
+Phase 28 is complete and ready for human review. Phase 29 and Phase 30 remain forward-planning placeholders only unless explicitly started.
 
-The remaining endgame is now intentionally short:
+The remaining endgame is intentionally short:
 
-1. Phase 28 — daily-use operator console.
-2. Phase 29 — Outlook draft creation only, safely gated.
-3. Phase 30 — release-candidate hardening and production readiness.
+1. Phase 29 — Outlook draft creation only, safely gated.
+2. Phase 30 — release-candidate hardening and production readiness.
 
 Do not add new side quests before the release candidate unless smoke testing exposes a blocker.

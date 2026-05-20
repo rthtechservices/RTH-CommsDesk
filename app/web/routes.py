@@ -119,6 +119,11 @@ from app.services.operational_smoke_runner import (
     smoke_run_to_dict,
 )
 from app.services.provider_status_service import provider_status_rows
+from app.services.productivity_stats_service import (
+    compute_lifetime_stats,
+    initialize_go_live_baseline,
+    persist_lifetime_stats,
+)
 from app.services.voice_learning_service import (
     disable_voice_guidance,
     reset_voice_guidance_to_default,
@@ -1946,3 +1951,81 @@ def web_prepare_new_execution(execution_id: int, db: Session = Depends(get_db)):
         return RedirectResponse(url=f"/executions/{prepared.record.id}", status_code=303)
     except ValueError:
         return RedirectResponse(url=f"/executions/{execution_id}", status_code=303)
+
+
+# ---------------------------------------------------------------------------
+# About page
+# ---------------------------------------------------------------------------
+
+@web_router.get("/about")
+def about_page(request: Request, db: Session = Depends(get_db)):
+    settings = get_settings()
+    stats = compute_lifetime_stats(db, settings)
+    persist_lifetime_stats(db, stats)
+    provider_rows = provider_status_rows(settings)
+    ai_status = ai_provider_status(settings)
+    latest_backup = latest_backup_metadata()
+
+    # Database path redacted to basename
+    db_url = settings.database_url or ""
+    db_display = db_url.split("///")[-1].split("/")[-1] if db_url else "unknown"
+
+    # Try to read a version/build identifier from pyproject.toml
+    app_version = _read_app_version()
+
+    return templates.TemplateResponse(
+        request,
+        "about.html",
+        {
+            "app_version": app_version,
+            "env": settings.env,
+            "db_display": db_display,
+            "ai_provider": ai_status.effective_provider,
+            "ai_model": ai_status.model or "—",
+            "provider_rows": provider_rows,
+            "stats": stats,
+            "go_live_at": stats.go_live_at,
+            "latest_backup": latest_backup,
+            "baseline_result": request.query_params.get("baseline_result"),
+            "phase_marker": "Phase 28 — Daily-Use Cutover & Operator Console",
+            "docs": [
+                {"label": "README", "url": "https://github.com/rthtechservices/RTH-CommsDesk/blob/main/README.md"},
+                {"label": "Help / Runbook", "url": "/admin"},
+                {"label": "Phase Status", "url": None},
+                {"label": "Operational Smoke", "url": "/operational-smoke"},
+                {"label": "Providers", "url": "/providers"},
+                {"label": "Admin", "url": "/admin"},
+            ],
+        },
+    )
+
+
+@web_router.post("/admin/about/init-baseline")
+def web_init_go_live_baseline(db: Session = Depends(get_db)):
+    """Initialize the go-live stats baseline (idempotent — safe to call once)."""
+    go_live_at = initialize_go_live_baseline(db, get_settings())
+    ts = go_live_at.strftime("%Y-%m-%d %H:%M UTC")
+    return RedirectResponse(
+        url=f"/about?baseline_result={quote(f'Baseline set: {ts}', safe='')}",
+        status_code=303,
+    )
+
+
+def _read_app_version() -> str:
+    """Try to read version from pyproject.toml; return 'dev' on failure."""
+    try:
+        import tomllib
+    except ImportError:
+        try:
+            import tomli as tomllib  # type: ignore[no-redef]
+        except ImportError:
+            return "dev"
+    try:
+        from pathlib import Path
+
+        root = Path(__file__).parents[2]
+        data = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+        return data.get("project", {}).get("version", "dev")
+    except Exception:
+        return "dev"
+

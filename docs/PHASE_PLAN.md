@@ -25,9 +25,9 @@ sync Gmail + Outlook
 
 | Phase | Title | Status |
 | --- | --- | --- |
-| 27 | Operator Polish and Daily-Use Hardening | Completed / human review |
+| 28 | Daily-Use Cutover, Operator Console, and About Statistics | Completed / human review |
 
-Phase 27 fixed the Phase 26 smoke-test friction: platform-aware drafts, draft lifecycle controls, execution filtering, repaired Voice/Assistant routes, complete local backups, and navigation/dashboard cleanup.
+Phase 28 added the `/about` page with persistent life-to-date statistics (emails processed, drafted, deleted, noise senders, VIPs, AI items, hours saved), a durable `app_stat_records` SQLite table, a transparent configurable hours-saved estimate with visible formula assumptions, and an optional go-live baseline timestamp.
 
 ## Remaining endgame phases
 

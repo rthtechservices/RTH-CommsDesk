@@ -180,3 +180,17 @@ python -m alembic upgrade head
 ```
 
 Run route smoke for the dashboard, drafts, review packages, executions, bulk triage, assistant, voice, providers, smoke, admin, about, and health routes.
+
+## Status
+
+✅ **Completed 2026-05-21**
+
+All acceptance criteria met:
+- `/about` returns HTML 200 with app info and life-to-date stats.
+- `AppStatRecord` table and Alembic migration 0017 created.
+- `productivity_stats_service.py` implemented with transparent hours-saved formula.
+- Go-live baseline (`APP_STATS_GO_LIVE_AT`) supported with admin init action.
+- `tests/test_phase_28_about_statistics.py` — 19/19 tests passing.
+- `python -m ruff check .` — all checks passed.
+- `python -m alembic upgrade head` — applied cleanly.
+- All 12 route smoke routes verified via `test_route_smoke_all_return_200`.
