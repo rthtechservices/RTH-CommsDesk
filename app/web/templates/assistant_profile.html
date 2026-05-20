@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}Assistant Profile | RTH CommsDesk{% endblock %}
+
+{% block main_class %}wide-wrap page-pad{% endblock %}
+
+{% block content %}
+  <a href="/">Back to dashboard</a>
+  <div class="workflow" aria-label="Workflow">
+    <span class="done">Sync</span><span class="done">Triage</span><span class="done">Analyze</span><span class="done">Review</span><span class="active">Prepare</span><span>Execute</span><span>Audit</span>
+  </div>
+  <h1>Assistant Profile</h1>
+  <p class="help-text">Inspect and manage approved voice memory. Draft preview is local only and never creates Gmail drafts, execution records, sends, or calendar events.</p>
+
+  {% if profile_result == "ok" %}
+  <div class="callout callout-green" style="margin-bottom:14px">Voice memory updated.</div>
+  {% elif profile_result == "invalid" %}
+  <div class="callout callout-red" style="margin-bottom:14px">Voice memory update could not be applied.</div>
+  {% endif %}
+
+  <section class="panel" style="margin-bottom:14px">
+    <h2>Preferred Sign-Off</h2>
+    <div class="facts">
+      <div><strong class="label">Current sign-off</strong><span><pre style="margin:0;white-space:pre-wrap">{{ voice_memory.preferred_signoff or "Not learned yet" }}</pre></span></div>
+      <div><strong class="label">Status</strong><span><span class="badge {% if voice_memory.preferred_signoff_will_apply %}ok{% elif voice_memory.preferred_signoff_status == 'pending' %}amber{% else %}grey{% endif %}">{{ voice_memory.preferred_signoff_status }}</span></span></div>
+      <div><strong class="label">Evidence count</strong><span class="muted">{{ voice_memory.preferred_signoff_evidence_count }} matching sent sample(s)</span></div>
+      <div><strong class="label">Will drafts use it?</strong><span>{% if voice_memory.preferred_signoff_will_apply %}<span class="badge ok">Yes</span>{% else %}<span class="badge amber">No</span>{% endif %}</span></div>
+      <div><strong class="label">Sent learning rows</strong><span class="muted">{{ voice_memory.sent_learning_count }}</span></div>
+      <div><strong class="label">Last refreshed</strong><span class="muted">{{ voice_memory.last_refreshed_at.strftime("%Y-%m-%d %H:%M") if voice_memory.last_refreshed_at else "-" }}</span></div>
+    </div>
+  </section>
+
+  <div style="display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:14px;align-items:start">
+    <section class="panel">
+      <h2>Voice Memory Traits</h2>
+      <div class="callout callout-grey" style="margin-bottom:10px">
+        <div class="callout-title">Approved global traits</div>
+        {% if voice_memory.tone_guidance %}
+        {% for item in voice_memory.tone_guidance %}<span class="badge purple">{{ item }}</span>{% endfor %}
+        {% else %}
+        <span class="muted">No approved global tone guidance yet.</span>
+        {% endif %}
+      </div>
+      <div class="callout callout-grey" style="margin-bottom:10px">
+        <div class="callout-title">Avoided phrases</div>
+        {% if voice_memory.avoided_phrases %}
+        {% for item in voice_memory.avoided_phrases %}<span class="badge indigo">{{ item }}</span>{% endfor %}
+        {% else %}
+        <span class="muted">No avoided phrases inferred yet.</span>
+        {% endif %}
+      </div>
+      <div class="callout callout-grey">
+        <div class="callout-title">Relationship-specific overrides</div>
+        {% if voice_memory.relationship_overrides %}
+        {% for row in voice_memory.relationship_overrides %}
+        <div style="margin-top:6px">
+          <span class="badge ok">{{ row.relationship_type }}</span>
+          <span class="muted">{{ row.tone_notes or "No tone notes" }}</span>
+        </div>
+        {% endfor %}
+        {% else %}
+        <span class="muted">No approved relationship overrides yet.</span>
+        {% endif %}
+      </div>
+    </section>
+
+    <aside class="panel">
+      <h2>Local Draft Preview</h2>
+      <p class="muted" style="font-size:13px">Local preview only. This uses approved voice memory in memory and does not persist a draft or execution record.</p>
+      <form method="post" action="/assistant-profile/preview" style="display:grid;gap:8px">
+        <label>Sender name<input name="sender_name" value="{{ preview_sample.sender_name }}" /></label>
+        <label>Sender email<input name="sender_email" value="{{ preview_sample.sender_email }}" /></label>
+        <label>Relationship
+          <select name="relationship">
+            {% for rel in ["client","friend","partner","vendor","unknown"] %}
+            <option value="{{ rel }}" {% if preview_sample.relationship == rel %}selected{% endif %}>{{ rel }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>Subject<input name="subject" value="{{ preview_sample.subject }}" /></label>
+        <label>Sample context<textarea name="message_text" rows="5">{{ preview_sample.message_text }}</textarea></label>
+        <button class="primary" type="submit">Generate local preview</button>
+      </form>
+      {% if preview %}
+      <div class="callout callout-amber" style="margin-top:12px">
+        <div class="callout-title">Local preview only</div>
+        No Gmail draft, send, calendar item, or execution record was created.
+      </div>
+      <h3 style="font-size:13px;margin-top:12px">Subject</h3>
+      <pre>{{ preview.subject }}</pre>
+      <h3 style="font-size:13px">Body</h3>
+      <pre>{{ preview.body }}</pre>
+      <h3 style="font-size:13px">Influenced by</h3>
+      {% if preview.influenced_traits %}
+      <ul class="mini-list">
+        {% for trait in preview.influenced_traits %}
+        <li>{{ trait }}</li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <div class="muted">No approved voice memory influenced this preview yet.</div>
+      {% endif %}
+      {% endif %}
+    </aside>
+  </div>
+
+  <section class="panel" style="margin-top:14px">
+    <h2>Review and Manage Learned Guidance</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Scope</th>
+          <th>Status</th>
+          <th>Guidance</th>
+          <th>Evidence</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in guidance_rows %}
+        <tr>
+          <td>
+            {% if row.contact %}{{ row.contact.display_name or row.contact.primary_email }}{% elif row.relationship_type %}{{ row.relationship_type }}{% else %}global{% endif %}
+            {% if row.is_active %}<div><span class="badge ok">active</span></div>{% endif %}
+          </td>
+          <td><span class="badge {% if row.status.value == 'approved' and row.is_active %}ok{% elif row.status.value == 'pending' %}amber{% elif row.status.value == 'rejected' %}bad{% else %}grey{% endif %}">{{ row.status.value }}{% if row.status.value == 'approved' and not row.is_active %} / disabled{% endif %}</span></td>
+          <td>
+            <form method="post" action="/assistant-profile/guidance/{{ row.id }}" style="display:grid;gap:6px">
+              <input type="hidden" name="action" value="edit" />
+              <input type="hidden" name="status" value="{{ row.status.value }}" />
+              <input name="salutation_style" value="{{ row.salutation_style or '' }}" placeholder="salutation style" />
+              <input name="preferred_name" value="{{ row.preferred_name or '' }}" placeholder="preferred name" />
+              <textarea name="tone_notes" rows="3" placeholder="tone notes">{{ row.tone_notes or "" }}</textarea>
+              <button type="submit">Save edit</button>
+            </form>
+          </td>
+          <td class="muted" style="font-size:12px;max-width:300px">{{ row.evidence_excerpt or "No safe excerpt stored." }}</td>
+          <td>
+            <div style="display:grid;gap:5px">
+              <form method="post" action="/assistant-profile/guidance/{{ row.id }}"><input type="hidden" name="action" value="approve" /><button class="primary" type="submit">Approve</button></form>
+              <form method="post" action="/assistant-profile/guidance/{{ row.id }}"><input type="hidden" name="action" value="reject" /><button class="danger" type="submit">Reject</button></form>
+              <form method="post" action="/assistant-profile/guidance/{{ row.id }}"><input type="hidden" name="action" value="disable" /><button type="submit">Disable</button></form>
+              <form method="post" action="/assistant-profile/guidance/{{ row.id }}"><input type="hidden" name="action" value="reset" /><button class="outline" type="submit">Reset default</button></form>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="muted">No voice guidance rows yet. Run sent-mail learning from Voice Calibration.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

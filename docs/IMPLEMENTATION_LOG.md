@@ -2,6 +2,49 @@
 
 Record completed work here at the end of every phase. Newest entries should be added at the top.
 
+## 2026-05-20 — Phase 21: Product Acceleration Sprint
+
+### Summary
+- Added `/assistant-profile` with preferred sign-off visibility, approved/pending/rejected/disabled voice guidance, relationship overrides, evidence counts, safe excerpts, and edit/approve/reject/disable/reset controls.
+- Added a local Assistant Profile draft preview that uses approved voice memory in memory only. It does not create a local draft row, execution record, Gmail draft, send, calendar item, or external provider call.
+- Enhanced `/operational-smoke` with an operator smoke checklist and direct route smoke links for AI, Microsoft Graph, Outlook sync, Gmail draft dry-run/live readiness, Google Calendar readiness, execution audit checks, dry-run state, operational test mode, and allowlist state.
+- Kept Outlook send, Outlook Calendar, and Teams disabled/not implemented; documentation records write planning only.
+- Refreshed the operator help/runbook for daily startup, sync/testing workflow, OAuth reauthorization, test allowlist use, dry-run/live posture, and safe-mode rollback.
+
+### Files changed
+- `app/services/voice_learning_service.py`
+- `app/services/operational_status_service.py`
+- `app/web/routes.py`
+- `app/web/templates/base.html`
+- `app/web/templates/dashboard.html`
+- `app/web/templates/assistant_profile.html`
+- `app/web/templates/operational_smoke.html`
+- `tests/test_phase_21_assistant_profile.py`
+- `docs/HELP.md`
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/PHASE_STATUS.md`
+- `docs/phases/PHASE_21_PRODUCT_ACCELERATION_SPRINT.md`
+
+### Tests run
+- `python -m pytest tests/test_phase_21_assistant_profile.py -q` — passed, 5 tests.
+- `python -m ruff check tests\test_phase_21_assistant_profile.py app\web\routes.py app\services\voice_learning_service.py app\services\operational_status_service.py` — passed.
+- `python -m ruff check .` — passed.
+- `python -m pytest -q` — passed, 228 tests.
+- `python -m alembic upgrade head` — passed.
+
+### Smoke tests
+- Focused route smoke in tests returned HTTP 200 for `/`, `/assistant-profile`, `/operational-smoke`, `/providers`, `/review-packages`, `/executions`, `/bulk-triage`, `/contacts`, `/drafts`, `/voice-calibration`, `/admin`, and `/healthz`.
+- TestClient route smoke returned HTTP 200 for `/`, `/assistant-profile`, `/operational-smoke`, `/providers`, `/review-packages`, `/executions`, `/bulk-triage`, `/contacts`, `/drafts`, `/voice-calibration`, `/admin`, and `/healthz`.
+
+### Known issues
+- Smoke results are displayed as a sanitized checklist rather than persisted in a new schema table. This was kept intentionally light for Phase 21.
+- The Assistant Profile lifecycle uses the existing `VoiceGuidance` statuses plus `is_active`; no new vector memory or CRM-style profile model was added.
+
+### Recommended next actions
+- Human review of Phase 21.
+- Run a real local operator smoke with `/api/ai/test`, `/api/graph/test`, Outlook sync, Gmail draft dry-run, and Calendar dry-run using only allowlisted test data.
+
 ## 2026-05-19 — Phase 20: Assistant Intelligence, Voice, and Calendar Reasoning Quality
 
 ### Summary

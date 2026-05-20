@@ -163,6 +163,21 @@ def operational_smoke_status(
             "GMAIL_LABEL_ARCHIVE_ENABLED": active.gmail_label_archive_enabled,
         },
         "google_calendar_write_enabled": active.google_calendar_write_enabled,
+        "operator_smoke_checklist": _operator_smoke_checklist(active),
+        "route_smoke_paths": (
+            "/",
+            "/assistant-profile",
+            "/operational-smoke",
+            "/providers",
+            "/review-packages",
+            "/executions",
+            "/bulk-triage",
+            "/contacts",
+            "/drafts",
+            "/voice-calibration",
+            "/admin",
+            "/healthz",
+        ),
         "disabled_boundaries": disabled_boundaries,
         "blockers": execution_blockers,
         "pending_review_packages": _pending_review_package_count(db),
@@ -253,3 +268,73 @@ def _sample_allowlisted_target(raw_allowlist: str | None) -> str:
     if first.startswith("@"):
         return f"test{first}"
     return first
+
+
+def _operator_smoke_checklist(settings: Settings) -> tuple[dict[str, object], ...]:
+    return (
+        {
+            "name": "Route smoke",
+            "provider": "local app",
+            "state": "manual",
+            "detail": "Open each route listed below or run the documented route smoke command.",
+            "external_write_performed": False,
+        },
+        {
+            "name": "Azure/OpenAI AI test",
+            "provider": settings.ai_provider,
+            "state": "ready" if settings.ai_provider != "mock" else "mock",
+            "detail": "Run POST /api/ai/test; output is sanitized and should not include keys.",
+            "external_write_performed": False,
+        },
+        {
+            "name": "Microsoft Graph delegated test",
+            "provider": "microsoft_graph",
+            "state": "ready" if settings.microsoft_graph_enabled else "disabled",
+            "detail": "Run POST /api/graph/test before Outlook sync.",
+            "external_write_performed": False,
+        },
+        {
+            "name": "Outlook sync readiness",
+            "provider": "outlook_mail_read",
+            "state": "ready" if settings.microsoft_graph_outlook_mail_enabled else "disabled",
+            "detail": "Outlook read only; no Graph write calls are wired.",
+            "external_write_performed": False,
+        },
+        {
+            "name": "Gmail draft dry-run readiness",
+            "provider": "gmail",
+            "state": "ready"
+            if settings.external_write_dry_run
+            and settings.gmail_write_enabled
+            and settings.gmail_draft_create_enabled
+            else "blocked",
+            "detail": "Requires operational test mode, allowlist, external provider, write flag, draft flag, and dry-run.",
+            "external_write_performed": False,
+        },
+        {
+            "name": "Gmail draft live readiness",
+            "provider": "gmail",
+            "state": "ready"
+            if not settings.external_write_dry_run
+            and settings.gmail_write_enabled
+            and settings.gmail_draft_create_enabled
+            else "blocked",
+            "detail": "Only after OAuth write scopes, allowlist, approval, and final confirmation are reviewed.",
+            "external_write_performed": not settings.external_write_dry_run,
+        },
+        {
+            "name": "Google Calendar dry-run/live readiness",
+            "provider": "google_calendar",
+            "state": "ready" if settings.google_calendar_write_enabled else "blocked",
+            "detail": "Calendar execution still requires prepare, approve, confirm, and Phase 19 test mode.",
+            "external_write_performed": settings.google_calendar_write_enabled
+            and not settings.external_write_dry_run,
+        },
+        {
+            "name": "Execution audit check",
+            "provider": "local database",
+            "state": "manual",
+            "detail": "Open /executions after a dry-run/live test and verify audit history.",
+            "external_write_performed": False,
+        },
+    )

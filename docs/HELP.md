@@ -50,6 +50,7 @@ Current MVP features:
 - Show compact dashboard status cards for provider readiness, operational smoke state, command-center queues, source counts, and next recommended operator actions.
 - Open the Provider Status page to see live, mock, disabled, missing configuration, dry-run, failed, and not-implemented states for each provider/action, plus copy/paste configuration guidance.
 - Open the Operational Smoke page to see Gmail read config, Outlook Graph status, Outlook sync readiness, Azure/OpenAI readiness, execution mode, dry-run state, write flags, source counts, blockers, and safe `.env` snippets.
+- Open the Assistant Profile page to inspect approved voice memory, preferred sign-off, pending learned traits, disabled/rejected guidance, relationship overrides, and local draft-preview output.
 - Store message metadata and snippets by default.
 - Test delegated Microsoft Graph configuration with sanitized `POST /api/graph/test` output.
 - Fetch and store full Gmail conversation content manually from a message detail page.
@@ -73,6 +74,8 @@ Current MVP features:
 - Choose a voice profile for draft suggestions: client, friend, partner, vendor, or short acknowledgement.
 - Run Sent-mail learning to infer VIP candidates, salutation preference, tone guidance, and recurring operator sign-off patterns.
 - Review/approve/reject/edit inferred VIP and voice guidance from the Voice Calibration page.
+- Approve, reject, edit, disable, or reset learned voice guidance from the Assistant Profile page.
+- Generate a local-only draft preview that shows how approved voice memory affects draft wording without creating a Gmail draft, execution record, send, or calendar item.
 - Review local draft suggestions from the Drafts page.
 - Analyze a stored Gmail conversation with the mock AI provider by default or an OpenAI-compatible/Azure OpenAI provider when explicitly configured.
 - Store and view local conversation summaries.
@@ -139,6 +142,31 @@ The Voice Calibration page lets you refresh Sent-mail learning inferences and re
 - excerpted evidence used for inference
 
 Guidance only affects draft tone after you approve it. Recurring approved sign-off guidance, such as a repeated closing found in sent mail, can be applied to drafts globally unless contact-specific guidance overrides it.
+
+### Assistant Profile
+
+The Assistant Profile page is linked from the main navigation and dashboard. Use it to inspect what the assistant currently knows about the operator's writing style.
+
+It shows:
+
+- preferred sign-off, status, evidence count, and whether drafts will currently use it
+- approved global voice traits
+- pending learned traits
+- rejected and disabled guidance
+- avoided phrases and tone/brevity guidance inferred from approved guidance
+- relationship-specific overrides
+- safe evidence excerpts where stored
+- last sent-learning refresh date when available
+
+Guidance actions:
+
+- Approve: marks a pending trait active so draft generation can use it.
+- Reject: keeps the trait out of draft generation.
+- Edit: changes salutation style, preferred name, or tone notes without changing external systems.
+- Disable: leaves an approved trait recorded but inactive.
+- Reset default: clears the trait fields and returns it to pending/inactive.
+
+The local draft preview on this page is for inspection only. It renders a sample reply using approved voice memory in memory. It does not create a local draft row, Gmail draft, send, calendar item, execution record, audit row, or external provider request.
 
 ### Bulk Triage
 
@@ -296,6 +324,8 @@ It shows:
 - Gmail write flags and Google Calendar write flag.
 - Source counts for all, Gmail, Outlook, and notification-derived messages.
 - Pending review package and execution queues.
+- Operator smoke checklist for route smoke, Azure/OpenAI test, Microsoft Graph delegated test, Outlook sync readiness, Gmail draft dry-run/live readiness, Google Calendar readiness, and execution audit checks.
+- Direct route smoke links, including `/assistant-profile`.
 - Plain-language token/config blockers.
 - Disabled Microsoft write boundaries: Outlook send, Outlook Calendar, and Teams.
 - Copy/paste configuration snippets for safe local defaults, delegated Outlook read, and optional live AI setup. The page does not edit `.env`; restart the app after changing environment variables.
@@ -310,6 +340,70 @@ EXTERNAL_WRITE_DRY_RUN=true
 ```
 
 Use exact test email addresses whenever possible. Explicit domain entries such as `@example.com` are supported, but non-allowlisted recipients remain blocked. Gmail send requires `EXTERNAL_WRITE_DRY_RUN=false` and still requires explicit approval plus final confirmation.
+
+Smoke result persistence is intentionally light in Phase 21: the page displays sanitized checklist state and links, but it does not create a new smoke-result table. Record live smoke outcomes in the phase notes or implementation log without private subjects, snippets, tokens, or message bodies.
+
+### Daily operator runbook
+
+From the repo root:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+python -m alembic upgrade head
+python -m uvicorn app.main:app --reload
+```
+
+Open these in order:
+
+```text
+http://127.0.0.1:8000/
+http://127.0.0.1:8000/operational-smoke
+http://127.0.0.1:8000/providers
+http://127.0.0.1:8000/assistant-profile
+```
+
+Daily workflow:
+
+1. Start the app and check `/operational-smoke`.
+2. Sync Gmail from the dashboard.
+3. Run `POST /api/ai/test` when live Azure/OpenAI analysis is expected.
+4. Run `POST /api/graph/test` before Outlook sync.
+5. Sync Outlook only after the Graph test is healthy.
+6. Review Assistant Profile for the active preferred sign-off and voice guidance.
+7. Process review packages and drafts locally.
+8. For Gmail draft or Calendar testing, use `OPERATIONAL_TEST_MODE=true`, `EXECUTION_PROVIDER=external`, `EXTERNAL_WRITE_DRY_RUN=true`, and an explicit `EXECUTION_TEST_EMAIL_ALLOWLIST`.
+9. Prepare, approve, confirm, and audit any dry-run/live execution from `/executions`.
+
+OAuth reauthorization:
+
+- Gmail read: delete `gmail_token.json` only when intentionally forcing Gmail reauthorization.
+- Gmail write scopes: enable the intended Gmail write flags first, then delete `gmail_token.json` and reauthorize so Google prompts for compose/send/modify scopes.
+- Microsoft Graph delegated auth: delete `microsoft_graph_token.json` only when intentionally forcing a new device-code login. The Entra app must allow public client flows for local delegated auth.
+- Google Calendar: delete `google_calendar_token.json` only when intentionally reauthorizing Calendar.
+
+Common blockers:
+
+- AI test fails: check `AI_PROVIDER`, provider endpoint shape, deployment/model, and API key outside the UI.
+- Graph test asks for authorization: complete device-code login, then retry `POST /api/graph/test`.
+- Graph delegated auth fails with a client-secret assertion error: enable public client/native client flows in Entra, delete `microsoft_graph_token.json`, and retry.
+- Gmail draft live execution fails for scopes: enable write flags, delete `gmail_token.json`, and reauthorize.
+- Test execution blocked: confirm operational test mode, external provider mode, allowlist, action flags, dry-run posture, approval, and final confirmation.
+
+Rollback to safe mode:
+
+```env
+EXECUTION_PROVIDER=mock
+EXTERNAL_WRITE_DRY_RUN=true
+OPERATIONAL_TEST_MODE=false
+EXECUTION_TEST_EMAIL_ALLOWLIST=
+GMAIL_WRITE_ENABLED=false
+GMAIL_DRAFT_CREATE_ENABLED=false
+GMAIL_SEND_ENABLED=false
+GMAIL_LABEL_ARCHIVE_ENABLED=false
+GOOGLE_CALENDAR_WRITE_ENABLED=false
+```
+
+Restart Uvicorn after changing `.env`.
 
 ### Sync Outlook
 
@@ -328,6 +422,13 @@ Delegated local setup uses:
 Use `POST /api/graph/test` before syncing Outlook. The test returns only sanitized status: auth mode, account, configured booleans, success/failure, HTTP status if available, and sanitized error category/message. It never returns access tokens, refresh tokens, or client secrets. If delegated authorization is required, complete the Microsoft device login and retry the test.
 
 Outlook sync is read-only. It uses Graph `$select` to request only the fields needed for local triage and follows pages safely up to the requested limit.
+
+Future Outlook write planning only:
+
+- Outlook send would require future delegated Graph write scopes such as `Mail.Send` and possibly `Mail.ReadWrite`.
+- Outlook calendar write would require future delegated calendar scopes such as `Calendars.ReadWrite`.
+- Any future Outlook write path must mirror Gmail execution gating: prepare, approve, confirm, audit, provider status, feature flags, operational test mode, allowlist where recipient-specific, and dry-run before live writes.
+- Current CommsDesk code makes no Outlook send or Outlook calendar write calls and shows these providers as disabled/not implemented.
 
 ### Sync Teams
 

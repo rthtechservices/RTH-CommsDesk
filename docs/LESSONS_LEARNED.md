@@ -118,6 +118,8 @@ python -m pytest -q
 - Draft generators should honor learned "avoid corporate filler" notes to remove stock phrasing when more natural contact-specific style exists.
 - Recurring operator sign-offs belong in the same approved voice-guidance path as tone guidance. Infer them from repeated sent-mail evidence, store them as pending guidance, and apply them only after approval.
 - Send-ready draft bodies must be sanitized for generic placeholders such as `[Your Name]`, `[Your signature]`, `[your name]`, and `[signature]` before any execution payload is prepared.
+- Assistant Profile should remain a practical view over existing `VoiceGuidance`, not a separate memory system. Use status plus `is_active` for approve/reject/disable/reset unless a future phase proves a richer lifecycle is needed.
+- Draft preview surfaces must stay read-only: generate from an in-memory context and do not create `DraftReply`, `ExecutionRecord`, audit rows, Gmail drafts, sends, calendar events, or external provider calls.
 
 ## Bulk triage and automation candidate lessons
 
@@ -202,6 +204,7 @@ python -m pytest -q
 - Review packages work best as the central unit of work when they show item position, recommendation, evidence, timeline, contact context, draft/action payload, and local review controls together.
 - Keep existing specialized pages, but make the dashboard point to the next useful workflow: attention items, proposed actions, approval queue, calendar candidates, noise candidates, or provider setup.
 - Operational smoke should aggregate readiness across sync, AI, execution mode, dry-run, write flags, and disabled connector boundaries so the operator does not have to infer readiness from several pages.
+- Smoke harnesses can be useful without a new persistence schema. A sanitized checklist with route links and explicit dry-run/test-mode/allowlist state is enough until repeated smoke history becomes a real product need.
 - Process-next links are useful glue for smoke testing because they preserve the existing detail pages while removing repeated dashboard/list navigation.
 - Do not surface disabled future connectors as primary dashboard actions. A disabled provider row is enough until the phase explicitly opens that connector.
 - Dense operator dashboards need explicit status semantics. Use green for operational, amber for mock/dry-run/manual setup, red for blockers, and grey for disabled/not implemented.

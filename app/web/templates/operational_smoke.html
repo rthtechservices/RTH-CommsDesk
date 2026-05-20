@@ -28,6 +28,35 @@
 
   <div style="display:grid;gap:12px">
     <section class="panel">
+      <h2>Operator Smoke Checklist</h2>
+      <p class="muted" style="font-size:13px;margin-bottom:8px">Sanitized readiness checklist. This page displays state only; it does not run live tests or persist smoke results yet.</p>
+      <table>
+        <thead>
+          <tr><th>Test</th><th>Provider/action</th><th>Status</th><th>External write?</th><th>Sanitized result / next step</th></tr>
+        </thead>
+        <tbody>
+          {% for row in smoke_status.operator_smoke_checklist %}
+          <tr>
+            <td>{{ row.name }}</td>
+            <td class="muted">{{ row.provider }}</td>
+            <td><span class="badge {% if row.state == 'ready' %}ok{% elif row.state in ['manual','mock'] %}amber{% elif row.state in ['disabled','blocked'] %}grey{% else %}bad{% endif %}">{{ row.state }}</span></td>
+            <td>{% if row.external_write_performed %}<span class="badge bad">possible when confirmed</span>{% else %}<span class="badge ok">no</span>{% endif %}</td>
+            <td class="muted" style="font-size:12px">{{ row.detail }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="callout callout-grey" style="margin-top:10px">
+        <div class="callout-title">Route smoke paths</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          {% for path in smoke_status.route_smoke_paths %}
+          <a class="button outline" href="{{ path }}">{{ path }}</a>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
       <h2>Gmail read config</h2>
       <div class="facts">
         {% if smoke_status.gmail_read %}

@@ -130,3 +130,31 @@ Keep docs updated, but avoid repetitive boilerplate. Update only the files that 
 ## Codex notes
 
 This is an acceleration sprint. Prefer pragmatic, usable implementation over perfect architecture. Do not split visibility, preview, smoke, and docs into separate future phases unless a hard technical blocker appears.
+
+## Completion notes — 2026-05-20
+
+Status: Completed for human review.
+
+Implemented:
+
+- Added `/assistant-profile` and `/voice-memory` redirect.
+- Surfaced preferred sign-off status, evidence count, active draft-use state, approved global traits, pending learned traits, rejected/disabled traits, avoided phrases, tone guidance, relationship overrides, safe excerpts, sent-learning count, and last refresh date.
+- Added approve/reject/edit/disable/reset controls using the existing `VoiceGuidance` model and `InferenceStatus` lifecycle plus `is_active`; no schema migration was required.
+- Added a local draft preview tool on Assistant Profile. It uses approved voice memory in memory only and does not create a local draft row, execution record, Gmail draft, send, calendar item, audit row, or external provider call.
+- Enhanced `/operational-smoke` with a practical operator checklist and direct route smoke links covering route smoke, Azure/OpenAI test, Microsoft Graph delegated test, Outlook sync readiness, Gmail draft dry-run/live readiness, Google Calendar readiness, execution audit, dry-run state, operational test mode, and allowlist state.
+- Refreshed `docs/HELP.md` with the daily operator runbook, OAuth reauthorization guidance, safe-mode rollback, and Outlook write planning notes.
+- Kept Outlook send, Outlook Calendar, and Teams disabled/not implemented.
+
+Validation:
+
+- `python -m pytest tests/test_phase_21_assistant_profile.py -q` — passed, 5 tests.
+- `python -m ruff check tests\test_phase_21_assistant_profile.py app\web\routes.py app\services\voice_learning_service.py app\services\operational_status_service.py` — passed.
+- `python -m ruff check .` — passed.
+- `python -m pytest -q` — passed, 228 tests.
+- `python -m alembic upgrade head` — passed.
+- Route smoke returned HTTP 200 for `/`, `/assistant-profile`, `/operational-smoke`, `/providers`, `/review-packages`, `/executions`, `/bulk-triage`, `/contacts`, `/drafts`, `/voice-calibration`, `/admin`, and `/healthz`.
+
+Human review notes:
+
+- Smoke-result persistence was intentionally left as a displayed sanitized checklist rather than a new schema table.
+- Outlook write support remains documentation/planning only. No Graph write calls or Outlook write buttons were added.

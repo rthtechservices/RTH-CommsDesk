@@ -52,6 +52,23 @@ class VoiceGuidanceSelection:
     source: str
 
 
+@dataclass(frozen=True)
+class VoiceMemorySummary:
+    preferred_signoff: str | None
+    preferred_signoff_status: str
+    preferred_signoff_evidence_count: int
+    preferred_signoff_will_apply: bool
+    approved_global_traits: tuple[VoiceGuidance, ...]
+    pending_traits: tuple[VoiceGuidance, ...]
+    rejected_traits: tuple[VoiceGuidance, ...]
+    disabled_traits: tuple[VoiceGuidance, ...]
+    relationship_overrides: tuple[VoiceGuidance, ...]
+    avoided_phrases: tuple[str, ...]
+    tone_guidance: tuple[str, ...]
+    sent_learning_count: int
+    last_refreshed_at: datetime | None
+
+
 def run_sent_mail_learning(
     db: Session,
     *,
@@ -262,6 +279,94 @@ def voice_guidance_for_review(db: Session) -> list[VoiceGuidance]:
     )
 
 
+def voice_memory_summary(db: Session) -> VoiceMemorySummary:
+    rows = voice_guidance_for_review(db)
+    global_rows = [
+        row
+        for row in rows
+        if row.contact_id is None and row.relationship_type == "global_operator"
+    ]
+    approved_global = tuple(
+        row
+        for row in global_rows
+        if row.status == InferenceStatus.APPROVED and row.is_active
+    )
+    pending = tuple(row for row in rows if row.status == InferenceStatus.PENDING)
+    rejected = tuple(row for row in rows if row.status == InferenceStatus.REJECTED)
+    disabled = tuple(
+        row
+        for row in rows
+        if row.status == InferenceStatus.APPROVED and not row.is_active
+    )
+    relationship_overrides = tuple(
+        row
+        for row in rows
+        if row.contact_id is None
+        and row.relationship_type not in {None, "global_operator"}
+        and row.status == InferenceStatus.APPROVED
+        and row.is_active
+    )
+    preferred_row = next(
+        (row for row in approved_global if _preferred_signoff_from_notes(row.tone_notes)),
+        None,
+    ) or next(
+        (row for row in global_rows if _preferred_signoff_from_notes(row.tone_notes)),
+        None,
+    )
+    preferred_signoff = (
+        _preferred_signoff_from_notes(preferred_row.tone_notes) if preferred_row else None
+    )
+    evidence_count = _signoff_evidence_count(db, preferred_signoff)
+    sent_count = db.query(SentMailLearningRecord).count()
+    last_refreshed = (
+        db.query(SentMailLearningRecord.sent_at)
+        .order_by(SentMailLearningRecord.sent_at.desc())
+        .limit(1)
+        .scalar()
+    )
+    tone_guidance = tuple(
+        dict.fromkeys(
+            note.strip()
+            for row in rows
+            if row.status == InferenceStatus.APPROVED and row.is_active
+            for note in _tone_notes_without_signoff(row.tone_notes)
+            if note.strip()
+        )
+    )
+    avoided = tuple(
+        sorted(
+            {
+                phrase
+                for row in rows
+                if row.status == InferenceStatus.APPROVED and row.is_active
+                for phrase in _avoided_phrases(row.tone_notes)
+            }
+        )
+    )
+    return VoiceMemorySummary(
+        preferred_signoff=preferred_signoff,
+        preferred_signoff_status=(
+            preferred_row.status.value if preferred_row and preferred_row.status else "not learned"
+        ),
+        preferred_signoff_evidence_count=evidence_count,
+        preferred_signoff_will_apply=bool(
+            preferred_row
+            and preferred_row.status == InferenceStatus.APPROVED
+            and preferred_row.is_active
+            and preferred_signoff
+        ),
+        approved_global_traits=approved_global,
+        pending_traits=pending,
+        rejected_traits=rejected,
+        disabled_traits=disabled,
+        relationship_overrides=relationship_overrides,
+        avoided_phrases=avoided,
+        tone_guidance=tone_guidance,
+        sent_learning_count=sent_count,
+        last_refreshed_at=last_refreshed,
+    )
+
+
 def update_vip_candidate_status(
     db: Session,
     candidate_id: int,
@@ -308,6 +413,32 @@ def update_voice_guidance_status(
         guidance.tone_notes = _truncate(tone_notes.strip() or None, 500)
     guidance.status = status
     guidance.is_active = status == InferenceStatus.APPROVED
+    guidance.updated_at = utcnow()
+    db.commit()
+    db.refresh(guidance)
+    return guidance
+
+
+def disable_voice_guidance(db: Session, guidance_id: int) -> VoiceGuidance:
+    guidance = db.get(VoiceGuidance, guidance_id)
+    if not guidance:
+        raise ValueError("Voice guidance not found")
+    guidance.is_active = False
+    guidance.updated_at = utcnow()
+    db.commit()
+    db.refresh(guidance)
+    return guidance
+
+
+def reset_voice_guidance_to_default(db: Session, guidance_id: int) -> VoiceGuidance:
+    guidance = db.get(VoiceGuidance, guidance_id)
+    if not guidance:
+        raise ValueError("Voice guidance not found")
+    guidance.salutation_style = None
+    guidance.preferred_name = None
+    guidance.tone_notes = None
+    guidance.status = InferenceStatus.PENDING
+    guidance.is_active = False
     guidance.updated_at = utcnow()
     db.commit()
     db.refresh(guidance)
@@ -521,6 +652,45 @@ def _extract_signoff(text: str) -> str | None:
     if candidates:
         return _truncate(candidates[-1], 120)
     return None
+
+
+def _preferred_signoff_from_notes(value: str | None) -> str | None:
+    match = re.search(r"preferred sign-off:\s*(.+?)(?:;|$)", value or "", flags=re.IGNORECASE | re.DOTALL)
+    if not match:
+        return None
+    signoff = match.group(1).strip().replace("\\n", "\n")
+    return signoff or None
+
+
+def _tone_notes_without_signoff(value: str | None) -> list[str]:
+    notes = []
+    for part in (value or "").split(";"):
+        cleaned = part.strip()
+        if cleaned and not cleaned.lower().startswith("preferred sign-off:"):
+            notes.append(cleaned)
+    return notes
+
+
+def _avoided_phrases(value: str | None) -> set[str]:
+    lower = (value or "").lower()
+    phrases: set[str] = set()
+    if "avoid corporate filler" in lower:
+        phrases.add("corporate filler")
+    if "avoid formal" in lower:
+        phrases.add("formal stock closings")
+    return phrases
+
+
+def _signoff_evidence_count(db: Session, signoff: str | None) -> int:
+    if not signoff:
+        return 0
+    normalized = " ".join(signoff.lower().replace(".", "").split())
+    count = 0
+    for row in db.query(SentMailLearningRecord).all():
+        text = " ".join(((row.body_excerpt or row.snippet_excerpt or "").lower()).replace(".", "").split())
+        if normalized and normalized in text:
+            count += 1
+    return count
 
 
 def _normalized_unique_addresses(addresses: list[str] | None) -> list[str]:

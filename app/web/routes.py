@@ -60,8 +60,11 @@ from app.services.contact_service import (
     update_contact_profile,
 )
 from app.services.draft_service import (
+    DraftContext,
+    MockDraftProvider,
     available_voice_profiles,
     create_draft_reply,
+    normalize_draft_content,
     recent_drafts_for_message,
     suggested_voice_profile_id,
 )
@@ -102,11 +105,14 @@ from app.services.operational_status_service import (
 )
 from app.services.provider_status_service import provider_status_rows
 from app.services.voice_learning_service import (
+    disable_voice_guidance,
+    reset_voice_guidance_to_default,
     run_sent_mail_learning,
     update_vip_candidate_status,
     update_voice_guidance_status,
     vip_candidates_for_review,
     voice_guidance_for_review,
+    voice_memory_summary,
 )
 
 web_router = APIRouter()
@@ -512,6 +518,164 @@ def operational_smoke_page(request: Request, db: Session = Depends(get_db)):
         "operational_smoke.html",
         {"smoke_status": operational_smoke_status(db, get_settings())},
     )
+
+
+def _assistant_profile_context(
+    request: Request,
+    db: Session,
+    *,
+    preview_input: dict[str, str] | None = None,
+) -> dict:
+    summary = voice_memory_summary(db)
+    preview = None
+    sample = preview_input or {
+        "sender_name": "Client Contact",
+        "sender_email": "client@example.com",
+        "subject": "Quick follow-up",
+        "message_text": "Can you confirm the next step when you have a chance?",
+        "relationship": "client",
+    }
+    if preview_input is not None:
+        preview = _build_local_voice_preview(sample, summary)
+    return {
+        "voice_memory": summary,
+        "guidance_rows": voice_guidance_for_review(db),
+        "inference_statuses": list(InferenceStatus),
+        "preview": preview,
+        "preview_sample": sample,
+        "profile_result": request.query_params.get("profile_result"),
+    }
+
+
+def _build_local_voice_preview(sample: dict[str, str], summary) -> dict:
+    tone_notes = "; ".join(summary.tone_guidance)
+    if summary.preferred_signoff_will_apply and summary.preferred_signoff:
+        tone_notes = (
+            f"{tone_notes}; preferred sign-off: {summary.preferred_signoff}"
+            if tone_notes
+            else f"preferred sign-off: {summary.preferred_signoff}"
+        )
+    context = DraftContext(
+        message_id=0,
+        thread_id=0,
+        subject=(sample.get("subject") or "").strip(),
+        sender_name=(sample.get("sender_name") or "").strip(),
+        sender_email=(sample.get("sender_email") or "").strip(),
+        contact_name=(sample.get("sender_name") or "").strip(),
+        contact_relationship=(sample.get("relationship") or "client").strip() or "client",
+        contact_importance_tier=None,
+        contact_state="sample",
+        classification_label="Needs reply",
+        classification_summary="local preview sample",
+        attention_score=None,
+        attention_reason="Local Assistant Profile preview.",
+        recommended_action="Reply",
+        feedback_summary="No correction history used for local preview.",
+        conversation_summary=(sample.get("message_text") or "").strip(),
+        proposed_action_type="reply",
+        proposed_action_explanation="Local preview only.",
+        review_package_draft_response="",
+        full_thread_context=(sample.get("message_text") or "").strip(),
+        learned_salutation_style="first_name",
+        learned_preferred_name=(sample.get("sender_name") or "").strip().split(" ")[0],
+        learned_tone_notes=tone_notes,
+    )
+    profile = available_voice_profiles_for_preview(sample)
+    content = normalize_draft_content(
+        MockDraftProvider().generate(context, profile),
+        fallback_subject=f"Re: {context.subject}" if context.subject else "Re:",
+    )
+    influenced = []
+    if summary.preferred_signoff_will_apply and summary.preferred_signoff:
+        influenced.append(f"Preferred sign-off: {summary.preferred_signoff}")
+    influenced.extend(summary.tone_guidance[:4])
+    influenced.extend(f"Avoid: {phrase}" for phrase in summary.avoided_phrases[:3])
+    return {
+        "subject": content.send_ready_subject,
+        "body": content.send_ready_body,
+        "influenced_traits": influenced,
+    }
+
+
+def available_voice_profiles_for_preview(sample: dict[str, str]):
+    from app.models.entities import VoiceProfile
+
+    relationship = (sample.get("relationship") or "client").strip().lower() or "client"
+    return VoiceProfile(
+        name="Local Assistant Profile Preview",
+        audience_type=relationship if relationship in {"client", "friend", "partner", "vendor"} else "client",
+        tone_description="current approved voice memory",
+        signoff_style="approved guidance",
+    )
+
+
+@web_router.get("/assistant-profile")
+def assistant_profile(request: Request, db: Session = Depends(get_db)):
+    return templates.TemplateResponse(
+        request,
+        "assistant_profile.html",
+        _assistant_profile_context(request, db),
+    )
+
+
+@web_router.get("/voice-memory")
+def voice_memory_redirect():
+    return RedirectResponse(url="/assistant-profile", status_code=303)
+
+
+@web_router.post("/assistant-profile/preview")
+def assistant_profile_preview(
+    request: Request,
+    sender_name: str = Form("Client Contact"),
+    sender_email: str = Form("client@example.com"),
+    subject: str = Form("Quick follow-up"),
+    message_text: str = Form("Can you confirm the next step when you have a chance?"),
+    relationship: str = Form("client"),
+    db: Session = Depends(get_db),
+):
+    sample = {
+        "sender_name": sender_name,
+        "sender_email": sender_email,
+        "subject": subject,
+        "message_text": message_text,
+        "relationship": relationship,
+    }
+    return templates.TemplateResponse(
+        request,
+        "assistant_profile.html",
+        _assistant_profile_context(request, db, preview_input=sample),
+    )
+
+
+@web_router.post("/assistant-profile/guidance/{guidance_id}")
+def assistant_profile_update_guidance(
+    guidance_id: int,
+    action: str = Form(...),
+    status: str | None = Form(None),
+    salutation_style: str | None = Form(None),
+    preferred_name: str | None = Form(None),
+    tone_notes: str | None = Form(None),
+    db: Session = Depends(get_db),
+):
+    try:
+        if action == "disable":
+            disable_voice_guidance(db, guidance_id)
+        elif action == "reset":
+            reset_voice_guidance_to_default(db, guidance_id)
+        else:
+            status_value = status or {"approve": "approved", "reject": "rejected"}.get(action, action)
+            selected = InferenceStatus(status_value)
+            update_voice_guidance_status(
+                db,
+                guidance_id,
+                status=selected,
+                salutation_style=salutation_style,
+                preferred_name=preferred_name,
+                tone_notes=tone_notes,
+            )
+    except ValueError:
+        return RedirectResponse(url="/assistant-profile?profile_result=invalid", status_code=303)
+    return RedirectResponse(url="/assistant-profile?profile_result=ok", status_code=303)
 
 
 @web_router.get("/process-next")
