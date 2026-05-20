@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+{% block title %}Cleanup: {{ candidate.sender_email or candidate.sender_key }} | RTH CommsDesk{% endblock %}
+
+{% block styles %}
+<style>
+  .evidence-block {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    font-size: 13px;
+    margin-bottom: 12px;
+    white-space: pre-wrap;
+  }
+  .subject-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .subject-list li {
+    padding: 4px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 13px;
+  }
+  .detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
+    margin: 12px 0;
+  }
+  .metric-box {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 10px;
+    text-align: center;
+  }
+  .metric-box strong {
+    font-size: 24px;
+    display: block;
+  }
+  .metric-box small {
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .action-section {
+    margin: 12px 0;
+  }
+  .action-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  .log-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  .log-table th {
+    text-align: left;
+    padding: 4px 8px;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-bottom: 1px solid var(--line);
+  }
+  .log-table td {
+    padding: 5px 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  .posture-bar {
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    margin-bottom: 12px;
+    border: 1px solid var(--line);
+  }
+  .posture-live    { background: #0d2b1a; border-color: var(--ok); }
+  .posture-dry_run { background: #2b220a; border-color: var(--amber); }
+  .posture-mock    { background: #1a1a2b; border-color: var(--cyan); }
+  .posture-blocked { background: #2b0d0d; border-color: var(--bad); }
+</style>
+{% endblock %}
+
+{% block main_class %}wide-wrap page-pad{% endblock %}
+
+{% block content %}
+  <a href="/bulk-triage/mailbox-cleanup">← Mailbox Cleanup</a>
+
+  <h1>{{ candidate.sender_display_name or candidate.sender_email or candidate.sender_key }}</h1>
+  {% if candidate.sender_domain and candidate.sender_domain != (candidate.sender_email or '') %}
+  <p class="muted" style="font-size:13px;margin-top:-6px">Domain: {{ candidate.sender_domain }}</p>
+  {% endif %}
+
+  {% if action_result %}
+  <div class="callout callout-green" style="margin-bottom:10px">
+    <span style="color:var(--ok)">&#x2713;</span>
+    {% if action_result == 'marked_noise' %}Sender marked as noise locally. Contact record updated.
+    {% elif action_result == 'marked_protected' %}Sender marked as protected — will not be recommended for cleanup.
+    {% elif action_result == 'reset_pending' %}Sender reset to pending.
+    {% elif action_result == 'marked_delete_candidate' %}Flagged locally as delete candidate (no Gmail action yet).
+    {% else %}Action completed: {{ action_result }}.
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if action_error %}
+  <div class="callout callout-red" style="margin-bottom:10px">
+    <span style="color:var(--bad)">&#x26A0;</span> Error: {{ action_error }}
+  </div>
+  {% endif %}
+
+  <!-- Execution posture -->
+  <div class="posture-bar posture-{{ cleanup_label_posture.posture }}">
+    <strong>{{ cleanup_label_posture.label }}</strong> — {{ cleanup_label_posture.detail }}
+  </div>
+
+  <!-- Status + flags -->
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+    <span class="badge {% if candidate.status.value == 'pending' %}amber{% elif candidate.status.value in ['executed','approved'] %}ok{% elif candidate.status.value in ['rejected','failed'] %}bad{% elif candidate.status.value == 'protected' %}cyan{% else %}grey{% endif %}">
+      {{ candidate.status.value }}
+    </span>
+    {% if candidate.is_protected %}<span class="badge cyan">Protected</span>{% endif %}
+    {% if candidate.existing_contact_is_vip %}<span class="badge ok">VIP Contact</span>{% endif %}
+    {% if candidate.existing_contact_is_noise %}<span class="badge grey">Contact: noise=true</span>{% endif %}
+    {% if candidate.existing_contact_relationship %}<span class="badge grey">rel: {{ candidate.existing_contact_relationship }}</span>{% endif %}
+  </div>
+
+  <!-- Metrics -->
+  <div class="detail-grid">
+    <div class="metric-box">
+      <strong>{{ candidate.total_message_count }}</strong><small>Total messages</small>
+    </div>
+    <div class="metric-box">
+      <strong>{{ candidate.unread_count }}</strong><small>Unread</small>
+    </div>
+    <div class="metric-box">
+      <strong class="{% if (candidate.confidence_score * 100) | int >= 80 %}conf-high{% elif (candidate.confidence_score * 100) | int >= 50 %}conf-med{% else %}conf-low{% endif %}">
+        {{ (candidate.confidence_score * 100) | int }}%
+      </strong>
+      <small>Noise confidence</small>
+    </div>
+    <div class="metric-box">
+      <strong>{{ candidate.marketing_count + candidate.newsletter_count + candidate.group_noise_count + candidate.system_notification_count }}</strong>
+      <small>Noise-classified</small>
+    </div>
+    <div class="metric-box">
+      <strong>{{ candidate.unsubscribe_language_count }}</strong>
+      <small>Unsubscribe mentions</small>
+    </div>
+    <div class="metric-box">
+      <strong {% if candidate.requires_reply_count > 0 %}class="conf-high"{% endif %}>{{ candidate.requires_reply_count }}</strong>
+      <small>Requires reply</small>
+    </div>
+    <div class="metric-box">
+      <strong {% if candidate.human_personal_count > 0 %}class="conf-protected"{% endif %}>{{ candidate.human_personal_count }}</strong>
+      <small>Human/personal</small>
+    </div>
+    <div class="metric-box">
+      <strong>{{ candidate.vip_contact_count }}</strong>
+      <small>VIP signals</small>
+    </div>
+  </div>
+
+  <!-- Recommendation -->
+  <section class="panel" style="margin-bottom:12px">
+    <h2>Recommendation</h2>
+    <p>
+      <span class="badge {% if candidate.recommended_action.value in ['label_and_archive_gmail','archive_gmail'] %}amber{% elif candidate.recommended_action.value == 'skip_protected_sender' %}cyan{% else %}grey{% endif %}">
+        {{ candidate.recommended_action.value | replace("_", " ") }}
+      </span>
+      {% if candidate.recommended_gmail_label %}
+      <span class="muted" style="margin-left:6px;font-size:12px">Label: <code>{{ candidate.recommended_gmail_label }}</code></span>
+      {% endif %}
+    </p>
+
+    <!-- Actions -->
+    {% if not candidate.is_protected and candidate.status.value != 'protected' %}
+    <div class="action-section">
+      <h3>Local actions (no Gmail write required)</h3>
+      <div class="action-row">
+        <form method="post" action="/bulk-triage/mailbox-cleanup/{{ candidate.id }}/mark-noise">
+          <button type="submit" class="button">Mark sender noise (local)</button>
+        </form>
+        <form method="post" action="/bulk-triage/mailbox-cleanup/{{ candidate.id }}/mark-delete-candidate">
+          <button type="submit" class="button outline">Flag delete candidate (local)</button>
+        </form>
+      </div>
+
+      {% if cleanup_label_posture.can_prepare %}
+      <h3 style="margin-top:12px">Gmail cleanup — prepare execution record</h3>
+      <p class="muted" style="font-size:12px">All Gmail actions go through prepare → approve → confirm → execute → audit. Nothing is sent to Gmail until you confirm.</p>
+      <div class="action-row">
+        <form method="post" action="/bulk-triage/mailbox-cleanup/{{ candidate.id }}/prepare-label">
+          <button type="submit" class="button {% if cleanup_label_posture.posture == 'live' %}primary{% else %}outline{% endif %}">
+            Prepare: Label only
+          </button>
+        </form>
+        <form method="post" action="/bulk-triage/mailbox-cleanup/{{ candidate.id }}/prepare-archive">
+          <button type="submit" class="button outline">Prepare: Archive only</button>
+        </form>
+        <form method="post" action="/bulk-triage/mailbox-cleanup/{{ candidate.id }}/prepare-label-and-archive">
+          <button type="submit" class="button {% if cleanup_label_posture.posture == 'live' %}primary{% else %}outline{% endif %}">
+            Prepare: Label + Archive
+          </button>
+        </form>
+      </div>
+      {% else %}
+      <div class="callout" style="margin-top:8px;font-size:12px;color:var(--bad)">
+        Gmail execution is blocked. {{ cleanup_label_posture.detail }}
+        <a href="/providers">View Providers</a>
+      </div>
+      {% endif %}
+    </div>
+    {% else %}
+    <div class="callout" style="margin-top:8px;font-size:12px;color:var(--cyan)">
+      This sender is <strong>protected</strong>. Gmail cleanup actions are blocked. You can reset this protection below.
+    </div>
+    {% endif %}
+
+    <!-- Protect / unprotect -->
+    <div class="action-row" style="margin-top:12px">
+      {% if candidate.status.value != 'protected' %}
+      <form method="post" action="/bulk-triage/mailbox-cleanup/{{ candidate.id }}/mark-protected">
+        <button type="submit" class="button outline">Mark as protected</button>
+      </form>
+      {% else %}
+      <form method="post" action="/bulk-triage/mailbox-cleanup/{{ candidate.id }}/mark-not-noise">
+        <button type="submit" class="button outline">Reset to pending</button>
+      </form>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- Evidence -->
+  <section class="panel" style="margin-bottom:12px">
+    <h2>Evidence summary</h2>
+    <div class="evidence-block">{{ candidate.evidence_summary or "No evidence summary generated." }}</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px">
+      <div>
+        <strong>Oldest message:</strong> {{ candidate.oldest_received_at.strftime("%Y-%m-%d") if candidate.oldest_received_at else "-" }}<br>
+        <strong>Newest message:</strong> {{ candidate.newest_received_at.strftime("%Y-%m-%d") if candidate.newest_received_at else "-" }}<br>
+        <strong>Source type:</strong> {{ candidate.source_type or "-" }}<br>
+      </div>
+      <div>
+        <strong>Marketing:</strong> {{ candidate.marketing_count }}<br>
+        <strong>Newsletter:</strong> {{ candidate.newsletter_count }}<br>
+        <strong>Group noise:</strong> {{ candidate.group_noise_count }}<br>
+        <strong>System notification:</strong> {{ candidate.system_notification_count }}<br>
+      </div>
+    </div>
+  </section>
+
+  <!-- Sample subjects -->
+  {% if sample_subjects %}
+  <section class="panel" style="margin-bottom:12px">
+    <h2>Sample subjects (up to 10)</h2>
+    <ul class="subject-list">
+      {% for subj in sample_subjects %}
+      <li>{{ subj }}</li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <!-- Action log -->
+  {% if logs %}
+  <section class="panel">
+    <h2>Action log</h2>
+    <table class="log-table">
+      <thead>
+        <tr>
+          <th>When</th>
+          <th>Actor</th>
+          <th>Action</th>
+          <th>Status change</th>
+          <th>Note</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td class="muted">{{ log.created_at.strftime("%Y-%m-%d %H:%M") if log.created_at else "-" }}</td>
+          <td>{{ log.actor or "system" }}</td>
+          <td>{{ log.action }}</td>
+          <td class="muted">{{ log.previous_status or "-" }} → {{ log.new_status or "-" }}</td>
+          <td>{{ log.note or "" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+
+{% endblock %}

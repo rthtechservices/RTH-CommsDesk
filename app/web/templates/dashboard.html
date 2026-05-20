@@ -243,6 +243,18 @@
             <strong class="cc-number {% if daily_start.pending_voice_guidance > 0 %}cc-pending{% else %}cc-ok{% endif %}">{{ daily_start.pending_voice_guidance }}</strong>
             <span class="muted">Voice guidance pending</span>
           </div>
+          {% if daily_start.cleanup_stats and daily_start.cleanup_stats.high_confidence_count > 0 %}
+          <div class="metric metric-sm">
+            <strong class="cc-number cc-pending">{{ daily_start.cleanup_stats.high_confidence_count }}</strong>
+            <span class="muted"><a href="/bulk-triage/mailbox-cleanup">High-conf cleanup</a></span>
+          </div>
+          {% endif %}
+          {% if daily_start.cleanup_stats and daily_start.cleanup_stats.total_candidates > 0 %}
+          <div class="metric metric-sm">
+            <strong class="cc-number cc-info">{{ daily_start.cleanup_stats.total_candidates }}</strong>
+            <span class="muted"><a href="/bulk-triage/mailbox-cleanup">Cleanup candidates</a></span>
+          </div>
+          {% endif %}
         </div>
         {% if daily_start.provider_blockers %}
         <div class="callout callout-red" style="margin-top:10px">
@@ -257,6 +269,7 @@
         <form method="post" action="/sync/outlook"><button type="submit">Sync Outlook</button></form>
         <a class="button outline" href="/review-packages">Review Packages</a>
         <a class="button outline" href="/executions">Executions</a>
+        <a class="button outline" href="/bulk-triage/mailbox-cleanup">Mailbox Cleanup</a>
         <a class="button outline" href="/assistant-profile">Assistant Profile</a>
         <a class="button outline" href="/providers">Providers</a>
       </div>

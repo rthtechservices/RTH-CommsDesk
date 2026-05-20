@@ -41,6 +41,9 @@ class ExecutionProvider(Protocol):
     def apply_gmail_label_archive(self, payload: dict) -> dict:
         """Apply label/archive operation."""
 
+    def apply_gmail_label_archive_batch(self, payload: dict) -> dict:
+        """Apply label/archive to a batch of sender messages (cleanup workflow)."""
+
     def delete_or_unsubscribe(self, payload: dict) -> dict:
         """Delete or unsubscribe operation with explicit confirmation."""
 
@@ -59,6 +62,14 @@ class MockExecutionProvider:
 
     def apply_gmail_label_archive(self, payload: dict) -> dict:
         return {"operation_id": _mock_id("label", payload), "status": "applied"}
+
+    def apply_gmail_label_archive_batch(self, payload: dict) -> dict:
+        return {
+            "operation_id": _mock_id("cleanup_batch", payload),
+            "status": "applied",
+            "applied_count": payload.get("message_count", 0),
+            "cleanup_mode": payload.get("cleanup_mode", "cleanup_label"),
+        }
 
     def delete_or_unsubscribe(self, payload: dict) -> dict:
         return {"operation_id": _mock_id("destructive", payload), "status": "executed"}
@@ -109,6 +120,15 @@ class GuardedExternalExecutionProvider:
         if self.settings.external_write_dry_run:
             return self._dry_run_result("apply_gmail_label_archive", payload)
         return self.gmail_client.apply_label_archive(payload)
+
+    def apply_gmail_label_archive_batch(self, payload: dict) -> dict:
+        self._require(
+            self.settings.gmail_write_enabled and self.settings.gmail_label_archive_enabled,
+            "Gmail label/archive batch (cleanup)",
+        )
+        if self.settings.external_write_dry_run:
+            return self._dry_run_result("apply_gmail_label_archive_batch", payload)
+        return self.gmail_client.apply_label_archive_batch(payload)
 
     def delete_or_unsubscribe(self, payload: dict) -> dict:
         raise RuntimeError("Delete/unsubscribe execution is not live-wired")
@@ -541,6 +561,10 @@ def _execute_with_provider(
     if action_type == ExecutionActionType.CREATE_CALENDAR_EVENT:
         return provider.create_calendar_event(payload)
     if action_type == ExecutionActionType.APPLY_GMAIL_LABEL_ARCHIVE:
+        # Cleanup batch operations use a richer payload with cleanup_mode field
+        cleanup_mode = payload.get("cleanup_mode", "")
+        if cleanup_mode.startswith("cleanup_"):
+            return provider.apply_gmail_label_archive_batch(payload)
         return provider.apply_gmail_label_archive(payload)
     if action_type == ExecutionActionType.DELETE_UNSUBSCRIBE:
         return provider.delete_or_unsubscribe(payload)

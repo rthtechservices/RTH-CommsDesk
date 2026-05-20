@@ -98,6 +98,25 @@ class ExecutionActionType(StrEnum):
     DELETE_UNSUBSCRIBE = "delete_unsubscribe"
 
 
+class MailboxCleanupStatus(StrEnum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    PROTECTED = "protected"
+    EXECUTED = "executed"
+    FAILED = "failed"
+
+
+class MailboxCleanupAction(StrEnum):
+    REVIEW_ONLY = "review_only"
+    MARK_SENDER_NOISE_LOCAL = "mark_sender_noise_local"
+    APPLY_GMAIL_LABEL = "apply_gmail_label"
+    ARCHIVE_GMAIL = "archive_gmail"
+    LABEL_AND_ARCHIVE_GMAIL = "label_and_archive_gmail"
+    PREPARE_DELETE_CANDIDATE = "prepare_delete_candidate"
+    SKIP_PROTECTED_SENDER = "skip_protected_sender"
+
+
 class OperationalSmokeMode(StrEnum):
     MANUAL = "manual"
     API = "api"
@@ -679,3 +698,83 @@ class OperationalSmokeCheck(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     smoke_run: Mapped[OperationalSmokeRun] = relationship(back_populates="checks")
+
+
+class MailboxCleanupCandidate(Base):
+    """Sender/domain-level rollup for mailbox cleanup analysis."""
+
+    __tablename__ = "mailbox_cleanup_candidates"
+    __table_args__ = (
+        UniqueConstraint("sender_key", name="uq_cleanup_candidate_sender_key"),
+        Index("ix_cleanup_candidate_status_confidence", "status", "confidence_score"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    sender_key: Mapped[str] = mapped_column(String(255))  # normalized email or domain
+    sender_email: Mapped[str | None] = mapped_column(String(255), index=True)
+    sender_display_name: Mapped[str | None] = mapped_column(String(255))
+    sender_domain: Mapped[str | None] = mapped_column(String(255))
+    source_type: Mapped[str] = mapped_column(String(50), default="gmail")
+    total_message_count: Mapped[int] = mapped_column(Integer, default=0)
+    unread_count: Mapped[int] = mapped_column(Integer, default=0)
+    oldest_received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    newest_received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    marketing_count: Mapped[int] = mapped_column(Integer, default=0)
+    newsletter_count: Mapped[int] = mapped_column(Integer, default=0)
+    group_noise_count: Mapped[int] = mapped_column(Integer, default=0)
+    system_notification_count: Mapped[int] = mapped_column(Integer, default=0)
+    unsubscribe_language_count: Mapped[int] = mapped_column(Integer, default=0)
+    requires_reply_count: Mapped[int] = mapped_column(Integer, default=0)
+    human_personal_count: Mapped[int] = mapped_column(Integer, default=0)
+    vip_contact_count: Mapped[int] = mapped_column(Integer, default=0)
+    is_protected: Mapped[bool] = mapped_column(Boolean, default=False)
+    contact_id: Mapped[int | None] = mapped_column(ForeignKey("contacts.id"), index=True)
+    existing_contact_is_vip: Mapped[bool] = mapped_column(Boolean, default=False)
+    existing_contact_is_noise: Mapped[bool] = mapped_column(Boolean, default=False)
+    existing_contact_relationship: Mapped[str | None] = mapped_column(String(50))
+    confidence_score: Mapped[Decimal] = mapped_column(Numeric(5, 4), default=Decimal("0.0"))
+    recommended_action: Mapped[MailboxCleanupAction] = mapped_column(
+        Enum(MailboxCleanupAction), default=MailboxCleanupAction.REVIEW_ONLY
+    )
+    recommended_gmail_label: Mapped[str | None] = mapped_column(String(255))
+    evidence_summary: Mapped[str | None] = mapped_column(Text)
+    sample_subjects_json: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[MailboxCleanupStatus] = mapped_column(
+        Enum(MailboxCleanupStatus), default=MailboxCleanupStatus.PENDING
+    )
+    last_execution_record_id: Mapped[int | None] = mapped_column(
+        ForeignKey("execution_records.id"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+    contact: Mapped[Contact | None] = relationship(foreign_keys=[contact_id])
+    last_execution_record: Mapped[ExecutionRecord | None] = relationship(
+        foreign_keys=[last_execution_record_id]
+    )
+
+
+class MailboxCleanupActionLog(Base):
+    """Audit log for mailbox cleanup decisions and actions."""
+
+    __tablename__ = "mailbox_cleanup_action_logs"
+    __table_args__ = (Index("ix_cleanup_action_log_candidate_created", "candidate_id", "created_at"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    candidate_id: Mapped[int] = mapped_column(
+        ForeignKey("mailbox_cleanup_candidates.id"), index=True
+    )
+    action: Mapped[str] = mapped_column(String(100))
+    actor: Mapped[str | None] = mapped_column(String(255))
+    note: Mapped[str | None] = mapped_column(Text)
+    previous_status: Mapped[str | None] = mapped_column(String(50))
+    new_status: Mapped[str | None] = mapped_column(String(50))
+    execution_record_id: Mapped[int | None] = mapped_column(
+        ForeignKey("execution_records.id"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    candidate: Mapped[MailboxCleanupCandidate] = relationship()
+    execution_record: Mapped[ExecutionRecord | None] = relationship()

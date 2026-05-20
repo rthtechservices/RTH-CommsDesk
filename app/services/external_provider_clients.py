@@ -99,6 +99,81 @@ class GmailWriteClient:
         )
         return {"status": "applied", "message_id": result.get("id"), "operation": operation}
 
+    def apply_label_archive_batch(self, payload: dict) -> dict:
+        """Apply label/archive operations to a batch of messages from a sender/domain.
+
+        Payload keys:
+          cleanup_mode: "cleanup_label" | "cleanup_archive" | "cleanup_label_and_archive"
+          cleanup_label_name: str | None  (label to apply, only for label operations)
+          source_message_ids: list[str]   (Gmail message IDs to operate on)
+          sender_email: str               (informational)
+          cleanup_candidate_id: int       (informational)
+        """
+        service = self._build_service()
+        mode = payload.get("cleanup_mode", "cleanup_label")
+        label_name = payload.get("cleanup_label_name")
+        message_ids: list[str] = payload.get("source_message_ids") or []
+
+        if not message_ids:
+            return {"status": "skipped", "reason": "no_message_ids", "applied_count": 0}
+
+        # Resolve label ID if needed
+        label_id: str | None = None
+        if mode in {"cleanup_label", "cleanup_label_and_archive"} and label_name:
+            label_id = self._ensure_label_exists(service, label_name)
+
+        applied = 0
+        errors: list[str] = []
+        for msg_id in message_ids:
+            body: dict[str, list[str]] = {}
+            if label_id:
+                body["addLabelIds"] = [label_id]
+            if mode in {"cleanup_archive", "cleanup_label_and_archive"}:
+                body["removeLabelIds"] = ["INBOX"]
+            if not body:
+                continue
+            try:
+                _execute_google_request(
+                    service.users()
+                    .messages()
+                    .modify(userId=self.settings.gmail_account, id=msg_id, body=body),
+                    provider_label="Gmail cleanup batch",
+                    required_scopes=[GMAIL_MODIFY_SCOPE],
+                )
+                applied += 1
+            except Exception as exc:  # pragma: no cover - defensive path
+                errors.append(str(exc))
+
+        return {
+            "status": "applied" if not errors else "partial",
+            "cleanup_mode": mode,
+            "applied_count": applied,
+            "total": len(message_ids),
+            "label_name": label_name,
+            "label_id": label_id,
+            "errors": errors[:5],  # cap error list for safety
+        }
+
+    def _ensure_label_exists(self, service: Any, label_name: str) -> str:
+        """Return the Gmail label ID for label_name, creating it if necessary."""
+        result = _execute_google_request(
+            service.users().labels().list(userId=self.settings.gmail_account),
+            provider_label="Gmail list labels",
+            required_scopes=[GMAIL_MODIFY_SCOPE],
+        )
+        for label in result.get("labels", []):
+            if label.get("name", "").lower() == label_name.lower():
+                return label["id"]
+        # Create the label
+        created = _execute_google_request(
+            service.users()
+            .labels()
+            .create(userId=self.settings.gmail_account, body={"name": label_name}),
+            provider_label="Gmail create label",
+            required_scopes=[GMAIL_MODIFY_SCOPE],
+        )
+        return created["id"]
+
     def _build_service(self) -> Any:
         if self._service is not None:
             return self._service

@@ -11,6 +11,9 @@
   <h1>Bulk Triage</h1>
   <p class="help-text">What this page is for: review and label batches of messages. Triage decisions update local records only — nothing is applied to Gmail or Outlook from here.</p>
   <p class="notice">Triage is local only. No labels are applied, no emails are archived or deleted, and no Gmail API calls are made from this page.</p>
+  <div class="button-row" style="margin-bottom:12px">
+    <a class="button outline" href="/bulk-triage/mailbox-cleanup">Mailbox Cleanup (sender rollups)</a>
+  </div>
 
   {% if candidates %}
   <form method="post" action="/bulk-triage/submit">

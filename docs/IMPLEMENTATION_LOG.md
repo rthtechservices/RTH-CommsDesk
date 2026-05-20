@@ -2,6 +2,36 @@
 
 Record completed work here at the end of every phase. Newest entries should be added at the top.
 
+## 2026-05-20 — Phase 23: Mailbox Cleanup, Sender Noise Automation, and Outlook Write Planning
+
+### Summary
+- Added `MailboxCleanupCandidate` and `MailboxCleanupActionLog` ORM models to `entities.py` with `MailboxCleanupStatus` and `MailboxCleanupAction` enums.
+- Created Alembic migration `0015_mailbox_cleanup_candidates.py` with String-based status/action columns for SQLite compatibility.
+- Built `app/services/mailbox_cleanup_service.py` with full sender-level rollup analysis: protection detection (VIP, client/partner/vendor, requires-reply, human-personal), confidence scoring (0.0–0.95), label recommendation, evidence summary, and five action types.
+- All external Gmail cleanup operations go through `execution_service` (prepare → approve → confirm → execute → audit). No direct Gmail API calls from cleanup pages.
+- Extended `execution_service` with `apply_gmail_label_archive_batch` on all three provider classes (Protocol, Mock, Guarded). Updated `_execute_with_provider` to route payloads with `cleanup_mode` key to the batch handler.
+- Extended `GmailWriteClient` with `apply_label_archive_batch` and `_ensure_label_exists` methods supporting `cleanup_label`, `cleanup_archive`, and `cleanup_label_and_archive` modes.
+- Added 12 new web routes under `/bulk-triage/mailbox-cleanup/` including list view, detail view, refresh, mark-noise, mark-protected, mark-not-noise, prepare-label, prepare-archive, prepare-label-and-archive, mark-delete-candidate.
+- Added `_cleanup_label_posture()` helper for unified posture display across cleanup pages.
+- Created `app/web/templates/mailbox_cleanup.html` and `app/web/templates/mailbox_cleanup_detail.html` with execution posture bar, confidence indicators, classification mix, evidence summary, and full action log.
+- Updated dashboard to include cleanup stats (total candidates, high-confidence, protected, pending execution) in Start Here Today section and backlog_stats dict.
+- Added Mailbox Cleanup button to bulk triage page and dashboard.
+- Added 43-test suite `tests/test_mailbox_cleanup.py` covering rollup scoring, protection rules, local actions, execution preparation, feature flag gates, provider routing, dashboard stats, routes, and Outlook write disabled confirmation.
+- Outlook write remains planning-only; cleanup page includes explicit planning note.
+
+### Files changed / created
+- `app/models/entities.py` — `MailboxCleanupStatus`, `MailboxCleanupAction`, `MailboxCleanupCandidate`, `MailboxCleanupActionLog`
+- `alembic/versions/0015_mailbox_cleanup_candidates.py` — new migration
+- `app/services/mailbox_cleanup_service.py` — new file
+- `app/services/execution_service.py` — `apply_gmail_label_archive_batch` on Protocol/Mock/Guarded, `_execute_with_provider` cleanup routing
+- `app/services/external_provider_clients.py` — `apply_label_archive_batch`, `_ensure_label_exists`
+- `app/web/routes.py` — 12 new cleanup routes, `_cleanup_label_posture`, dashboard cleanup stats
+- `app/web/templates/mailbox_cleanup.html` — new
+- `app/web/templates/mailbox_cleanup_detail.html` — new
+- `app/web/templates/bulk_triage.html` — cleanup link added
+- `app/web/templates/dashboard.html` — cleanup stats in Start Here Today
+- `tests/test_mailbox_cleanup.py` — new, 43 tests
+
 ## 2026-05-20 — Phase 22: Daily Operations Hardening and Persistent Smoke Sprint
 
 ### Summary

@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% block title %}Mailbox Cleanup | RTH CommsDesk{% endblock %}
+
+{% block styles %}
+<style>
+  .cleanup-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .cleanup-table th {
+    text-align: left;
+    padding: 6px 8px;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-bottom: 2px solid var(--line);
+  }
+  .cleanup-table td {
+    padding: 8px 8px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  .cleanup-table tr:hover td {
+    background: var(--surface-2);
+  }
+  .conf-high { color: var(--bad); font-weight: 700; }
+  .conf-med  { color: var(--amber); font-weight: 600; }
+  .conf-low  { color: var(--muted); }
+  .conf-protected { color: var(--cyan); }
+  .action-btns { display: flex; gap: 5px; flex-wrap: wrap; }
+  .posture-bar {
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    margin-bottom: 12px;
+    border: 1px solid var(--line);
+  }
+  .posture-live    { background: #0d2b1a; border-color: var(--ok); }
+  .posture-dry_run { background: #2b220a; border-color: var(--amber); }
+  .posture-mock    { background: #1a1a2b; border-color: var(--cyan); }
+  .posture-blocked { background: #2b0d0d; border-color: var(--bad); }
+</style>
+{% endblock %}
+
+{% block main_class %}wide-wrap page-pad{% endblock %}
+
+{% block content %}
+  <a href="/bulk-triage">← Bulk Triage</a>
+  <div class="workflow" aria-label="Workflow">
+    <span class="done">Sync</span><span class="active">Triage</span><span>Analyze</span><span>Review</span><span>Prepare</span><span>Execute</span><span>Audit</span>
+  </div>
+  <h1>Mailbox Cleanup</h1>
+  <p class="help-text">Sender/domain rollup analysis. Identify who is filling your mailbox with crap and prepare safe bulk cleanup actions. Protected and important senders are never recommended for cleanup.</p>
+
+  <!-- Execution posture bar -->
+  <div class="posture-bar posture-{{ cleanup_label_posture.posture }}">
+    <strong>{{ cleanup_label_posture.label }}</strong> — {{ cleanup_label_posture.detail }}
+    {% if not cleanup_label_posture.can_prepare %}
+    <a class="button outline" style="margin-left:12px;font-size:11px" href="/providers">View Providers</a>
+    {% endif %}
+  </div>
+
+  {% if refresh_result is not none and refresh_result != '' %}
+  <div class="callout callout-green" style="margin-bottom:10px">
+    <span style="color:var(--ok)">&#x2713;</span> Rollups refreshed — {{ refresh_result }} sender(s) analysed.
+  </div>
+  {% endif %}
+
+  {% if action_result %}
+  <div class="callout callout-green" style="margin-bottom:10px">
+    <span style="color:var(--ok)">&#x2713;</span>
+    {% if action_result == 'marked_noise' %}Sender marked as noise locally.
+    {% elif action_result == 'marked_protected' %}Sender marked as protected.
+    {% else %}Action completed.{% endif %}
+  </div>
+  {% endif %}
+
+  {% if action_error %}
+  <div class="callout callout-red" style="margin-bottom:10px">
+    <span style="color:var(--bad)">&#x26A0;</span> Error: {{ action_error }}
+  </div>
+  {% endif %}
+
+  <!-- Stats row -->
+  <section class="panel" style="margin-bottom:12px">
+    <div class="metric-row">
+      <div class="metric metric-sm">
+        <strong class="cc-number {% if stats.total_candidates > 0 %}cc-info{% else %}cc-ok{% endif %}">{{ stats.total_candidates }}</strong>
+        <span class="muted">Total candidates</span>
+      </div>
+      <div class="metric metric-sm">
+        <strong class="cc-number {% if stats.high_confidence_count > 0 %}cc-pending{% else %}cc-ok{% endif %}">{{ stats.high_confidence_count }}</strong>
+        <span class="muted">High-confidence noise</span>
+      </div>
+      <div class="metric metric-sm">
+        <strong class="cc-number {% if stats.protected_count > 0 %}cc-info{% else %}cc-ok{% endif %}">{{ stats.protected_count }}</strong>
+        <span class="muted">Protected senders</span>
+      </div>
+      <div class="metric metric-sm">
+        <strong class="cc-number {% if stats.pending_execution_count > 0 %}cc-pending{% else %}cc-ok{% endif %}">{{ stats.pending_execution_count }}</strong>
+        <span class="muted">Prepared cleanup executions</span>
+      </div>
+    </div>
+    <div class="button-row" style="margin-top:10px">
+      <form method="post" action="/bulk-triage/mailbox-cleanup/refresh">
+        <button class="primary" type="submit">Refresh Cleanup Candidates</button>
+      </form>
+      <a class="button outline" href="/executions">All Executions</a>
+      <a class="button outline" href="/bulk-triage">Bulk Triage</a>
+    </div>
+  </section>
+
+  <!-- Filter tabs -->
+  <div class="button-row" style="margin-bottom:10px">
+    <a class="button {% if status_filter == 'pending' %}primary{% else %}outline{% endif %}" href="/bulk-triage/mailbox-cleanup?status_filter=pending">Pending</a>
+    <a class="button {% if status_filter == 'protected' %}primary{% else %}outline{% endif %}" href="/bulk-triage/mailbox-cleanup?status_filter=protected">Protected</a>
+    <a class="button {% if status_filter == 'all' %}primary{% else %}outline{% endif %}" href="/bulk-triage/mailbox-cleanup?status_filter=all">All</a>
+  </div>
+
+  {% if candidates %}
+  <section class="panel">
+    <table class="cleanup-table">
+      <thead>
+        <tr>
+          <th>Sender / Domain</th>
+          <th>Msgs</th>
+          <th>Unread</th>
+          <th>Newest</th>
+          <th>Classification mix</th>
+          <th>Confidence</th>
+          <th>Recommendation</th>
+          <th>Flags</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in candidates %}
+        {% set conf_pct = (c.confidence_score * 100) | int %}
+        {% set noise_total = c.marketing_count + c.newsletter_count + c.group_noise_count + c.system_notification_count %}
+        <tr>
+          <td>
+            <a href="/bulk-triage/mailbox-cleanup/{{ c.id }}" style="font-weight:600">
+              {{ c.sender_display_name or c.sender_email or c.sender_key }}
+            </a>
+            {% if c.sender_domain %}
+            <div class="muted" style="font-size:11px">{{ c.sender_domain }}</div>
+            {% endif %}
+          </td>
+          <td><strong>{{ c.total_message_count }}</strong></td>
+          <td>{{ c.unread_count }}</td>
+          <td class="muted" style="font-size:11px">{{ c.newest_received_at.strftime("%Y-%m-%d") if c.newest_received_at else "-" }}</td>
+          <td style="font-size:11px">
+            {% if noise_total > 0 %}
+            <span class="badge amber">{{ noise_total }} noise</span>
+            {% endif %}
+            {% if c.unsubscribe_language_count > 0 %}
+            <span class="badge amber">unsub × {{ c.unsubscribe_language_count }}</span>
+            {% endif %}
+            {% if c.requires_reply_count > 0 %}
+            <span class="badge bad">↩ {{ c.requires_reply_count }} reply req.</span>
+            {% endif %}
+            {% if c.human_personal_count > 0 %}
+            <span class="badge ok">{{ c.human_personal_count }} personal</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if c.is_protected or c.status.value == 'protected' %}
+            <span class="conf-protected">Protected</span>
+            {% elif conf_pct >= 80 %}
+            <span class="conf-high">{{ conf_pct }}%</span>
+            {% elif conf_pct >= 50 %}
+            <span class="conf-med">{{ conf_pct }}%</span>
+            {% else %}
+            <span class="conf-low">{{ conf_pct }}%</span>
+            {% endif %}
+          </td>
+          <td style="font-size:11px">
+            <span class="badge {% if c.recommended_action.value in ['label_and_archive_gmail','archive_gmail'] %}amber{% elif c.recommended_action.value == 'skip_protected_sender' %}ok{% else %}grey{% endif %}">
+              {{ c.recommended_action.value | replace("_", " ") }}
+            </span>
+            {% if c.recommended_gmail_label %}
+            <div class="muted" style="font-size:10px">{{ c.recommended_gmail_label }}</div>
+            {% endif %}
+          </td>
+          <td style="font-size:11px">
+            {% if c.existing_contact_is_vip %}<span class="badge ok">VIP</span>{% endif %}
+            {% if c.existing_contact_is_noise %}<span class="badge grey">noise</span>{% endif %}
+            {% if c.is_protected %}<span class="badge cyan">protected</span>{% endif %}
+          </td>
+          <td>
+            <div class="action-btns">
+              <a class="button outline" href="/bulk-triage/mailbox-cleanup/{{ c.id }}" style="font-size:11px;padding:3px 7px">Evidence</a>
+              {% if c.status.value not in ['protected', 'executed'] and not c.is_protected %}
+              <form method="post" action="/bulk-triage/mailbox-cleanup/{{ c.id }}/mark-noise" style="display:inline">
+                <button type="submit" class="button" style="font-size:11px;padding:3px 7px">Mark noise</button>
+              </form>
+              {% endif %}
+              {% if c.status.value != 'protected' %}
+              <form method="post" action="/bulk-triage/mailbox-cleanup/{{ c.id }}/mark-protected" style="display:inline">
+                <button type="submit" class="button outline" style="font-size:11px;padding:3px 7px">Protect</button>
+              </form>
+              {% else %}
+              <form method="post" action="/bulk-triage/mailbox-cleanup/{{ c.id }}/mark-not-noise" style="display:inline">
+                <button type="submit" class="button outline" style="font-size:11px;padding:3px 7px">Reset</button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% else %}
+  <div class="empty">
+    No cleanup candidates found for this filter. Click <strong>Refresh Cleanup Candidates</strong> to scan synced messages.
+  </div>
+  {% endif %}
+
+  <!-- Outlook write planning note -->
+  <section class="panel" style="margin-top:16px;border-left:3px solid var(--cyan)">
+    <h2 style="color:var(--cyan)">Outlook Write — Planning Only</h2>
+    <p class="muted" style="font-size:13px">
+      Outlook write actions (send, move, label, archive) are not implemented in this phase.
+      Future Graph permissions required: <code>Mail.Read</code>, <code>Mail.ReadWrite</code>,
+      <code>Mail.Send</code>, <code>offline_access</code>, <code>User.Read</code>.
+      All Outlook write behavior remains disabled until an explicit future write phase.
+    </p>
+  </section>
+{% endblock %}

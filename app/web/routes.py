@@ -123,6 +123,20 @@ from app.services.voice_learning_service import (
     voice_guidance_for_review,
     voice_memory_summary,
 )
+from app.services.mailbox_cleanup_service import (
+    action_logs_for_candidate,
+    build_cleanup_rollups,
+    cleanup_dashboard_stats,
+    get_cleanup_candidate,
+    get_cleanup_candidates,
+    mark_delete_candidate_local,
+    mark_sender_noise_local,
+    mark_sender_not_noise,
+    mark_sender_protected,
+    prepare_cleanup_archive_execution,
+    prepare_cleanup_label_and_archive_execution,
+    prepare_cleanup_label_execution,
+)
 
 web_router = APIRouter()
 templates = Jinja2Templates(directory="app/web/templates")
@@ -430,6 +444,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         .all()
     )
     automation_candidates = automation_candidates_for_dashboard(db, limit=12)
+    _cleanup_stats = cleanup_dashboard_stats(db)
     backlog_stats = {
         "attention_total": db.query(func.count(AttentionItem.id)).scalar() or 0,
         "reviewed_total": (
@@ -445,6 +460,10 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             or 0
         ),
         "ready_executions": len(ready_executions),
+        "cleanup_candidates": _cleanup_stats.total_candidates,
+        "cleanup_high_confidence": _cleanup_stats.high_confidence_count,
+        "cleanup_protected": _cleanup_stats.protected_count,
+        "cleanup_pending_execution": _cleanup_stats.pending_execution_count,
     }
     ai_status = ai_provider_status(settings)
     provider_rows = provider_status_rows(settings)
@@ -505,6 +524,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                 "provider_blockers": [
                     row for row in provider_rows if row.state in {"missing_configuration", "failed"}
                 ],
+                "cleanup_stats": _cleanup_stats,
             },
             "provider_warnings": [
                 row
@@ -795,6 +815,56 @@ def _parse_int(value: str | None) -> int | None:
         return int(value) if value else None
     except ValueError:
         return None
+
+
+def _cleanup_label_posture(settings) -> dict:
+    """Return cleanup execution posture for the UI — what is gated, what can run, etc."""
+    gmail_write = settings.gmail_write_enabled
+    label_archive = settings.gmail_label_archive_enabled
+    dry_run = settings.external_write_dry_run
+    provider = (settings.execution_provider or "mock").strip().lower()
+    is_external = provider in {"external", "live", "google"}
+
+    if not gmail_write or not label_archive:
+        missing = []
+        if not gmail_write:
+            missing.append("GMAIL_WRITE_ENABLED")
+        if not label_archive:
+            missing.append("GMAIL_LABEL_ARCHIVE_ENABLED")
+        return {
+            "posture": "blocked",
+            "label": "Blocked — feature flags disabled",
+            "detail": f"Set {', '.join(missing)} to enable Gmail cleanup execution.",
+            "can_prepare": False,
+            "can_execute_live": False,
+            "dry_run": False,
+        }
+    if not is_external:
+        return {
+            "posture": "mock",
+            "label": "Mock provider — local only",
+            "detail": "Set EXECUTION_PROVIDER=external to enable live Gmail cleanup.",
+            "can_prepare": True,
+            "can_execute_live": False,
+            "dry_run": False,
+        }
+    if dry_run:
+        return {
+            "posture": "dry_run",
+            "label": "Dry-run — Gmail capable but writes simulated",
+            "detail": "Set EXTERNAL_WRITE_DRY_RUN=false to allow live Gmail label/archive.",
+            "can_prepare": True,
+            "can_execute_live": False,
+            "dry_run": True,
+        }
+    return {
+        "posture": "live",
+        "label": "Live — Gmail label/archive capable",
+        "detail": "Execution will apply labels and archive messages in Gmail when approved and confirmed.",
+        "can_prepare": True,
+        "can_execute_live": True,
+        "dry_run": False,
+    }
 
 
 @web_router.post("/sync/gmail")
@@ -1270,6 +1340,164 @@ def web_undo_bulk_action(action_log_id: int, db: Session = Depends(get_db)):
     except ValueError:
         return RedirectResponse(url="/bulk-triage?bulk_error=undo_failed", status_code=303)
     return RedirectResponse(url="/bulk-triage", status_code=303)
+
+
+# ─── Mailbox Cleanup Routes ───────────────────────────────────────────────────
+
+
+@web_router.get("/bulk-triage/mailbox-cleanup")
+def mailbox_cleanup_index(request: Request, db: Session = Depends(get_db)):
+    settings = get_settings()
+    status_filter = request.query_params.get("status_filter", "pending")
+    candidates = get_cleanup_candidates(db, status_filter=status_filter)
+    stats = cleanup_dashboard_stats(db)
+    cleanup_label_posture = _cleanup_label_posture(settings)
+    return templates.TemplateResponse(
+        request,
+        "mailbox_cleanup.html",
+        {
+            "candidates": candidates,
+            "stats": stats,
+            "status_filter": status_filter,
+            "cleanup_label_posture": cleanup_label_posture,
+            "refresh_result": request.query_params.get("refresh_result"),
+            "action_result": request.query_params.get("action_result"),
+            "action_error": request.query_params.get("action_error"),
+        },
+    )
+
+
+@web_router.get("/bulk-triage/mailbox-cleanup/{candidate_id}")
+def mailbox_cleanup_detail(candidate_id: int, request: Request, db: Session = Depends(get_db)):
+    settings = get_settings()
+    candidate = get_cleanup_candidate(db, candidate_id)
+    if not candidate:
+        return RedirectResponse(url="/bulk-triage/mailbox-cleanup?action_error=not_found", status_code=303)
+    logs = action_logs_for_candidate(db, candidate_id)
+    cleanup_label_posture = _cleanup_label_posture(settings)
+    import json as _json
+    sample_subjects = []
+    if candidate.sample_subjects_json:
+        try:
+            sample_subjects = _json.loads(candidate.sample_subjects_json)
+        except Exception:
+            pass
+    return templates.TemplateResponse(
+        request,
+        "mailbox_cleanup_detail.html",
+        {
+            "candidate": candidate,
+            "logs": logs,
+            "sample_subjects": sample_subjects,
+            "cleanup_label_posture": cleanup_label_posture,
+            "action_result": request.query_params.get("action_result"),
+            "action_error": request.query_params.get("action_error"),
+        },
+    )
+
+
+@web_router.post("/bulk-triage/mailbox-cleanup/refresh")
+def web_refresh_cleanup_candidates(db: Session = Depends(get_db)):
+    count = build_cleanup_rollups(db)
+    return RedirectResponse(
+        url=f"/bulk-triage/mailbox-cleanup?refresh_result={count}", status_code=303
+    )
+
+
+@web_router.post("/bulk-triage/mailbox-cleanup/{candidate_id}/mark-noise")
+def web_cleanup_mark_noise(candidate_id: int, db: Session = Depends(get_db)):
+    try:
+        mark_sender_noise_local(db, candidate_id, actor="local-user")
+    except ValueError as exc:
+        return RedirectResponse(
+            url=f"/bulk-triage/mailbox-cleanup/{candidate_id}?action_error={quote(str(exc), safe='')}",
+            status_code=303,
+        )
+    return RedirectResponse(
+        url=f"/bulk-triage/mailbox-cleanup/{candidate_id}?action_result=marked_noise",
+        status_code=303,
+    )
+
+
+@web_router.post("/bulk-triage/mailbox-cleanup/{candidate_id}/mark-protected")
+def web_cleanup_mark_protected(candidate_id: int, db: Session = Depends(get_db)):
+    try:
+        mark_sender_protected(db, candidate_id, actor="local-user")
+    except ValueError as exc:
+        return RedirectResponse(
+            url=f"/bulk-triage/mailbox-cleanup/{candidate_id}?action_error={quote(str(exc), safe='')}",
+            status_code=303,
+        )
+    return RedirectResponse(
+        url=f"/bulk-triage/mailbox-cleanup/{candidate_id}?action_result=marked_protected",
+        status_code=303,
+    )
+
+
+@web_router.post("/bulk-triage/mailbox-cleanup/{candidate_id}/mark-not-noise")
+def web_cleanup_mark_not_noise(candidate_id: int, db: Session = Depends(get_db)):
+    try:
+        mark_sender_not_noise(db, candidate_id, actor="local-user")
+    except ValueError as exc:
+        return RedirectResponse(
+            url=f"/bulk-triage/mailbox-cleanup/{candidate_id}?action_error={quote(str(exc), safe='')}",
+            status_code=303,
+        )
+    return RedirectResponse(
+        url=f"/bulk-triage/mailbox-cleanup/{candidate_id}?action_result=reset_pending",
+        status_code=303,
+    )
+
+
+@web_router.post("/bulk-triage/mailbox-cleanup/{candidate_id}/prepare-label")
+def web_cleanup_prepare_label(candidate_id: int, db: Session = Depends(get_db)):
+    try:
+        record = prepare_cleanup_label_execution(db, candidate_id, actor="local-user")
+    except ValueError as exc:
+        return RedirectResponse(
+            url=f"/bulk-triage/mailbox-cleanup/{candidate_id}?action_error={quote(str(exc), safe='')}",
+            status_code=303,
+        )
+    return RedirectResponse(url=f"/executions/{record.id}", status_code=303)
+
+
+@web_router.post("/bulk-triage/mailbox-cleanup/{candidate_id}/prepare-archive")
+def web_cleanup_prepare_archive(candidate_id: int, db: Session = Depends(get_db)):
+    try:
+        record = prepare_cleanup_archive_execution(db, candidate_id, actor="local-user")
+    except ValueError as exc:
+        return RedirectResponse(
+            url=f"/bulk-triage/mailbox-cleanup/{candidate_id}?action_error={quote(str(exc), safe='')}",
+            status_code=303,
+        )
+    return RedirectResponse(url=f"/executions/{record.id}", status_code=303)
+
+
+@web_router.post("/bulk-triage/mailbox-cleanup/{candidate_id}/prepare-label-and-archive")
+def web_cleanup_prepare_label_and_archive(candidate_id: int, db: Session = Depends(get_db)):
+    try:
+        record = prepare_cleanup_label_and_archive_execution(db, candidate_id, actor="local-user")
+    except ValueError as exc:
+        return RedirectResponse(
+            url=f"/bulk-triage/mailbox-cleanup/{candidate_id}?action_error={quote(str(exc), safe='')}",
+            status_code=303,
+        )
+    return RedirectResponse(url=f"/executions/{record.id}", status_code=303)
+
+
+@web_router.post("/bulk-triage/mailbox-cleanup/{candidate_id}/mark-delete-candidate")
+def web_cleanup_mark_delete_candidate(candidate_id: int, db: Session = Depends(get_db)):
+    try:
+        mark_delete_candidate_local(db, candidate_id, actor="local-user")
+    except ValueError as exc:
+        return RedirectResponse(
+            url=f"/bulk-triage/mailbox-cleanup/{candidate_id}?action_error={quote(str(exc), safe='')}",
+            status_code=303,
+        )
+    return RedirectResponse(
+        url=f"/bulk-triage/mailbox-cleanup/{candidate_id}?action_result=marked_delete_candidate",
+        status_code=303,
+    )
 
 
 @web_router.post("/voice-calibration/run-learning")
