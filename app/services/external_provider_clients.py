@@ -113,6 +113,17 @@ class GmailWriteClient:
         mode = payload.get("cleanup_mode", "cleanup_label")
         label_name = payload.get("cleanup_label_name")
         message_ids: list[str] = payload.get("source_message_ids") or []
+        valid_modes = {"cleanup_label", "cleanup_archive", "cleanup_label_and_archive"}
+
+        if mode not in valid_modes:
+            raise ExternalProviderConfigurationError(
+                f"Unsupported cleanup mode: {mode!r}. Expected one of {sorted(valid_modes)}"
+            )
+
+        if mode in {"cleanup_label", "cleanup_label_and_archive"} and not label_name:
+            raise ExternalProviderConfigurationError(
+                "cleanup_label_name is required for label and label+archive cleanup modes"
+            )
 
         if not message_ids:
             return {"status": "skipped", "reason": "no_message_ids", "applied_count": 0}

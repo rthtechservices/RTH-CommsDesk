@@ -84,24 +84,16 @@ Recent live smoke lessons to address:
 | 20 | Assistant Intelligence, Voice, and Calendar Reasoning Quality | Completed |
 | 21 | Product Acceleration Sprint | Completed |
 | 22 | Daily Operations Hardening and Persistent Smoke Sprint | Completed |
+| 23 | Mailbox Cleanup, Sender Noise Automation, and Outlook Write Planning | Completed |
+| 24 | Mailbox Cleanup Live Hardening, Real-Inbox Smoke, and Operator Trust Pass | Completed |
 
 ## Active phase
 
-## Phase 22 — Daily Operations Hardening and Persistent Smoke Sprint
+No active implementation phase. Phase 24 is complete and ready for human review.
 
-Primary outcome: make the local app practical to operate every day with persisted smoke history, one dashboard starting lane, local backups, exact reauth guidance, and Windows scripts.
+Most recent phase file:
 
-Completed scope:
-
-- Persisted `OperationalSmokeRun` and `OperationalSmokeCheck` rows with sanitized operational metadata.
-- Added a safe smoke runner and API endpoints for run/list/detail.
-- Enhanced `/operational-smoke` with Run Smoke Now, latest status, recent history, and run detail.
-- Added `/admin` local backup creation and backup metadata.
-- Added `scripts/start-commsdesk.ps1`, `scripts/smoke-commsdesk.ps1`, `scripts/backup-commsdesk.ps1`, and `scripts/reauth-commsdesk.ps1`.
-- Added a dashboard Start Here Today lane.
-- Preserved Gmail/Calendar gates and kept Outlook send, Outlook Calendar write, and Teams disabled/not implemented.
-
-Assigned file: `docs/phases/PHASE_22_DAILY_OPERATIONS_HARDENING.md`.
+- `docs/phases/PHASE_24_MAILBOX_CLEANUP_LIVE_HARDENING.md`
 
 ## Later acceleration candidates
 

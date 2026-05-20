@@ -111,17 +111,37 @@ def test_google_calendar_test_execution_does_not_require_email_allowlist():
     assert readiness.target == "primary"
 
 
-def test_outlook_and_teams_actions_remain_unavailable():
+def test_gmail_cleanup_is_blocked_when_label_archive_flag_disabled():
     readiness = readiness_for_execution(
-        _record(ExecutionActionType.APPLY_GMAIL_LABEL_ARCHIVE, '{"to":"test@example.com"}'),
+        _record(ExecutionActionType.APPLY_GMAIL_LABEL_ARCHIVE, '{"cleanup_mode":"cleanup_label","sender_email":"noise@example.com"}'),
         _settings(
             operational_test_mode=True,
-            execution_test_email_allowlist="test@example.com",
+            gmail_write_enabled=True,
+            gmail_label_archive_enabled=False,
         ),
     )
 
     assert readiness.allowed is False
-    assert "unsupported provider/action" in (readiness.blocked_reason or "")
+    assert "GMAIL_LABEL_ARCHIVE_ENABLED" in (readiness.blocked_reason or "")
+
+
+def test_gmail_cleanup_can_proceed_in_dry_run_with_required_flags():
+    readiness = readiness_for_execution(
+        _record(ExecutionActionType.APPLY_GMAIL_LABEL_ARCHIVE, '{"cleanup_mode":"cleanup_label","sender_email":"noise@example.com"}'),
+        _settings(
+            operational_test_mode=True,
+            gmail_write_enabled=True,
+            gmail_label_archive_enabled=True,
+            external_write_dry_run=True,
+        ),
+    )
+
+    assert readiness.allowed is True
+    assert readiness.target_kind == "sender"
+    assert readiness.target == "noise@example.com"
+    assert readiness.next_action == (
+        "Approve and confirm to record a dry-run; no external Gmail label/archive change will occur."
+    )
 
 
 def _settings(**overrides) -> Settings:
@@ -131,6 +151,7 @@ def _settings(**overrides) -> Settings:
         "gmail_write_enabled": False,
         "gmail_draft_create_enabled": False,
         "gmail_send_enabled": False,
+        "gmail_label_archive_enabled": False,
         "google_calendar_write_enabled": False,
     }
     base.update(overrides)

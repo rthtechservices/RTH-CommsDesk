@@ -204,6 +204,7 @@ From the repository root:
 ```powershell
 .\scripts\start-commsdesk.ps1
 .\scripts\smoke-commsdesk.ps1
+.\scripts\smoke-mailbox-cleanup.ps1
 .\scripts\backup-commsdesk.ps1
 .\scripts\reauth-commsdesk.ps1 -Gmail
 .\scripts\reauth-commsdesk.ps1 -GoogleCalendar

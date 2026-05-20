@@ -5,6 +5,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from time import perf_counter
 from typing import Any
 
 from alembic.config import Config
@@ -33,6 +34,8 @@ from app.services.backup_service import latest_backup_metadata, sqlite_database_
 from app.services.execution_test_policy import readiness_for_payload
 from app.services.live_ai_client import ai_provider_status, test_live_ai_provider
 from app.services.provider_status_service import provider_status_rows
+from app.services.mailbox_cleanup_service import cleanup_candidate_summary
+from app.services.operational_status_service import cleanup_execution_posture
 from app.models.entities import ExecutionActionType
 
 ROUTE_SMOKE_PATHS = (
@@ -43,6 +46,7 @@ ROUTE_SMOKE_PATHS = (
     "/review-packages",
     "/executions",
     "/bulk-triage",
+    "/bulk-triage/mailbox-cleanup",
     "/contacts",
     "/drafts",
     "/voice-calibration",
@@ -199,8 +203,98 @@ def _build_checks(db: Session, settings: Settings) -> list[SmokeCheckInput]:
     checks.extend(_backup_checks())
     checks.extend(_sync_checks(db, settings, row_by_key))
     checks.extend(_readiness_checks(settings))
+    checks.extend(_mailbox_cleanup_checks(db, settings, row_by_key))
     checks.extend(_microsoft_boundary_checks(row_by_key))
     return checks
+
+
+def _mailbox_cleanup_checks(db: Session, settings: Settings, row_by_key: dict) -> list[SmokeCheckInput]:
+    started = perf_counter()
+    summary = cleanup_candidate_summary(db)
+    query_elapsed_ms = round((perf_counter() - started) * 1000, 2)
+
+    try:
+        table_names = set(inspect(engine).get_table_names())
+    except Exception:
+        table_names = set()
+
+    required_tables = {
+        "mailbox_cleanup_candidates",
+        "mailbox_cleanup_action_logs",
+    }
+    missing_tables = sorted(required_tables - table_names)
+    tables_ok = not missing_tables
+
+    posture = cleanup_execution_posture(settings)
+    cleanup_provider_state = row_by_key["gmail_label_archive"].state
+    posture_status = (
+        OperationalSmokeCheckStatus.PASSED
+        if posture["posture"] in {"dry_run", "live", "mock"}
+        else OperationalSmokeCheckStatus.WARNING
+    )
+
+    return [
+        SmokeCheckInput(
+            check_key="mailbox_cleanup_tables",
+            label="Mailbox cleanup table readiness",
+            category="mailbox_cleanup",
+            status=OperationalSmokeCheckStatus.PASSED if tables_ok else OperationalSmokeCheckStatus.FAILED,
+            detail=(
+                "Mailbox cleanup tables are present."
+                if tables_ok
+                else f"Missing mailbox cleanup tables: {', '.join(missing_tables)}"
+            ),
+            next_action=(
+                "Ready."
+                if tables_ok
+                else "Run python -m alembic upgrade head to apply mailbox cleanup migrations."
+            ),
+            sanitized_payload={
+                "required_tables": sorted(required_tables),
+                "missing_tables": missing_tables,
+            },
+        ),
+        SmokeCheckInput(
+            check_key="mailbox_cleanup_counts",
+            label="Mailbox cleanup candidate count readiness",
+            category="mailbox_cleanup",
+            status=(
+                OperationalSmokeCheckStatus.PASSED
+                if query_elapsed_ms <= 250
+                else OperationalSmokeCheckStatus.WARNING
+            ),
+            detail="Mailbox cleanup sender-rollup counts are queryable without scanning messages.",
+            next_action=(
+                "Ready."
+                if query_elapsed_ms <= 250
+                else "Investigate mailbox cleanup indexes if count queries become slow."
+            ),
+            sanitized_payload={
+                "query_elapsed_ms": query_elapsed_ms,
+                "total_cleanup_candidates": summary.total_cleanup_candidates,
+                "high_confidence_candidates": summary.high_confidence_candidates,
+                "protected_candidates": summary.protected_candidates,
+                "gmail_label_capable_candidates": summary.gmail_label_capable_candidates,
+                "gmail_archive_capable_candidates": summary.gmail_archive_capable_candidates,
+                "delete_candidates": summary.delete_candidates,
+                "blocked_candidates": summary.blocked_candidates,
+            },
+        ),
+        SmokeCheckInput(
+            check_key="mailbox_cleanup_execution_posture",
+            label="Mailbox cleanup execution posture",
+            category="mailbox_cleanup",
+            status=posture_status,
+            detail=(
+                f"Cleanup posture: {posture['label']}. Gmail label/archive provider state: {cleanup_provider_state}."
+            ),
+            next_action=str(posture["detail"]),
+            sanitized_payload={
+                "execution_posture": posture,
+                "gmail_label_archive_provider_state": cleanup_provider_state,
+            },
+        ),
+    ]
 
 
 def _route_checks() -> list[SmokeCheckInput]:

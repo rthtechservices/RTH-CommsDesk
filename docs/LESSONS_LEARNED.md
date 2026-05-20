@@ -129,6 +129,15 @@ python -m pytest -q
 - Log bulk actions with reversible snapshots so "undo where practical" is explicit and auditable.
 - Keep destructive recommendations (archive/delete/unsubscribe) in pending local candidate state until explicit user approval and execution flow exists.
 
+## Mailbox cleanup hardening lessons
+
+- Mailbox cleanup confidence should reward repeated low-value sender evidence, not one-off noisy messages.
+- Protect cleanup aggressively when any client-work, requires-reply, VIP/professional relationship, or recent human-personal signals exist.
+- Keep delete conservative by default: make it review-first and require very high confidence plus repeated volume before even marking a sender as a delete candidate.
+- Cleanup pages should never call Gmail APIs directly. Always route through execution records with prepare/approve/confirm/audit.
+- Cleanup batch payloads must fail closed on unsupported `cleanup_mode` values or missing required label names to avoid silent no-op/success behavior.
+- Operational smoke for cleanup should stay lightweight (table/check/count readiness and posture), not trigger mailbox scans.
+
 ## Calendar availability lessons
 
 - Keep calendar availability provider-neutral. Use the mock provider for deterministic local tests and development defaults.

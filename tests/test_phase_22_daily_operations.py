@@ -38,6 +38,10 @@ def test_smoke_runner_persists_sanitized_checks_without_external_writes(db_sessi
     assert "access_token" not in serialized
     assert "refresh_token" not in serialized
     assert "client_secret" not in serialized
+    check_keys = {check.check_key for check in run.checks}
+    assert "mailbox_cleanup_tables" in check_keys
+    assert "mailbox_cleanup_counts" in check_keys
+    assert "mailbox_cleanup_execution_posture" in check_keys
 
 
 def test_api_smoke_run_endpoints_persist_and_return_detail(db_session):
@@ -114,6 +118,14 @@ def test_reauth_script_documents_expected_token_files_and_scopes():
     assert "https://www.googleapis.com/auth/calendar.events" in text
     assert "User.Read Mail.Read offline_access" in text
     assert "Client secrets and .env were not deleted." in text
+
+
+def test_mailbox_cleanup_smoke_script_has_safe_real_inbox_flow():
+    text = Path("scripts/smoke-mailbox-cleanup.ps1").read_text(encoding="utf-8")
+    assert "/api/sync/gmail/status" in text
+    assert "/api/mailbox-cleanup/refresh" in text
+    assert "/api/mailbox-cleanup/summary" in text
+    assert "does not perform external Gmail cleanup writes" in text
 
 
 def _client_get(db_session, path: str):

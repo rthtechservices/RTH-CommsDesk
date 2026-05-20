@@ -186,12 +186,33 @@
     </section>
 
     <section class="panel">
+      <h2>Mailbox cleanup readiness</h2>
+      <div class="facts">
+        <div>
+          <strong class="label">Execution posture</strong>
+          <span class="badge {% if smoke_status.mailbox_cleanup_execution_posture.posture == 'live' %}ok{% elif smoke_status.mailbox_cleanup_execution_posture.posture in ['dry_run','mock'] %}amber{% else %}bad{% endif %}">
+            {{ smoke_status.mailbox_cleanup_execution_posture.label }}
+          </span>
+        </div>
+        <div><strong class="label">Detail</strong><span class="muted">{{ smoke_status.mailbox_cleanup_execution_posture.detail }}</span></div>
+        <div><strong class="label">Total cleanup candidates</strong><span class="muted">{{ smoke_status.mailbox_cleanup_summary.total_cleanup_candidates }}</span></div>
+        <div><strong class="label">High-confidence</strong><span class="muted">{{ smoke_status.mailbox_cleanup_summary.high_confidence_candidates }}</span></div>
+        <div><strong class="label">Protected</strong><span class="muted">{{ smoke_status.mailbox_cleanup_summary.protected_candidates }}</span></div>
+        <div><strong class="label">Gmail label-capable</strong><span class="muted">{{ smoke_status.mailbox_cleanup_summary.gmail_label_capable_candidates }}</span></div>
+        <div><strong class="label">Gmail archive-capable</strong><span class="muted">{{ smoke_status.mailbox_cleanup_summary.gmail_archive_capable_candidates }}</span></div>
+        <div><strong class="label">Delete candidates</strong><span class="muted">{{ smoke_status.mailbox_cleanup_summary.delete_candidates }}</span></div>
+        <div><strong class="label">Blocked candidates</strong><span class="muted">{{ smoke_status.mailbox_cleanup_summary.blocked_candidates }}</span></div>
+      </div>
+      <p class="muted" style="font-size:12px;margin-top:8px">Readiness checks here are lightweight and do not trigger mailbox scans.</p>
+    </section>
+
+    <section class="panel">
       <h2>Phase 19 Test Execution Readiness</h2>
       <div style="display:grid;gap:8px">
         {% for key, row in smoke_status.test_execution_readiness.items() %}
         <div class="callout {% if row.allowed and row.dry_run %}callout-amber{% elif row.allowed %}callout-green{% else %}callout-red{% endif %}">
           <div class="callout-title">
-            {% if key == "gmail_draft" %}Gmail draft test execution{% elif key == "gmail_send" %}Gmail send test execution{% else %}Google Calendar test execution{% endif %}
+            {% if key == "gmail_draft" %}Gmail draft test execution{% elif key == "gmail_send" %}Gmail send test execution{% elif key == "gmail_cleanup" %}Gmail cleanup test execution{% else %}Google Calendar test execution{% endif %}
           </div>
           <div class="muted" style="font-size:13px">
             {% if row.allowed and row.dry_run %}

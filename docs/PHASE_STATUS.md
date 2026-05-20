@@ -28,7 +28,8 @@
 | 21 | Product Acceleration Sprint | ✅ Completed | 2026-05-20 |
 | 22 | Daily Operations Hardening and Persistent Smoke Sprint | ✅ Completed | 2026-05-20 |
 | 23 | Mailbox Cleanup, Sender Noise Automation, and Outlook Write Planning | ✅ Completed | 2026-05-20 |
+| 24 | Mailbox Cleanup Live Hardening, Real-Inbox Smoke, and Operator Trust Pass | ✅ Completed | 2026-05-19 |
 
 ## Current recommendation
 
-Stop for human review of Phase 23. Use the Start Here Today lane, run Mailbox Cleanup candidate refresh on a real synced inbox, review sender rollups, and verify that feature flag gates work as expected before enabling live Gmail cleanup execution.
+Stop for human review of Phase 24. Use `scripts/smoke-mailbox-cleanup.ps1` against a real synced inbox, validate mailbox cleanup readiness on `/operational-smoke`, and verify Gmail cleanup actions remain gated through execution approvals.

@@ -14,16 +14,13 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.entities import (
-    AutomationCandidate,
-    CandidateStatus,
-    Contact,
     ExecutionActionType,
     ExecutionRecord,
     ExecutionStatus,
@@ -33,7 +30,6 @@ from app.models.entities import (
     MailboxCleanupStatus,
     Message,
     MessageClassification,
-    ProposedActionType,
     utcnow,
 )
 from app.services.contact_service import find_contact_by_sender_email, mark_contact_noise
@@ -67,6 +63,11 @@ _UNSUBSCRIBE_RE = re.compile(
     re.IGNORECASE,
 )
 
+RECENT_PERSONAL_DAYS = 120
+HIGH_CONFIDENCE_THRESHOLD = Decimal("0.8000")
+DELETE_CANDIDATE_MIN_CONFIDENCE = Decimal("0.8500")
+DELETE_CANDIDATE_MIN_MESSAGES = 5
+
 
 # ─── public dataclasses ───────────────────────────────────────────────────────
 
@@ -77,6 +78,17 @@ class CleanupDashboardStats:
     high_confidence_count: int
     protected_count: int
     pending_execution_count: int
+
+
+@dataclass(frozen=True)
+class CleanupCandidateSummary:
+    total_cleanup_candidates: int
+    high_confidence_candidates: int
+    protected_candidates: int
+    gmail_label_capable_candidates: int
+    gmail_archive_capable_candidates: int
+    delete_candidates: int
+    blocked_candidates: int
 
 
 # ─── public functions ─────────────────────────────────────────────────────────
@@ -90,7 +102,10 @@ def build_cleanup_rollups(db: Session) -> int:
     rows = (
         db.query(Message, MessageClassification)
         .join(MessageClassification, MessageClassification.message_id == Message.id)
-        .filter(Message.sender_email.is_not(None))
+        .filter(
+            Message.sender_email.is_not(None),
+            Message.source_type == "gmail",
+        )
         .order_by(Message.sender_email, Message.received_at)
         .all()
     )
@@ -357,6 +372,16 @@ def mark_delete_candidate_local(
     """Mark a candidate as a delete candidate (local/review only — no Gmail mutation)."""
     candidate = _require_candidate(db, candidate_id)
     _require_not_protected(candidate)
+    if (candidate.confidence_score or Decimal("0.0")) < DELETE_CANDIDATE_MIN_CONFIDENCE:
+        raise ValueError(
+            "Delete candidate is blocked until confidence is very high. "
+            "Use label/archive review first."
+        )
+    if candidate.total_message_count < DELETE_CANDIDATE_MIN_MESSAGES:
+        raise ValueError(
+            "Delete candidate is blocked for low-volume senders. "
+            "Require repeated low-value evidence first."
+        )
     previous_status = candidate.status.value
     candidate.recommended_action = MailboxCleanupAction.PREPARE_DELETE_CANDIDATE
     candidate.recommended_gmail_label = PREFERRED_CLEANUP_LABELS["delete_candidate"]
@@ -385,7 +410,7 @@ def cleanup_dashboard_stats(db: Session) -> CleanupDashboardStats:
     high_conf = (
         db.query(func.count(MailboxCleanupCandidate.id))
         .filter(
-            MailboxCleanupCandidate.confidence_score >= Decimal("0.7"),
+            MailboxCleanupCandidate.confidence_score >= HIGH_CONFIDENCE_THRESHOLD,
             MailboxCleanupCandidate.status == MailboxCleanupStatus.PENDING,
             MailboxCleanupCandidate.is_protected.is_(False),
         )
@@ -412,6 +437,61 @@ def cleanup_dashboard_stats(db: Session) -> CleanupDashboardStats:
         high_confidence_count=high_conf,
         protected_count=protected,
         pending_execution_count=pending_exec,
+    )
+
+
+def cleanup_candidate_summary(db: Session) -> CleanupCandidateSummary:
+    """Return sender-rollup counts used by smoke scripts and readiness checks."""
+    candidates = db.query(MailboxCleanupCandidate).all()
+    total = len(candidates)
+    blocked = [
+        c
+        for c in candidates
+        if c.is_protected or c.status in {MailboxCleanupStatus.PROTECTED, MailboxCleanupStatus.FAILED}
+    ]
+    actionable = [c for c in candidates if c not in blocked]
+    return CleanupCandidateSummary(
+        total_cleanup_candidates=total,
+        high_confidence_candidates=len(
+            [
+                c
+                for c in actionable
+                if (c.confidence_score or Decimal("0.0")) >= HIGH_CONFIDENCE_THRESHOLD
+            ]
+        ),
+        protected_candidates=len(
+            [c for c in candidates if c.status == MailboxCleanupStatus.PROTECTED]
+        ),
+        gmail_label_capable_candidates=len(
+            [
+                c
+                for c in actionable
+                if c.recommended_action
+                in {
+                    MailboxCleanupAction.APPLY_GMAIL_LABEL,
+                    MailboxCleanupAction.LABEL_AND_ARCHIVE_GMAIL,
+                }
+            ]
+        ),
+        gmail_archive_capable_candidates=len(
+            [
+                c
+                for c in actionable
+                if c.recommended_action
+                in {
+                    MailboxCleanupAction.ARCHIVE_GMAIL,
+                    MailboxCleanupAction.LABEL_AND_ARCHIVE_GMAIL,
+                }
+            ]
+        ),
+        delete_candidates=len(
+            [
+                c
+                for c in candidates
+                if c.recommended_action == MailboxCleanupAction.PREPARE_DELETE_CANDIDATE
+            ]
+        ),
+        blocked_candidates=len(blocked),
     )
 
 
@@ -455,6 +535,24 @@ def _build_candidate_from_items(
     system_notif = sum(1 for c in classifications if c.is_system_notification)
     requires_reply = sum(1 for c in classifications if c.requires_reply)
     human_personal = sum(1 for c in classifications if c.is_human_personal)
+    client_work = sum(1 for c in classifications if c.is_client_work)
+
+    recent_cutoff = datetime.now(UTC) - timedelta(days=RECENT_PERSONAL_DAYS)
+
+    def _as_utc(value: datetime | None) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            return value.replace(tzinfo=UTC)
+        return value
+
+    recent_human_personal = sum(
+        1
+        for m, c in items
+        if c.is_human_personal
+        and (received_at := _as_utc(m.received_at))
+        and received_at >= recent_cutoff
+    )
 
     unsubscribe_count = 0
     for m in messages:
@@ -475,8 +573,9 @@ def _build_candidate_from_items(
     is_protected = (
         is_vip
         or is_protected_relationship
+        or client_work > 0
         or requires_reply > 0
-        or human_personal > 0
+        or recent_human_personal > 0
     )
 
     # Scoring
@@ -489,6 +588,8 @@ def _build_candidate_from_items(
         unsubscribe_count=unsubscribe_count,
         requires_reply=requires_reply,
         human_personal=human_personal,
+        client_work=client_work,
+        recent_human_personal=recent_human_personal,
         is_vip=is_vip,
         is_protected_relationship=is_protected_relationship,
         is_noise_contact=is_noise_contact,
@@ -516,6 +617,8 @@ def _build_candidate_from_items(
         unsubscribe_count=unsubscribe_count,
         requires_reply=requires_reply,
         human_personal=human_personal,
+        client_work=client_work,
+        recent_human_personal=recent_human_personal,
         is_vip=is_vip,
         is_protected_relationship=is_protected_relationship,
         is_noise_contact=is_noise_contact,
@@ -599,13 +702,21 @@ def _score_candidate(
     unsubscribe_count: int,
     requires_reply: int,
     human_personal: int,
+    client_work: int,
+    recent_human_personal: int,
     is_vip: bool,
     is_protected_relationship: bool,
     is_noise_contact: bool,
 ) -> tuple[Decimal, MailboxCleanupAction, str | None]:
     """Return (confidence_score, recommended_action, gmail_label)."""
     # Hard blockers
-    if is_vip or is_protected_relationship or requires_reply > 0 or human_personal > 0:
+    if (
+        is_vip
+        or is_protected_relationship
+        or client_work > 0
+        or requires_reply > 0
+        or recent_human_personal > 0
+    ):
         return Decimal("0.0"), MailboxCleanupAction.SKIP_PROTECTED_SENDER, None
 
     if total < 2:
@@ -616,7 +727,7 @@ def _score_candidate(
 
     # Already marked noise
     if is_noise_contact:
-        if unsubscribe_count >= 1 and noise_ratio >= 0.6:
+        if total >= 5 and unsubscribe_count >= 1 and noise_ratio >= 0.75:
             return (
                 Decimal("0.9500"),
                 MailboxCleanupAction.LABEL_AND_ARCHIVE_GMAIL,
@@ -628,28 +739,29 @@ def _score_candidate(
             _pick_label(marketing, newsletter, group_noise, system_notif),
         )
 
-    # High confidence: mostly noise + unsubscribe language + repeat sender
-    if noise_ratio >= 0.8 and unsubscribe_count >= 2 and total >= 3:
+    # High confidence requires repeated low-value evidence, not one-off noise.
+    if total >= 6 and noise_ratio >= 0.85 and unsubscribe_count >= 2:
         return (
-            Decimal("0.9200"),
+            Decimal("0.9300"),
             MailboxCleanupAction.LABEL_AND_ARCHIVE_GMAIL,
             _pick_label(marketing, newsletter, group_noise, system_notif),
         )
-    if noise_ratio >= 0.75 and total >= 3:
+    if total >= 5 and noise_ratio >= 0.75 and unsubscribe_count >= 1:
         return (
-            Decimal("0.8000"),
+            Decimal("0.8200"),
             MailboxCleanupAction.LABEL_AND_ARCHIVE_GMAIL,
             _pick_label(marketing, newsletter, group_noise, system_notif),
         )
-    if noise_ratio >= 0.6 and unsubscribe_count >= 1:
+    # Moderate confidence prefers label-only.
+    if total >= 3 and noise_ratio >= 0.65:
         return (
-            Decimal("0.7200"),
+            Decimal("0.7400"),
             MailboxCleanupAction.APPLY_GMAIL_LABEL,
             _pick_label(marketing, newsletter, group_noise, system_notif),
         )
-    if noise_ratio >= 0.5 and total >= 2:
+    if total >= 2 and noise_ratio >= 0.5:
         return (
-            Decimal("0.5500"),
+            Decimal("0.5800"),
             MailboxCleanupAction.APPLY_GMAIL_LABEL,
             _pick_label(marketing, newsletter, group_noise, system_notif),
         )
@@ -682,6 +794,8 @@ def _build_evidence_summary(
     unsubscribe_count: int,
     requires_reply: int,
     human_personal: int,
+    client_work: int,
+    recent_human_personal: int,
     is_vip: bool,
     is_protected_relationship: bool,
     is_noise_contact: bool,
@@ -707,10 +821,14 @@ def _build_evidence_summary(
         blockers.append("VIP contact")
     if is_protected_relationship:
         blockers.append("protected relationship type")
+    if client_work:
+        blockers.append(f"{client_work} client-work messages")
     if requires_reply:
         blockers.append(f"{requires_reply} messages require reply")
-    if human_personal:
-        blockers.append(f"{human_personal} human-personal messages")
+    if recent_human_personal:
+        blockers.append(f"{recent_human_personal} recent human-personal messages")
+    elif human_personal:
+        parts.append(f"historical human-personal messages: {human_personal}")
     if is_noise_contact:
         parts.append("contact already marked noise")
     if blockers:
@@ -731,7 +849,7 @@ def _get_source_message_ids(db: Session, candidate: MailboxCleanupCandidate) -> 
         db.query(Message.source_message_id)
         .filter(
             Message.source_type == "gmail",
-            Message.sender_email == candidate.sender_email,
+            func.lower(Message.sender_email) == (candidate.sender_email or "").lower(),
             Message.source_message_id.is_not(None),
         )
         .order_by(Message.received_at.desc())

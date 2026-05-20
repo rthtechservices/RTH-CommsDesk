@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -259,6 +259,7 @@ class TestProtectionRules:
                 sender_email="friend@personal.com",
                 newsletter=(i > 0),
                 human_personal=(i == 0),
+                received_at=(datetime.now(UTC) - timedelta(days=2)) if i == 0 else datetime.now(UTC),
             )
         db_session.commit()
         build_cleanup_rollups(db_session)
@@ -334,10 +335,29 @@ class TestLocalActions:
         assert updated.is_protected is False
 
     def test_mark_delete_candidate_local_sets_label(self, db_session):
-        c = self._make_candidate(db_session)
+        for i in range(7):
+            _msg(
+                db_session,
+                sender_email="delete-likely@example.com",
+                subject=f"Newsletter {i}",
+                snippet="unsubscribe manage preferences",
+                newsletter=True,
+            )
+        db_session.commit()
+        build_cleanup_rollups(db_session)
+        c = next(
+            x
+            for x in get_cleanup_candidates(db_session, status_filter="pending")
+            if x.sender_email == "delete-likely@example.com"
+        )
         updated = mark_delete_candidate_local(db_session, c.id, actor="test-user")
         assert updated.recommended_action == MailboxCleanupAction.PREPARE_DELETE_CANDIDATE
         assert updated.recommended_gmail_label == PREFERRED_CLEANUP_LABELS["delete_candidate"]
+
+    def test_mark_delete_candidate_local_rejects_low_confidence_sender(self, db_session):
+        c = self._make_candidate(db_session)
+        with pytest.raises(ValueError):
+            mark_delete_candidate_local(db_session, c.id, actor="test-user")
 
     def test_action_log_recorded(self, db_session):
         c = self._make_candidate(db_session)
@@ -521,6 +541,17 @@ class TestExecuteWithProviderRouting:
         )
         assert len(calls) == 1
 
+    def test_invalid_cleanup_mode_fails_closed(self):
+        from app.models.entities import ExecutionActionType
+        from app.services.execution_service import MockExecutionProvider, _execute_with_provider
+
+        with pytest.raises(ValueError):
+            _execute_with_provider(
+                MockExecutionProvider(),
+                ExecutionActionType.APPLY_GMAIL_LABEL_ARCHIVE,
+                {"cleanup_mode": "archive_all_now"},
+            )
+
 
 # ─── dashboard stats ──────────────────────────────────────────────────────────
 
@@ -596,6 +627,16 @@ class TestMailboxCleanupRoutes:
         r = client.get("/")
         assert r.status_code == 200
         assert b"Mailbox Cleanup" in r.content or b"mailbox-cleanup" in r.content.lower()
+
+    def test_mailbox_cleanup_api_refresh_and_summary_endpoints(self):
+        client = _test_client()
+        refresh = client.post("/api/mailbox-cleanup/refresh")
+        summary = client.get("/api/mailbox-cleanup/summary")
+        assert refresh.status_code == 200
+        assert summary.status_code == 200
+        assert "summary" in refresh.json()
+        assert "execution_posture" in refresh.json()
+        assert "summary" in summary.json()
 
 
 # ─── Outlook write remains disabled ──────────────────────────────────────────

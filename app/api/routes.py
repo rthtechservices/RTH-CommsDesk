@@ -26,6 +26,10 @@ from app.services.bulk_triage_service import (
     refresh_automation_candidates,
     undo_bulk_action,
 )
+from app.services.mailbox_cleanup_service import (
+    build_cleanup_rollups,
+    cleanup_candidate_summary,
+)
 from app.services.contact_service import mark_contact_noise, mark_contact_vip, reset_contact_status
 from app.services.draft_service import create_draft_reply
 from app.services.feedback_service import apply_message_correction
@@ -63,6 +67,7 @@ from app.services.operational_smoke_runner import (
     smoke_run_detail,
     smoke_run_to_dict,
 )
+from app.services.operational_status_service import cleanup_execution_posture
 from app.services.voice_learning_service import (
     run_sent_mail_learning,
     update_vip_candidate_status,
@@ -206,6 +211,44 @@ def api_operational_smoke_run_detail(run_id: int, db: Session = Depends(get_db))
     if not run:
         raise HTTPException(status_code=404, detail="Operational smoke run not found")
     return smoke_run_to_dict(run, include_checks=True)
+
+
+@api_router.post("/mailbox-cleanup/refresh")
+def api_refresh_mailbox_cleanup_candidates(db: Session = Depends(get_db)) -> dict:
+    updated = build_cleanup_rollups(db)
+    summary = cleanup_candidate_summary(db)
+    return {
+        "updated_candidates": updated,
+        "summary": {
+            "total_cleanup_candidates": summary.total_cleanup_candidates,
+            "high_confidence_candidates": summary.high_confidence_candidates,
+            "protected_candidates": summary.protected_candidates,
+            "gmail_label_capable_candidates": summary.gmail_label_capable_candidates,
+            "gmail_archive_capable_candidates": summary.gmail_archive_capable_candidates,
+            "delete_candidates": summary.delete_candidates,
+            "blocked_candidates": summary.blocked_candidates,
+        },
+        "execution_posture": cleanup_execution_posture(get_settings()),
+        "external_write_performed": False,
+    }
+
+
+@api_router.get("/mailbox-cleanup/summary")
+def api_mailbox_cleanup_summary(db: Session = Depends(get_db)) -> dict:
+    summary = cleanup_candidate_summary(db)
+    return {
+        "summary": {
+            "total_cleanup_candidates": summary.total_cleanup_candidates,
+            "high_confidence_candidates": summary.high_confidence_candidates,
+            "protected_candidates": summary.protected_candidates,
+            "gmail_label_capable_candidates": summary.gmail_label_capable_candidates,
+            "gmail_archive_capable_candidates": summary.gmail_archive_capable_candidates,
+            "delete_candidates": summary.delete_candidates,
+            "blocked_candidates": summary.blocked_candidates,
+        },
+        "execution_posture": cleanup_execution_posture(get_settings()),
+        "external_write_performed": False,
+    }
 
 
 @api_router.get("/sync/gmail/status")

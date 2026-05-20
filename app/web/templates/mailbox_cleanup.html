@@ -53,7 +53,14 @@
     <span class="done">Sync</span><span class="active">Triage</span><span>Analyze</span><span>Review</span><span>Prepare</span><span>Execute</span><span>Audit</span>
   </div>
   <h1>Mailbox Cleanup</h1>
-  <p class="help-text">Sender/domain rollup analysis. Identify who is filling your mailbox with crap and prepare safe bulk cleanup actions. Protected and important senders are never recommended for cleanup.</p>
+  <p class="help-text">Sender/domain rollup analysis. Identify repeated low-value senders, protect real relationships, and prepare cleanup through execution approvals only.</p>
+
+  <div class="callout callout-grey" style="margin-bottom:12px">
+    <div class="callout-title">Safety guardrails</div>
+    <div class="muted" style="font-size:12px">
+      No external Gmail mutation happens on this page. Every Gmail action stays gated behind prepare → approve → confirm → execute → audit. Delete remains non-permanent and conservative: review-only/local candidate labeling unless a separately approved execution is confirmed.
+    </div>
+  </div>
 
   <!-- Execution posture bar -->
   <div class="posture-bar posture-{{ cleanup_label_posture.posture }}">
@@ -103,6 +110,14 @@
         <strong class="cc-number {% if stats.pending_execution_count > 0 %}cc-pending{% else %}cc-ok{% endif %}">{{ stats.pending_execution_count }}</strong>
         <span class="muted">Prepared cleanup executions</span>
       </div>
+      <div class="metric metric-sm">
+        <strong class="cc-number {% if summary.blocked_candidates > 0 %}cc-info{% else %}cc-ok{% endif %}">{{ summary.blocked_candidates }}</strong>
+        <span class="muted">Blocked candidates</span>
+      </div>
+      <div class="metric metric-sm">
+        <strong class="cc-number {% if summary.delete_candidates > 0 %}cc-pending{% else %}cc-ok{% endif %}">{{ summary.delete_candidates }}</strong>
+        <span class="muted">Delete candidates</span>
+      </div>
     </div>
     <div class="button-row" style="margin-top:10px">
       <form method="post" action="/bulk-triage/mailbox-cleanup/refresh">
@@ -132,7 +147,7 @@
           <th>Classification mix</th>
           <th>Confidence</th>
           <th>Recommendation</th>
-          <th>Flags</th>
+          <th>Why / flags</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -189,6 +204,11 @@
             {% if c.existing_contact_is_vip %}<span class="badge ok">VIP</span>{% endif %}
             {% if c.existing_contact_is_noise %}<span class="badge grey">noise</span>{% endif %}
             {% if c.is_protected %}<span class="badge cyan">protected</span>{% endif %}
+            {% if c.is_protected or c.status.value == 'protected' %}
+            <div class="muted" style="font-size:10px">Intentionally blocked: protected sender.</div>
+            {% else %}
+            <div class="muted" style="font-size:10px">{{ c.evidence_summary or 'Evidence available on detail page.' }}</div>
+            {% endif %}
           </td>
           <td>
             <div class="action-btns">

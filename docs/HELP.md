@@ -322,7 +322,9 @@ It shows:
 - Execution provider mode and dry-run state.
 - Phase 19 operational test mode and test recipient allowlist status.
 - Whether Gmail draft, Gmail send, and Google Calendar test execution are currently possible.
+- Whether Gmail cleanup execution is currently possible, dry-run, mock-only, or blocked.
 - Gmail write flags and Google Calendar write flag.
+- Mailbox cleanup sender-rollup summary counts and blocked/protected totals.
 - Source counts for all, Gmail, Outlook, and notification-derived messages.
 - Pending review package and execution queues.
 - Operator smoke checklist for route smoke, Azure/OpenAI test, Microsoft Graph delegated test, Outlook sync readiness, Gmail draft dry-run/live readiness, Google Calendar readiness, and execution audit checks.
@@ -370,12 +372,15 @@ Daily workflow:
 3. Use the dashboard Start Here Today lane to check last smoke, last Gmail sync, last Outlook sync, pending review packages, ready executions, pending voice guidance, and provider blockers.
 4. Sync Gmail from the dashboard.
 5. Run `POST /api/graph/test` before Outlook sync, then sync Outlook only after Graph is healthy.
-6. Review packages and local drafts.
-7. Prepare draft/execution records locally.
-8. Dry-run first. For Gmail draft or Calendar testing, use `OPERATIONAL_TEST_MODE=true`, `EXECUTION_PROVIDER=external`, `EXTERNAL_WRITE_DRY_RUN=true`, and an explicit `EXECUTION_TEST_EMAIL_ALLOWLIST`.
-9. Live Gmail draft creation requires operational test mode, allowlist, feature flags, approval, final confirmation, and `EXTERNAL_WRITE_DRY_RUN=false`.
-10. Verify `/executions` audit after any dry-run or live execution.
-11. Run `.\scripts\backup-commsdesk.ps1` before risky config changes.
+6. Run `./scripts/smoke-mailbox-cleanup.ps1` to refresh sender rollups, print cleanup summary counts, and verify cleanup dry-run/live posture.
+7. Review `/bulk-triage/mailbox-cleanup` and inspect high-confidence senders, protected senders, and blocked candidates.
+8. Prepare cleanup executions only when evidence and posture are clear. No Gmail mutation occurs until approve + final confirm.
+9. Review packages and local drafts.
+10. Prepare draft/execution records locally.
+11. Dry-run first. For Gmail draft or Calendar testing, use `OPERATIONAL_TEST_MODE=true`, `EXECUTION_PROVIDER=external`, `EXTERNAL_WRITE_DRY_RUN=true`, and an explicit `EXECUTION_TEST_EMAIL_ALLOWLIST`.
+12. Live Gmail draft creation requires operational test mode, allowlist, feature flags, approval, final confirmation, and `EXTERNAL_WRITE_DRY_RUN=false`.
+13. Verify `/executions` audit after any dry-run or live execution.
+14. Run `./scripts/backup-commsdesk.ps1` before risky config changes.
 
 OAuth reauthorization:
 
@@ -542,6 +547,30 @@ Open Voice Calibration from the dashboard header and click **Refresh inferences 
 ### Bulk candidate refresh
 
 Open Bulk Triage and click **Refresh automation candidates** to regenerate local noise/unsubscribe/archive/delete recommendations from stored message patterns and backlog-age signals.
+
+### Mailbox cleanup workflow
+
+Open `/bulk-triage/mailbox-cleanup` to work at sender/domain level instead of one message at a time.
+
+What to review first:
+
+- High-confidence cleanup senders.
+- Protected senders (intentionally blocked).
+- Evidence summary, confidence, and affected message counts.
+- Cleanup posture: blocked, mock-only, dry-run, or live-capable.
+
+Safety boundaries:
+
+- The cleanup pages do not mutate Gmail directly.
+- Gmail cleanup can only be prepared from mailbox cleanup, then executed from `/executions` after explicit approve + confirm.
+- Protected senders remain blocked unless manually reset.
+- Delete remains conservative and non-permanent in this workflow.
+
+Real-inbox smoke helper:
+
+- Run `./scripts/smoke-mailbox-cleanup.ps1`.
+- Optional switches: `-RunMigrations`, `-RunSyncIfNeeded`, `-RunBackfillPage`, `-Open`.
+- The script refreshes cleanup candidates and prints sender-rollup counts plus execution posture.
 
 ### Prepare execution from draft
 

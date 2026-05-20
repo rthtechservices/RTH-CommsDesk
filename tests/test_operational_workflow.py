@@ -145,6 +145,8 @@ def test_operational_smoke_route_exposes_key_status_without_microsoft_writes(db_
     assert "Gmail draft test execution" in response.text
     assert "Gmail send test execution" in response.text
     assert "Google Calendar test execution" in response.text
+    assert "Gmail cleanup test execution" in response.text
+    assert "Mailbox cleanup readiness" in response.text
     provider_status = provider_response.json()
     assert provider_status["microsoft_graph_outlook_mail_send"]["state"] == "disabled"
     assert provider_status["outlook_calendar_read"]["state"] == "disabled"

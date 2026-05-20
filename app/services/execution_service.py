@@ -563,7 +563,9 @@ def _execute_with_provider(
     if action_type == ExecutionActionType.APPLY_GMAIL_LABEL_ARCHIVE:
         # Cleanup batch operations use a richer payload with cleanup_mode field
         cleanup_mode = payload.get("cleanup_mode", "")
-        if cleanup_mode.startswith("cleanup_"):
+        if cleanup_mode:
+            if not str(cleanup_mode).startswith("cleanup_"):
+                raise ValueError(f"Unsupported cleanup mode in execution payload: {cleanup_mode!r}")
             return provider.apply_gmail_label_archive_batch(payload)
         return provider.apply_gmail_label_archive(payload)
     if action_type == ExecutionActionType.DELETE_UNSUBSCRIBE:

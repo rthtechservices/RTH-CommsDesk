@@ -2,6 +2,67 @@
 
 Record completed work here at the end of every phase. Newest entries should be added at the top.
 
+## 2026-05-19 — Phase 24: Mailbox Cleanup Live Hardening, Real-Inbox Smoke, and Operator Trust Pass
+
+### Summary
+- Added `scripts/smoke-mailbox-cleanup.ps1` for real-inbox mailbox cleanup smoke with safe defaults: optional migrations, Gmail sync/backfill guidance, cleanup refresh call, posture reporting, and summary counts.
+- Added API endpoints `POST /api/mailbox-cleanup/refresh` and `GET /api/mailbox-cleanup/summary` for non-destructive smoke/readiness automation.
+- Hardened mailbox cleanup candidate quality logic in `mailbox_cleanup_service`: stricter repeated-evidence thresholds, conservative protection for client-work and recent personal exchanges, and stricter delete-candidate gating.
+- Hardened execution/payload behavior for cleanup batches: unsupported cleanup modes now fail closed; label-required modes enforce `cleanup_label_name`; cleanup execution readiness is explicitly modeled in test policy.
+- Extended operational smoke/readiness with lightweight mailbox cleanup checks (table presence, count readiness timing, cleanup execution posture) and added `/bulk-triage/mailbox-cleanup` to route smoke coverage.
+- Improved cleanup UI trust copy on mailbox cleanup list/detail and operational smoke pages; dashboard Start Here Today cleanup counters stay visible.
+- Preserved hard safety rules: no direct Gmail mutation from cleanup pages, no permanent delete, no Microsoft write implementation, and cleanup execution remains prepare -> approve -> confirm -> execute -> audit.
+
+### Files changed
+- `app/services/mailbox_cleanup_service.py`
+- `app/services/external_provider_clients.py`
+- `app/services/execution_service.py`
+- `app/services/execution_test_policy.py`
+- `app/services/operational_status_service.py`
+- `app/services/operational_smoke_runner.py`
+- `app/api/routes.py`
+- `app/web/routes.py`
+- `app/web/templates/mailbox_cleanup.html`
+- `app/web/templates/mailbox_cleanup_detail.html`
+- `app/web/templates/dashboard.html`
+- `app/web/templates/operational_smoke.html`
+- `scripts/smoke-mailbox-cleanup.ps1`
+- `tests/test_mailbox_cleanup.py`
+- `tests/test_execution_test_policy.py`
+- `tests/test_phase_22_daily_operations.py`
+- `tests/test_operational_workflow.py`
+- `README.md`
+- `docs/PHASE_PLAN.md`
+- `docs/PHASE_STATUS.md`
+- `docs/IMPLEMENTATION_LOG.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/HELP.md`
+- `docs/phases/PHASE_24_MAILBOX_CLEANUP_LIVE_HARDENING.md`
+
+### Focused tests run during implementation
+- `python -m pytest tests/test_mailbox_cleanup.py -q` — passed, 46 tests.
+- `python -m pytest tests/test_execution_test_policy.py -q` — passed, 11 tests.
+- `python -m pytest tests/test_execution_service.py -q` — passed, 11 tests.
+- `python -m pytest tests/test_phase_22_daily_operations.py -q` — passed, 7 tests.
+- `python -m pytest tests/test_operational_workflow.py -q` — passed, 12 tests.
+
+### Script syntax validation
+- `pwsh -NoProfile -Command "[System.Management.Automation.Language.Parser]::ParseFile('scripts/smoke-mailbox-cleanup.ps1', [ref]$null, [ref]$null)"` — parser reported no syntax errors.
+
+### Final validation
+- `python -m ruff check .` — passed.
+- `python -m pytest -q` — passed, 282 tests.
+- `python -m pytest -q` (second run for flaky triage) — passed, 282 tests.
+- `python -m alembic upgrade head` — passed.
+
+### Route smoke
+- TestClient route smoke returned HTTP 200 for `/`, `/operational-smoke`, `/providers`, `/review-packages`, `/executions`, `/bulk-triage`, `/bulk-triage/mailbox-cleanup`, `/contacts`, `/drafts`, `/voice-calibration`, `/assistant-profile`, `/admin`, and `/healthz`.
+
+### Flaky test triage
+- A pre-existing flaky test was not reproducible in Phase 24 validation.
+- Observed failure in this phase: none (full suite passed twice).
+- Recommended follow-up: if the previously reported intermittent failure reappears, capture the exact failing test name and stack trace from that run and add a targeted stabilization issue/phase item.
+
 ## 2026-05-20 — Phase 23: Mailbox Cleanup, Sender Noise Automation, and Outlook Write Planning
 
 ### Summary

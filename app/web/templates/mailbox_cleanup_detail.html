@@ -118,6 +118,13 @@
     <strong>{{ cleanup_label_posture.label }}</strong> — {{ cleanup_label_posture.detail }}
   </div>
 
+  <div class="callout callout-grey" style="margin-bottom:12px">
+    <div class="callout-title">What will not happen automatically</div>
+    <div class="muted" style="font-size:12px">
+      This page does not mutate Gmail directly. It can only prepare execution records. Gmail actions happen only after explicit approve and final confirm. Protected senders remain intentionally blocked. Delete is never permanent in this workflow.
+    </div>
+  </div>
+
   <!-- Status + flags -->
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
     <span class="badge {% if candidate.status.value == 'pending' %}amber{% elif candidate.status.value in ['executed','approved'] %}ok{% elif candidate.status.value in ['rejected','failed'] %}bad{% elif candidate.status.value == 'protected' %}cyan{% else %}grey{% endif %}">
@@ -177,6 +184,18 @@
       {% endif %}
     </p>
 
+    {% if candidate.is_protected or candidate.status.value == 'protected' %}
+    <div class="callout callout-grey" style="margin-bottom:8px">
+      <div class="callout-title">Why protected</div>
+      <div class="muted" style="font-size:12px">Protection flags were detected (VIP/relationship, requires-reply, client-work, or recent personal conversation). Cleanup execution is intentionally blocked.</div>
+    </div>
+    {% else %}
+    <div class="callout callout-grey" style="margin-bottom:8px">
+      <div class="callout-title">Why recommended</div>
+      <div class="muted" style="font-size:12px">Recommendation uses repeated low-value evidence, confidence score, and safety checks. Label-only is preferred for moderate confidence; label+archive appears only at high confidence.</div>
+    </div>
+    {% endif %}
+
     <!-- Actions -->
     {% if not candidate.is_protected and candidate.status.value != 'protected' %}
     <div class="action-section">
@@ -192,7 +211,7 @@
 
       {% if cleanup_label_posture.can_prepare %}
       <h3 style="margin-top:12px">Gmail cleanup — prepare execution record</h3>
-      <p class="muted" style="font-size:12px">All Gmail actions go through prepare → approve → confirm → execute → audit. Nothing is sent to Gmail until you confirm.</p>
+      <p class="muted" style="font-size:12px">All Gmail actions go through prepare → approve → confirm → execute → audit. Nothing is sent to Gmail until you confirm, and dry-run/mock modes remain non-mutating.</p>
       <div class="action-row">
         <form method="post" action="/bulk-triage/mailbox-cleanup/{{ candidate.id }}/prepare-label">
           <button type="submit" class="button {% if cleanup_label_posture.posture == 'live' %}primary{% else %}outline{% endif %}">

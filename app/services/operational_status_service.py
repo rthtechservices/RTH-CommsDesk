@@ -19,6 +19,7 @@ from app.models.entities import (
 )
 from app.services.provider_status_service import provider_status_rows
 from app.services.execution_test_policy import readiness_for_payload
+from app.services.mailbox_cleanup_service import cleanup_candidate_summary
 
 
 SOURCE_FILTERS = ("all", "gmail", "outlook", "notification")
@@ -155,6 +156,15 @@ def operational_smoke_status(
                 {},
                 active,
             ),
+            "gmail_cleanup": readiness_for_payload(
+                ExecutionActionType.APPLY_GMAIL_LABEL_ARCHIVE,
+                {
+                    "cleanup_mode": "cleanup_label",
+                    "sender_email": "cleanup-smoke@example.com",
+                    "source_message_ids": [],
+                },
+                active,
+            ),
         },
         "gmail_write_flags": {
             "GMAIL_WRITE_ENABLED": active.gmail_write_enabled,
@@ -163,6 +173,8 @@ def operational_smoke_status(
             "GMAIL_LABEL_ARCHIVE_ENABLED": active.gmail_label_archive_enabled,
         },
         "google_calendar_write_enabled": active.google_calendar_write_enabled,
+        "mailbox_cleanup_summary": cleanup_candidate_summary(db),
+        "mailbox_cleanup_execution_posture": cleanup_execution_posture(active),
         "operator_smoke_checklist": _operator_smoke_checklist(active),
         "route_smoke_paths": (
             "/",
@@ -172,6 +184,7 @@ def operational_smoke_status(
             "/review-packages",
             "/executions",
             "/bulk-triage",
+            "/bulk-triage/mailbox-cleanup",
             "/contacts",
             "/drafts",
             "/voice-calibration",
@@ -182,6 +195,56 @@ def operational_smoke_status(
         "blockers": execution_blockers,
         "pending_review_packages": _pending_review_package_count(db),
         "ready_execution_records": _ready_execution_count(db),
+    }
+
+
+def cleanup_execution_posture(settings: Settings | None = None) -> dict[str, object]:
+    active = settings or get_settings()
+    gmail_write = active.gmail_write_enabled
+    label_archive = active.gmail_label_archive_enabled
+    dry_run = active.external_write_dry_run
+    provider = (active.execution_provider or "mock").strip().lower()
+    is_external = provider in {"external", "live", "google"}
+
+    if not gmail_write or not label_archive:
+        missing = []
+        if not gmail_write:
+            missing.append("GMAIL_WRITE_ENABLED")
+        if not label_archive:
+            missing.append("GMAIL_LABEL_ARCHIVE_ENABLED")
+        return {
+            "posture": "blocked",
+            "label": "Blocked — feature flags disabled",
+            "detail": f"Set {', '.join(missing)} to enable Gmail cleanup execution.",
+            "can_prepare": False,
+            "can_execute_live": False,
+            "dry_run": False,
+        }
+    if not is_external:
+        return {
+            "posture": "mock",
+            "label": "Mock provider — local-only execution",
+            "detail": "Set EXECUTION_PROVIDER=external to enable live Gmail cleanup.",
+            "can_prepare": True,
+            "can_execute_live": False,
+            "dry_run": False,
+        }
+    if dry_run:
+        return {
+            "posture": "dry_run",
+            "label": "Dry-run — Gmail capable but writes simulated",
+            "detail": "Set EXTERNAL_WRITE_DRY_RUN=false to allow live Gmail label/archive.",
+            "can_prepare": True,
+            "can_execute_live": False,
+            "dry_run": True,
+        }
+    return {
+        "posture": "live",
+        "label": "Live — Gmail label/archive capable",
+        "detail": "Gmail mutations occur only after prepare, approve, and final confirm.",
+        "can_prepare": True,
+        "can_execute_live": True,
+        "dry_run": False,
     }
 
 
@@ -298,6 +361,15 @@ def _operator_smoke_checklist(settings: Settings) -> tuple[dict[str, object], ..
             "provider": "outlook_mail_read",
             "state": "ready" if settings.microsoft_graph_outlook_mail_enabled else "disabled",
             "detail": "Outlook read only; no Graph write calls are wired.",
+            "external_write_performed": False,
+        },
+        {
+            "name": "Mailbox cleanup readiness",
+            "provider": "gmail_cleanup",
+            "state": "ready"
+            if settings.gmail_write_enabled and settings.gmail_label_archive_enabled
+            else "blocked",
+            "detail": "Cleanup remains gated through execution_service; no direct Gmail mutation from cleanup pages.",
             "external_write_performed": False,
         },
         {

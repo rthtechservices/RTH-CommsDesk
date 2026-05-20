@@ -101,6 +101,7 @@ from app.services.gmail_sync_service import (
 )
 from app.services.live_ai_client import ai_provider_status
 from app.services.operational_status_service import (
+    cleanup_execution_posture,
     operational_smoke_status,
     source_filter_options,
     source_operational_counts,
@@ -126,6 +127,7 @@ from app.services.voice_learning_service import (
 from app.services.mailbox_cleanup_service import (
     action_logs_for_candidate,
     build_cleanup_rollups,
+    cleanup_candidate_summary,
     cleanup_dashboard_stats,
     get_cleanup_candidate,
     get_cleanup_candidates,
@@ -819,52 +821,7 @@ def _parse_int(value: str | None) -> int | None:
 
 def _cleanup_label_posture(settings) -> dict:
     """Return cleanup execution posture for the UI — what is gated, what can run, etc."""
-    gmail_write = settings.gmail_write_enabled
-    label_archive = settings.gmail_label_archive_enabled
-    dry_run = settings.external_write_dry_run
-    provider = (settings.execution_provider or "mock").strip().lower()
-    is_external = provider in {"external", "live", "google"}
-
-    if not gmail_write or not label_archive:
-        missing = []
-        if not gmail_write:
-            missing.append("GMAIL_WRITE_ENABLED")
-        if not label_archive:
-            missing.append("GMAIL_LABEL_ARCHIVE_ENABLED")
-        return {
-            "posture": "blocked",
-            "label": "Blocked — feature flags disabled",
-            "detail": f"Set {', '.join(missing)} to enable Gmail cleanup execution.",
-            "can_prepare": False,
-            "can_execute_live": False,
-            "dry_run": False,
-        }
-    if not is_external:
-        return {
-            "posture": "mock",
-            "label": "Mock provider — local only",
-            "detail": "Set EXECUTION_PROVIDER=external to enable live Gmail cleanup.",
-            "can_prepare": True,
-            "can_execute_live": False,
-            "dry_run": False,
-        }
-    if dry_run:
-        return {
-            "posture": "dry_run",
-            "label": "Dry-run — Gmail capable but writes simulated",
-            "detail": "Set EXTERNAL_WRITE_DRY_RUN=false to allow live Gmail label/archive.",
-            "can_prepare": True,
-            "can_execute_live": False,
-            "dry_run": True,
-        }
-    return {
-        "posture": "live",
-        "label": "Live — Gmail label/archive capable",
-        "detail": "Execution will apply labels and archive messages in Gmail when approved and confirmed.",
-        "can_prepare": True,
-        "can_execute_live": True,
-        "dry_run": False,
-    }
+    return cleanup_execution_posture(settings)
 
 
 @web_router.post("/sync/gmail")
@@ -1351,6 +1308,7 @@ def mailbox_cleanup_index(request: Request, db: Session = Depends(get_db)):
     status_filter = request.query_params.get("status_filter", "pending")
     candidates = get_cleanup_candidates(db, status_filter=status_filter)
     stats = cleanup_dashboard_stats(db)
+    summary = cleanup_candidate_summary(db)
     cleanup_label_posture = _cleanup_label_posture(settings)
     return templates.TemplateResponse(
         request,
@@ -1358,6 +1316,7 @@ def mailbox_cleanup_index(request: Request, db: Session = Depends(get_db)):
         {
             "candidates": candidates,
             "stats": stats,
+            "summary": summary,
             "status_filter": status_filter,
             "cleanup_label_posture": cleanup_label_posture,
             "refresh_result": request.query_params.get("refresh_result"),

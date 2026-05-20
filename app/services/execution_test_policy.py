@@ -43,6 +43,7 @@ EMAIL_ACTIONS = {
 }
 
 CALENDAR_ACTIONS = {ExecutionActionType.CREATE_CALENDAR_EVENT}
+CLEANUP_ACTIONS = {ExecutionActionType.APPLY_GMAIL_LABEL_ARCHIVE}
 
 
 def parse_execution_test_allowlist(raw: str | None) -> tuple[AllowlistEntry, ...]:
@@ -101,7 +102,12 @@ def readiness_for_payload(
     active = settings or get_settings()
     payload = payload or {}
     target = _target_for_action(action_type, payload, active)
-    target_kind = "recipient" if action_type in EMAIL_ACTIONS else "calendar"
+    if action_type in EMAIL_ACTIONS:
+        target_kind = "recipient"
+    elif action_type in CLEANUP_ACTIONS:
+        target_kind = "sender"
+    else:
+        target_kind = "calendar"
     entries = parse_execution_test_allowlist(active.execution_test_email_allowlist)
     allowlist_match = (
         recipient_is_allowlisted(target, entries) if action_type in EMAIL_ACTIONS else None
@@ -109,6 +115,7 @@ def readiness_for_payload(
     required_flags = _required_flags(action_type, active)
     checks = _checks_for_action(
         action_type,
+        payload,
         active,
         entries,
         allowlist_match,
@@ -142,6 +149,7 @@ def ensure_test_execution_allowed(
 
 def _checks_for_action(
     action_type: ExecutionActionType,
+    payload: dict,
     settings: Settings,
     entries: tuple[AllowlistEntry, ...],
     allowlist_match: bool | None,
@@ -219,6 +227,24 @@ def _checks_for_action(
         )
     elif action_type == ExecutionActionType.CREATE_CALENDAR_EVENT:
         checks.append(_flag_check(settings.google_calendar_write_enabled, "GOOGLE_CALENDAR_WRITE_ENABLED"))
+    elif action_type == ExecutionActionType.APPLY_GMAIL_LABEL_ARCHIVE:
+        mode = (payload or {}).get("cleanup_mode")
+        checks.extend(
+            [
+                _flag_check(settings.gmail_write_enabled, "GMAIL_WRITE_ENABLED"),
+                _flag_check(settings.gmail_label_archive_enabled, "GMAIL_LABEL_ARCHIVE_ENABLED"),
+                PolicyCheck(
+                    "cleanup_mode",
+                    "cleanup_mode",
+                    str(mode or "").startswith("cleanup_"),
+                    (
+                        f"Cleanup mode set: {mode}."
+                        if str(mode or "").startswith("cleanup_")
+                        else "Blocked: cleanup payload missing cleanup_mode."
+                    ),
+                ),
+            ]
+        )
     else:
         checks.append(
             PolicyCheck(
@@ -254,6 +280,8 @@ def _required_flags(action_type: ExecutionActionType, settings: Settings) -> tup
         )
     if action_type == ExecutionActionType.CREATE_CALENDAR_EVENT:
         return (*base, "GOOGLE_CALENDAR_WRITE_ENABLED")
+    if action_type == ExecutionActionType.APPLY_GMAIL_LABEL_ARCHIVE:
+        return (*base, "GMAIL_WRITE_ENABLED", "GMAIL_LABEL_ARCHIVE_ENABLED")
     return base
 
 
@@ -266,6 +294,8 @@ def _target_for_action(
         return normalize_email_address(payload.get("to")) or str(payload.get("to") or "")
     if action_type == ExecutionActionType.CREATE_CALENDAR_EVENT:
         return settings.google_calendar_id or "primary"
+    if action_type == ExecutionActionType.APPLY_GMAIL_LABEL_ARCHIVE:
+        return str(payload.get("sender_email") or payload.get("sender_key") or "cleanup-sender")
     return "-"
 
 
@@ -280,7 +310,9 @@ def _next_action(
         return "Approve and confirm to record a dry-run; no external Gmail draft will be created."
     if action_type == ExecutionActionType.CREATE_CALENDAR_EVENT and settings.external_write_dry_run:
         return "Approve and confirm to record a dry-run; no external calendar event will be created."
-    return "Approve and confirm explicitly to execute this allowlisted test action."
+    if action_type == ExecutionActionType.APPLY_GMAIL_LABEL_ARCHIVE and settings.external_write_dry_run:
+        return "Approve and confirm to record a dry-run; no external Gmail label/archive change will occur."
+    return "Approve and confirm explicitly to execute this gated test action."
 
 
 def _parse_payload(raw: str | None) -> dict:
