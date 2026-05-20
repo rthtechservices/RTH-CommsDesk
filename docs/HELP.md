@@ -71,14 +71,14 @@ Current MVP features:
 - Correct a message with structured labels such as important, needs reply, client work, job alert, newsletter, receipt, system notice, marketing, noise, or ignore.
 - Generate a local review-only draft suggestion from a message detail page.
 - Choose a voice profile for draft suggestions: client, friend, partner, vendor, or short acknowledgement.
-- Run Sent-mail learning to infer VIP candidates, salutation preference, and tone guidance.
+- Run Sent-mail learning to infer VIP candidates, salutation preference, tone guidance, and recurring operator sign-off patterns.
 - Review/approve/reject/edit inferred VIP and voice guidance from the Voice Calibration page.
 - Review local draft suggestions from the Drafts page.
 - Analyze a stored Gmail conversation with the mock AI provider by default or an OpenAI-compatible/Azure OpenAI provider when explicitly configured.
 - Store and view local conversation summaries.
-- Store and view proposed action review packages with a recommendation, explanation, confidence score, optional draft response, and local review status.
+- Store and view proposed action review packages with a recommendation, plain-language evidence, confidence score, optional draft response, correction controls, and local review status.
 - Validate structured AI output before storing it and fall back to the mock provider if live AI fails or returns invalid output.
-- Generate local calendar availability recommendations for scheduling requests and due-date reminders.
+- Generate local calendar availability recommendations for scheduling requests and due-date reminders, without creating past candidates or inventing timed meetings from date-only requests.
 - Locally approve, reject, edit, or snooze a review package without changing Gmail or any calendar.
 - Filter the attention queue by active/unreviewed, needs reply, important, noise, reviewed, date range, sender/contact, and source: all, Gmail, Outlook, or notification-derived.
 - Use Bulk Triage mode for queue pagination beyond the top dashboard slice.
@@ -138,7 +138,7 @@ The Voice Calibration page lets you refresh Sent-mail learning inferences and re
 - inferred tone notes
 - excerpted evidence used for inference
 
-Guidance only affects draft tone after you approve it.
+Guidance only affects draft tone after you approve it. Recurring approved sign-off guidance, such as a repeated closing found in sent mail, can be applied to drafts globally unless contact-specific guidance overrides it.
 
 ### Bulk Triage
 
@@ -180,6 +180,16 @@ When a scheduling request or due date is detected, review package detail pages c
 - availability/conflict reasoning
 - proposed meeting/reminder timing
 - suggested alternate windows when conflicts exist
+- date-only meeting interpretations as all-day tentative candidates with a clarifying reply, not invented timed events
+
+Review package detail also shows the evidence behind the recommendation, what would happen if prepared for execution, current correction state, and compact controls to teach the assistant:
+
+- correct action type
+- this does or does not need reply
+- better summary
+- better draft instruction
+- correct calendar interpretation
+- mark as noise or not noise
 
 ### Recent Unread Human Messages
 
@@ -379,7 +389,7 @@ Generated drafts are suggestions only. The app does not send the draft, reply to
 
 If a conversation has a review package, draft generation uses the stored conversation summary, proposed action type, full locally stored thread context, contact relationship, importance score, and summarized correction history. If the review package says no response is needed, no draft is created automatically.
 
-If approved voice guidance exists, draft generation also applies inferred salutation style/preferred name and tone notes (for example, to avoid full-name formal greetings in friend threads or to keep client replies concise and professional).
+If approved voice guidance exists, draft generation also applies inferred salutation style/preferred name, tone notes, and recurring sign-off guidance (for example, to avoid full-name formal greetings in friend threads, keep client replies concise, or use an approved operator closing). Send-ready drafts strip generic placeholders such as `[Your Name]`, `[Your signature]`, `[your name]`, and `[signature]`.
 
 When live AI is configured, draft prompts include the full local conversation timeline, selected message, sender/recipient roles, contact relationship, approved voice guidance, recent corrections, and the proposed action context. Draft output is expected as structured JSON and is sanitized before local storage. If live AI fails or returns invalid output, CommsDesk stores a mock fallback draft and shows the fallback provider name on the draft review page.
 

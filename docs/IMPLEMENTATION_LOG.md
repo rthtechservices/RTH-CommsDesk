@@ -2,6 +2,53 @@
 
 Record completed work here at the end of every phase. Newest entries should be added at the top.
 
+## 2026-05-19 — Phase 20: Assistant Intelligence, Voice, and Calendar Reasoning Quality
+
+### Summary
+- Added realistic recommendation-quality fixtures for action, no-reply, scheduling, reminders, noise, vague asks, latest-message-change, and sent-mail sign-off learning.
+- Improved sent-mail learning to infer recurring global operator sign-off guidance and let approved global guidance flow into draft generation.
+- Sanitized send-ready draft output so generic placeholders such as `[Your Name]`, `[Your signature]`, `[your name]`, and `[signature]` are removed before execution preparation.
+- Applied approved sign-off guidance to mock/local drafts and prevented learned sign-offs from being replaced by stock formal closings.
+- Tightened calendar reasoning so date-only meeting requests become clarifying replies with all-day tentative candidates, clear date/time requests stay timezone-safe, relative Fridays are anchored to the message date, and past reminders/events are not prepared.
+- Added review-package correction persistence and compact correction controls/evidence display on review package detail.
+- Preserved Phase 19 execution gating and Microsoft write boundaries.
+
+### Files changed
+- `app/services/analysis_service.py`
+- `app/services/calendar_availability_service.py`
+- `app/services/draft_service.py`
+- `app/services/feedback_service.py`
+- `app/services/voice_learning_service.py`
+- `app/web/routes.py`
+- `app/web/templates/review_package_detail.html`
+- `tests/conftest.py`
+- `tests/fixtures/prompt_quality_cases.json`
+- `tests/test_ai_analysis.py`
+- `tests/test_calendar_availability.py`
+- `tests/test_draft_generation.py`
+- `tests/test_voice_learning_quality.py`
+- `README.md`
+- `docs/HELP.md`
+- `docs/LESSONS_LEARNED.md`
+- `docs/PHASE_STATUS.md`
+- `docs/phases/PHASE_20_INBOX_INTELLIGENCE_QUALITY_PASS.md`
+
+### Tests run
+- `python -m ruff check .` — passed.
+- `python -m pytest -q` — passed, 223 tests.
+- `python -m alembic upgrade head` — passed.
+
+### Smoke tests
+- Temporary Uvicorn route smoke on port 8765 returned HTTP 200 for `/`, `/operational-smoke`, `/providers`, `/review-packages`, `/executions`, `/bulk-triage`, `/contacts`, `/drafts`, `/voice-calibration`, `/admin`, and `/healthz`.
+
+### Known issues
+- This phase does not add a dedicated Assistant Profile console; Phase 21 remains the right place for richer voice-memory management.
+- Date-only calendar candidates are represented with the existing calendar proposal fields as all-day tentative review candidates; no new external calendar behavior was added.
+
+### Recommended next actions
+- Human review of Phase 20 quality behavior.
+- Next recommended phase: Phase 21 — Voice Memory and Assistant Personalization Console.
+
 ## 2026-05-19 — Phase 19: Test Email Execution Enablement
 
 ### Summary

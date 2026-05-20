@@ -160,3 +160,29 @@ Update:
 ## Codex notes
 
 Do not chase perfect AI output in isolation. Tune against concrete examples and keep every recommendation explainable, correctable, and safely gated. The goal is the first visible step toward CommsDesk becoming the operator's assistant rather than a generic AI wrapper.
+
+## Completion notes — 2026-05-19
+
+Status: Completed for human review.
+
+Implemented:
+
+- Added/expanded recommendation-quality fixtures for client action, friendly no-reply, clear scheduling, date-only scheduling, relative Friday scheduling, renewal/tax/deadline reminders, newsletter/noise, vague actionable asks, latest-message-changes-action, and sent-mail sign-off examples.
+- Improved sent-mail voice inference so repeated closings can become pending global operator guidance; approved global guidance can apply across contacts when no contact-specific guidance overrides it.
+- Added draft cleanup for generic placeholders and applied approved preferred sign-off guidance to send-ready local drafts.
+- Tightened calendar reasoning so past dates are not prepared, date-only meeting requests become clarifying replies with all-day tentative candidates, and clear date/time candidates stay timezone-safe.
+- Added structured review-package corrections through `UserFeedback` and surfaced evidence, correction state, calendar interpretation evidence, and correction controls on review package detail.
+- Preserved Phase 19 execution policy, allowlist enforcement, dry-run defaults, and disabled Microsoft write boundaries.
+
+Validation:
+
+- `python -m ruff check .` — passed.
+- `python -m pytest -q` — passed, 223 tests.
+- `python -m alembic upgrade head` — passed.
+- Route smoke returned HTTP 200 for `/`, `/operational-smoke`, `/providers`, `/review-packages`, `/executions`, `/bulk-triage`, `/contacts`, `/drafts`, `/voice-calibration`, `/admin`, and `/healthz`.
+
+Human review notes:
+
+- No new outbound execution behavior was added.
+- Date-only calendar candidates use the existing calendar proposal model as all-day tentative review candidates.
+- Phase 21 should make approved global voice/sign-off memory more visible and editable in a dedicated Assistant Profile console.

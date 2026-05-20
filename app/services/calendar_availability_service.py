@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import UTC, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Protocol
 
 from app.core.config import get_settings
@@ -126,7 +126,11 @@ def build_calendar_recommendation(
     if detected_due_date:
         due_date = _parse_due_date(detected_due_date)
         if due_date:
+            if due_date <= now.date():
+                return None
             reminder_at = datetime.combine(due_date - timedelta(days=7), time(hour=9), tzinfo=UTC)
+            if reminder_at <= now:
+                reminder_at = datetime.combine(now.date() + timedelta(days=1), time(hour=9), tzinfo=UTC)
             return CalendarRecommendation(
                 action_kind="create_reminder",
                 action_type=ProposedActionType.CREATE_CALENDAR_REMINDER,
@@ -141,7 +145,22 @@ def build_calendar_recommendation(
     proposal = _extract_meeting_proposal(text, now=now)
     if not proposal:
         return None
-    if proposal[0] is None or proposal[1] is None:
+    if proposal.date_only:
+        start = datetime.combine(proposal.meeting_date, time.min, tzinfo=UTC)
+        end = start + timedelta(days=1)
+        return CalendarRecommendation(
+            action_kind="tentative_all_day_meeting",
+            action_type=ProposedActionType.ASK_CLARIFYING_QUESTION,
+            confidence=0.76,
+            availability_reasoning=(
+                "Detected a meeting request with a date but no clear time. Ask for the time; "
+                "if useful, hold this as an all-day tentative candidate rather than inventing a timed event."
+            ),
+            proposed_start_at=start,
+            proposed_end_at=end,
+            provider_name=provider.name,
+        )
+    if proposal.start_at is None or proposal.end_at is None:
         return CalendarRecommendation(
             action_kind="ask_for_time_clarification",
             action_type=ProposedActionType.ASK_CLARIFYING_QUESTION,
@@ -151,7 +170,19 @@ def build_calendar_recommendation(
             ),
             provider_name=provider.name,
         )
-    start_at, end_at = proposal
+    start_at = proposal.start_at
+    end_at = proposal.end_at
+    if start_at <= now:
+        return CalendarRecommendation(
+            action_kind="ask_for_time_clarification",
+            action_type=ProposedActionType.ASK_CLARIFYING_QUESTION,
+            confidence=0.74,
+            availability_reasoning=(
+                "Detected a scheduling request, but the interpreted time is in the past. "
+                "Ask for a fresh time instead of preparing a past calendar candidate."
+            ),
+            provider_name=provider.name,
+        )
     evaluation = provider.evaluate(start_at, end_at)
     if evaluation.available:
         action_kind = "offer_availability" if _looks_like_offer_availability(text) else "create_meeting"
@@ -197,7 +228,15 @@ def _looks_like_offer_availability(text: str) -> bool:
     )
 
 
-def _extract_meeting_proposal(text: str, *, now: datetime) -> tuple[datetime | None, datetime | None] | None:
+@dataclass(frozen=True)
+class MeetingProposal:
+    start_at: datetime | None
+    end_at: datetime | None
+    meeting_date: date
+    date_only: bool = False
+
+
+def _extract_meeting_proposal(text: str, *, now: datetime) -> MeetingProposal | None:
     normalized = re.sub(r"\s+", " ", text or "").strip().lower()
     if not normalized:
         return None
@@ -215,7 +254,6 @@ def _extract_meeting_proposal(text: str, *, now: datetime) -> tuple[datetime | N
     }
     day_match = re.search(r"\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b", normalized)
     time_match = re.search(r"\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b", normalized)
-    evening_match = "evening" in normalized
     if not day_match:
         return None
     target_weekday = day_map[day_match.group(1)]
@@ -228,11 +266,8 @@ def _extract_meeting_proposal(text: str, *, now: datetime) -> tuple[datetime | N
         if time_match.group(3) == "pm":
             hour += 12
         start = datetime.combine(meeting_date, time(hour=hour, minute=minute), tzinfo=UTC)
-        return start, start + timedelta(hours=1)
-    if evening_match:
-        start = datetime.combine(meeting_date, time(hour=18), tzinfo=UTC)
-        return start, start + timedelta(hours=2)
-    return None, None
+        return MeetingProposal(start, start + timedelta(hours=1), meeting_date)
+    return MeetingProposal(None, None, meeting_date, date_only=True)
 
 
 def _parse_due_date(value: str) -> datetime.date | None:

@@ -35,9 +35,9 @@ Each LLM session should complete one phase only, update documentation, and stop 
 - Gmail conversation context can be fetched on demand so detail pages show a full thread timeline when full content is available.
 - Draft generation and AI analysis use deterministic mock/local providers by default; no paid AI credentials are required for local development. Live AI can be enabled through environment variables with mock fallback.
 - Local conversation summaries and proposed action review packages are stored for review only. They do not modify Gmail or calendars.
-- Sent-mail learning can infer VIP candidates and salutation/tone guidance, with explicit approve/reject/edit controls on the Voice Calibration page.
+- Sent-mail learning can infer VIP candidates, salutation/tone guidance, and recurring operator sign-off guidance, with explicit approve/reject/edit controls on the Voice Calibration page.
 - Bulk triage mode supports paginated queue processing, local automation candidate generation, and reversible bulk actions.
-- Local calendar availability recommendations can prepare reminder/scheduling proposals with conflict reasoning for review packages.
+- Local calendar availability recommendations can prepare reminder/scheduling proposals with conflict reasoning for review packages; date-only meeting requests ask for a time instead of inventing one.
 - Approved outbound execution flows now support prepare/approve/confirm lifecycle with audit logs and mock provider execution.
 - External Gmail and Google Calendar execution providers are guarded by `EXECUTION_PROVIDER`, per-action feature flags, and `EXTERNAL_WRITE_DRY_RUN=true` by default.
 - Authentication defaults are local-development-friendly; production deployments must provide explicit auth and secret settings.
@@ -252,4 +252,4 @@ Do not delete or commit `client_secret.json`, `gmail_token.json`, `.env`, or any
 
 ## Current phase status
 
-Phases 01 through 19 are implemented. Phase 20 is documented as the next inbox-intelligence quality pass.
+Phases 01 through 20 are implemented. Phase 20 is ready for human review.

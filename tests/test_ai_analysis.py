@@ -27,6 +27,7 @@ from app.services.analysis_service import (
     build_analysis_context,
     build_analysis_prompt,
 )
+from app.services.feedback_service import apply_review_package_correction
 from app.services.live_ai_client import AIProviderError
 from app.services.draft_service import DraftContext, create_draft_reply
 
@@ -88,9 +89,9 @@ def test_prompt_quality_fixture_examples_produce_specific_actions(db_session):
         action = result.review_package.action_type.value
 
         if "expected_action" in case:
-            assert action == case["expected_action"]
+            assert action == case["expected_action"], case["name"]
         else:
-            assert action in case["expected_action_any"]
+            assert action in case["expected_action_any"], case["name"]
         if case.get("expected_due_date"):
             assert result.conversation_summary.detected_due_date == case["expected_due_date"]
         if case.get("expected_text"):
@@ -402,6 +403,69 @@ def test_review_package_web_flow_is_local_only(db_session):
     db_session.refresh(package)
     assert package.status == ReviewPackageStatus.APPROVED
     assert package.is_external_action is False
+
+
+def test_review_package_correction_persists_and_updates_prompt_context(db_session):
+    _, selected = _seed_thread(
+        db_session,
+        [
+            {
+                "sender_display_name": "Client Contact",
+                "sender_email": "client@example.com",
+                "body_text": "Please send the support summary.",
+            }
+        ],
+        subject="Support summary",
+        classification_kwargs={"requires_reply": True, "is_client_work": True},
+    )
+    result = analyze_message(db_session, selected)
+
+    correction = apply_review_package_correction(
+        db_session,
+        result.review_package.id,
+        correction_type="does_not_need_reply",
+        notes="Latest message was FYI only.",
+    )
+
+    assert correction.package.action_type == ProposedActionType.NO_RESPONSE_NEEDED
+    assert correction.feedback.feedback_type == "review_package_does_not_need_reply"
+    context = build_analysis_context(db_session, selected)
+    assert "review_package_does_not_need_reply" in context.feedback_summary
+
+
+def test_review_package_detail_renders_evidence_and_correction_controls(db_session):
+    _, selected = _seed_thread(
+        db_session,
+        [
+            {
+                "sender_display_name": "Client Contact",
+                "sender_email": "client@example.com",
+                "body_text": "Can you send the revised proposal by Friday?",
+            }
+        ],
+        subject="Proposal",
+        classification_kwargs={"requires_reply": True, "is_client_work": True},
+    )
+    result = analyze_message(db_session, selected)
+
+    def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    try:
+        with TestClient(app) as client:
+            response = client.get(f"/review-packages/{result.review_package.id}")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert "Recommendation Evidence" in response.text
+    assert "Plain-language reason" in response.text
+    assert "If prepared" in response.text
+    assert "Teach This Recommendation" in response.text
+    assert "Correct action type" in response.text
+    assert "This does need reply" in response.text
+    assert "Correct calendar interpretation" in response.text
 
 
 def _seed_thread(

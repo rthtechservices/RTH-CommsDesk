@@ -106,6 +106,8 @@ python -m pytest -q
 - A no-response-needed recommendation should not create a draft by default. Draft creation can still be forced manually, but the generated text should make the override explicit.
 - Draft generation can use full locally stored thread context in Phase 06, but it should still keep user correction history summarized rather than copying raw feedback notes into prompts.
 - Reminder, archive, delete, unsubscribe, and calendar recommendations must remain candidates until a later approved-execution phase adds explicit external write behavior.
+- Review-package corrections should be structured feedback, not just notes. Store action/reply/noise/summary/draft/calendar corrections so later prompt context can learn from them.
+- When the latest message supersedes an earlier ask, avoid letting older thread scheduling language create a stale calendar recommendation.
 
 ## Sent-mail learning and voice calibration lessons
 
@@ -114,6 +116,8 @@ python -m pytest -q
 - Use deterministic salutation/tone inference as a baseline, but always require explicit approve/reject/edit before guidance becomes active.
 - Approved contact-level voice guidance should override generic voice-profile defaults. Relationship-level guidance should be fallback only.
 - Draft generators should honor learned "avoid corporate filler" notes to remove stock phrasing when more natural contact-specific style exists.
+- Recurring operator sign-offs belong in the same approved voice-guidance path as tone guidance. Infer them from repeated sent-mail evidence, store them as pending guidance, and apply them only after approval.
+- Send-ready draft bodies must be sanitized for generic placeholders such as `[Your Name]`, `[Your signature]`, `[your name]`, and `[signature]` before any execution payload is prepared.
 
 ## Bulk triage and automation candidate lessons
 
@@ -130,6 +134,8 @@ python -m pytest -q
 - Separate action kind (create_reminder, create_meeting, offer_availability, ask_for_time_clarification) from high-level package action type where needed.
 - Keep calendar integrations read-only in scheduling-recommendation phase; no external event creation should occur yet.
 - Include suggested alternative windows when conflicts are detected so clarification drafts are concrete and actionable.
+- A date-only request to meet/chat is not a timed meeting. Treat it as a clarifying-reply case and, if useful, store an all-day tentative candidate rather than inventing an hour.
+- Calendar interpretation should be anchored to the message received date and should not prepare reminders/events in the past.
 
 ## Approved execution lessons
 

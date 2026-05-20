@@ -24,8 +24,8 @@
 | 18.6 | Visual Design System and Dashboard Polish | ✅ Completed | 2026-05-19 |
 | 18.7 | Interaction Hierarchy, Triage Ergonomics & RTH Palette Alignment | ✅ Completed | 2026-05-20 |
 | 19 | Test Email Execution Enablement | ✅ Completed | 2026-05-19 |
-| 20 | Inbox Intelligence Quality Pass | Planned | TBD |
+| 20 | Assistant Intelligence, Voice, and Calendar Reasoning Quality | ✅ Completed | 2026-05-19 |
 
 ## Current recommendation
 
-Stop for human review of Phase 19. Next recommended phase is Phase 20: Inbox Intelligence Quality Pass after the controlled test execution lane is reviewed.
+Stop for human review of Phase 20. Next recommended phase is Phase 21: Voice Memory and Assistant Personalization Console.

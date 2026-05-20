@@ -67,7 +67,9 @@ from app.services.draft_service import (
 )
 from app.services.feedback_service import (
     CORRECTION_LABELS,
+    REVIEW_PACKAGE_CORRECTION_TYPES,
     apply_message_correction,
+    apply_review_package_correction,
     classification_tags,
     friendly_classification_label,
 )
@@ -1150,6 +1152,7 @@ def review_package_detail(package_id: int, request: Request, db: Session = Depen
     timeline = []
     contact = None
     active_guidance = []
+    package_corrections = []
     if package:
         package_total = db.query(func.count(ProposedActionReviewPackage.id)).scalar() or 0
         package_position = (
@@ -1182,6 +1185,16 @@ def review_package_detail(package_id: int, request: Request, db: Session = Depen
                 .limit(5)
                 .all()
             )
+        package_corrections = (
+            db.query(UserFeedback)
+            .filter(
+                UserFeedback.message_id == package.message_id,
+                UserFeedback.feedback_type.like("review_package_%"),
+            )
+            .order_by(UserFeedback.created_at.desc(), UserFeedback.id.desc())
+            .limit(10)
+            .all()
+        )
         readiness_action = None
         readiness_payload: dict[str, object] = {}
         if package.action_type in {
@@ -1213,6 +1226,9 @@ def review_package_detail(package_id: int, request: Request, db: Session = Depen
             "timeline": timeline,
             "contact": contact,
             "active_guidance": active_guidance,
+            "package_corrections": package_corrections,
+            "review_correction_types": REVIEW_PACKAGE_CORRECTION_TYPES,
+            "proposed_action_types": list(ProposedActionType),
             "test_readiness": test_readiness,
         },
         status_code=200 if package else 404,
@@ -1239,6 +1255,27 @@ def web_update_review_package_status(
         return RedirectResponse(url=f"/review-packages/{package.id}", status_code=303)
     except ValueError:
         return RedirectResponse(url="/review-packages", status_code=303)
+
+
+@web_router.post("/review-packages/{package_id}/correct")
+def web_correct_review_package(
+    package_id: int,
+    correction_type: str = Form(...),
+    corrected_value: str | None = Form(None),
+    notes: str | None = Form(None),
+    db: Session = Depends(get_db),
+):
+    try:
+        result = apply_review_package_correction(
+            db,
+            package_id,
+            correction_type=correction_type,
+            corrected_value=corrected_value,
+            notes=notes,
+        )
+        return RedirectResponse(url=f"/review-packages/{result.package.id}", status_code=303)
+    except ValueError:
+        return RedirectResponse(url=f"/review-packages/{package_id}", status_code=303)
 
 
 @web_router.get("/executions")

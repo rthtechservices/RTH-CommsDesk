@@ -19,6 +19,8 @@ def default_mock_ai_provider(monkeypatch):
     monkeypatch.setenv("GMAIL_SEND_ENABLED", "false")
     monkeypatch.setenv("GMAIL_LABEL_ARCHIVE_ENABLED", "false")
     monkeypatch.setenv("GOOGLE_CALENDAR_WRITE_ENABLED", "false")
+    monkeypatch.setenv("GOOGLE_CALENDAR_READ_ENABLED", "false")
+    monkeypatch.setenv("CALENDAR_PROVIDER", "mock")
     monkeypatch.setenv("OPERATIONAL_TEST_MODE", "false")
     monkeypatch.setenv("EXECUTION_TEST_EMAIL_ALLOWLIST", "")
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)

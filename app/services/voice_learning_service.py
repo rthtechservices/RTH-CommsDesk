@@ -168,11 +168,13 @@ def infer_vip_candidates(db: Session) -> int:
 def infer_voice_guidance(db: Session) -> int:
     grouped = _records_by_contact(db)
     updated = 0
+    all_records: list[SentMailLearningRecord] = []
     relationship_records: dict[str, list[SentMailLearningRecord]] = defaultdict(list)
     for contact_id, records in grouped.items():
         contact = db.get(Contact, contact_id)
         if not contact:
             continue
+        all_records.extend(records)
         relationship = (contact.relationship_type or "unknown").strip().lower()
         relationship_records[relationship].extend(records)
         style, preferred_name, tone_notes, evidence = _infer_contact_voice(records, relationship)
@@ -213,6 +215,31 @@ def infer_voice_guidance(db: Session) -> int:
         guidance.evidence_excerpt = evidence
         guidance.source = "relationship_inference"
         guidance.updated_at = utcnow()
+        updated += 1
+
+    if all_records:
+        _, _, tone_notes, evidence = _infer_contact_voice(all_records, "global_operator")
+        global_guidance = (
+            db.query(VoiceGuidance)
+            .filter(
+                VoiceGuidance.contact_id.is_(None),
+                VoiceGuidance.relationship_type == "global_operator",
+            )
+            .order_by(VoiceGuidance.id.desc())
+            .first()
+        )
+        if not global_guidance:
+            global_guidance = VoiceGuidance(
+                contact_id=None,
+                relationship_type="global_operator",
+                salutation_style=None,
+            )
+            db.add(global_guidance)
+        if global_guidance.status != InferenceStatus.APPROVED:
+            global_guidance.tone_notes = tone_notes
+        global_guidance.evidence_excerpt = evidence
+        global_guidance.source = "global_sent_inference"
+        global_guidance.updated_at = utcnow()
         updated += 1
     return updated
 
@@ -325,7 +352,25 @@ def resolve_guidance_for_message(
         .first()
     )
     if not relationship_guidance:
-        return None
+        global_guidance = (
+            db.query(VoiceGuidance)
+            .filter(
+                VoiceGuidance.contact_id.is_(None),
+                VoiceGuidance.relationship_type == "global_operator",
+                VoiceGuidance.status == InferenceStatus.APPROVED,
+                VoiceGuidance.is_active.is_(True),
+            )
+            .order_by(VoiceGuidance.updated_at.desc(), VoiceGuidance.id.desc())
+            .first()
+        )
+        if not global_guidance:
+            return None
+        return VoiceGuidanceSelection(
+            salutation_style=global_guidance.salutation_style,
+            preferred_name=global_guidance.preferred_name,
+            tone_notes=global_guidance.tone_notes,
+            source="global",
+        )
     return VoiceGuidanceSelection(
         salutation_style=relationship_guidance.salutation_style,
         preferred_name=relationship_guidance.preferred_name,
@@ -385,6 +430,7 @@ def _infer_contact_voice(
     preferred_counter: Counter[str] = Counter()
     casual_words = 0
     formal_words = 0
+    signoff_counter: Counter[str] = Counter()
     evidence = None
 
     for record in records[:40]:
@@ -404,6 +450,9 @@ def _infer_contact_voice(
         formal_words += sum(
             token in lower for token in ("regards", "thank you", "please find", "sincerely")
         )
+        signoff = _extract_signoff(text)
+        if signoff:
+            signoff_counter[signoff] += 1
 
     salutation_style = style_counter.most_common(1)[0][0] if style_counter else "first_name"
     preferred_name = preferred_counter.most_common(1)[0][0] if preferred_counter else None
@@ -421,6 +470,10 @@ def _infer_contact_voice(
         tone_notes = f"{base_tone}; keep professional greeting"
     else:
         tone_notes = base_tone
+    if signoff_counter:
+        signoff, count = signoff_counter.most_common(1)[0]
+        if count >= 2:
+            tone_notes = f"{tone_notes}; preferred sign-off: {signoff}"
 
     return salutation_style, preferred_name, _truncate(tone_notes, 500), evidence
 
@@ -449,6 +502,25 @@ def _infer_salutation(first_line: str) -> tuple[str | None, str | None]:
         return "first_name", _truncate(bare_name, 255)
 
     return "no_greeting", None
+
+
+def _extract_signoff(text: str) -> str | None:
+    lines = [line.strip() for line in (text or "").replace("\r\n", "\n").replace("\r", "\n").split("\n")]
+    lines = [line for line in lines if line]
+    if len(lines) < 2:
+        return None
+    candidates: list[str] = []
+    for index, line in enumerate(lines[:-1]):
+        normalized = line.lower().strip(" ,.")
+        if normalized in {"cheers", "thanks", "thank you", "best", "regards", "kind regards"}:
+            next_line = lines[index + 1].strip()
+            if re.match(r"^[A-Z][A-Za-z.'-]{1,40}\.?$", next_line):
+                candidates.append(f"{line.rstrip(',')},\n{next_line}")
+            else:
+                candidates.append(line)
+    if candidates:
+        return _truncate(candidates[-1], 120)
+    return None
 
 
 def _normalized_unique_addresses(addresses: list[str] | None) -> list[str]:

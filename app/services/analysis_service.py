@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, replace
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, Protocol
 
@@ -125,7 +125,32 @@ class MockAIAnalysisProvider:
                 confidence=Decimal("0.9400"),
             )
 
-        if due_date and _has_any(full_text, ["icbc", "renewal", "registration", "due date"]):
+        if _latest_message_clears_action(selected_text):
+            return AIAnalysisResult(
+                summary="The latest message says the earlier request no longer needs action.",
+                action_type=ProposedActionType.NO_RESPONSE_NEEDED,
+                explanation=(
+                    "The most recent message supersedes the earlier request and says no meeting "
+                    "or reply is needed."
+                ),
+                confidence=Decimal("0.9000"),
+            )
+
+        if due_date and _has_any(
+            full_text,
+            [
+                "icbc",
+                "renewal",
+                "registration",
+                "due date",
+                "deadline",
+                "invoice",
+                "tax",
+                "insurance",
+                "payment due",
+                "due on",
+            ],
+        ):
             return AIAnalysisResult(
                 summary=f"The conversation includes a registration or renewal due date: {due_date}.",
                 action_type=ProposedActionType.CREATE_CALENDAR_REMINDER,
@@ -237,11 +262,28 @@ def analyze_message(
     context = build_analysis_context(db, message)
     result = analysis_provider.analyze(context)
     calendar_provider = calendar_provider or get_default_calendar_provider()
-    calendar_recommendation = build_calendar_recommendation(
-        _calendar_source_text(context),
-        detected_due_date=result.detected_due_date,
-        provider=calendar_provider,
-    )
+    calendar_recommendation = None
+    if result.action_type not in {
+        ProposedActionType.NO_RESPONSE_NEEDED,
+        ProposedActionType.MARK_NOISE,
+        ProposedActionType.UNSUBSCRIBE_REVIEW,
+    }:
+        calendar_recommendation = build_calendar_recommendation(
+            _calendar_source_text(context),
+            detected_due_date=result.detected_due_date,
+            provider=calendar_provider,
+            now=_operator_anchor_time(message.received_at),
+        )
+    if result.action_type == ProposedActionType.CREATE_CALENDAR_REMINDER and not calendar_recommendation:
+        result = replace(
+            result,
+            action_type=ProposedActionType.REVIEW_NEEDED,
+            explanation=(
+                f"{result.explanation} Calendar candidate was not prepared because the detected "
+                "date is not safely in the future."
+            ),
+            draft_response=None,
+        )
     merged_result = _merge_calendar_recommendation(context, result, calendar_recommendation)
     provider_name = merged_result.provider_name or analysis_provider.name
     summary = _upsert_conversation_summary(db, message.thread_id, merged_result, provider_name)
@@ -597,6 +639,11 @@ def _merge_calendar_recommendation(
     summary = result.summary
     if recommendation.action_kind == "create_reminder" and result.detected_due_date:
         summary = f"{summary} Reminder candidate prepared for due date {result.detected_due_date}."
+    elif recommendation.action_kind == "tentative_all_day_meeting" and recommendation.proposed_start_at:
+        summary = (
+            f"{summary} Date-only meeting request detected for "
+            f"{recommendation.proposed_start_at.date().isoformat()}."
+        )
     elif recommendation.proposed_start_at:
         summary = (
             f"{summary} Scheduling proposal detected for "
@@ -615,12 +662,21 @@ def _merge_calendar_recommendation(
             "If that works for you, I can confirm it.\n\n"
             "Thanks"
         )
-    elif recommendation.action_kind == "ask_for_time_clarification":
+    elif recommendation.action_kind in {"ask_for_time_clarification", "tentative_all_day_meeting"}:
         alternatives = _format_windows(recommendation.available_windows)
+        if recommendation.action_kind == "tentative_all_day_meeting" and recommendation.proposed_start_at:
+            prompt = (
+                f"I can see the date you suggested, {recommendation.proposed_start_at.strftime('%A, %B %d')}, "
+                "but I do not see a time. What time did you have in mind?"
+            )
+        else:
+            prompt = (
+                "I may have a conflict at the proposed time. Could you confirm a time that works, "
+                f"or choose one of these windows: {alternatives}?"
+            )
         draft_response = (
             f"Hi {context.contact_name or 'there'},\n\n"
-            "I may have a conflict at the proposed time. Could you confirm a time that works, "
-            f"or choose one of these windows: {alternatives}?\n\n"
+            f"{prompt}\n\n"
             "Thanks"
         )
     return AIAnalysisResult(
@@ -647,6 +703,14 @@ def _calendar_source_text(context: AIAnalysisContext) -> str:
     parts = [context.subject, context.selected_message_text]
     parts.extend(message.text for message in context.conversation_messages)
     return " ".join(part for part in parts if part)
+
+
+def _operator_anchor_time(received_at: datetime | None) -> datetime:
+    if not received_at:
+        return utcnow()
+    if received_at.tzinfo is None:
+        return received_at.replace(tzinfo=UTC)
+    return received_at
 
 
 def _update_attention_recommendation(
@@ -784,6 +848,20 @@ def _looks_vague_but_needs_response(full_text: str) -> bool:
     return _has_any(
         full_text,
         ["thoughts?", "can we talk", "call me", "ping me", "what do you think", "need your input"],
+    )
+
+
+def _latest_message_clears_action(selected_text: str) -> bool:
+    return _has_any(
+        selected_text,
+        [
+            "no need to meet",
+            "no need anymore",
+            "found the answer",
+            "all sorted",
+            "never mind",
+            "nevermind",
+        ],
     )
 
 

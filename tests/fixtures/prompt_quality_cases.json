@@ -70,5 +70,62 @@
       }
     ],
     "expected_action_any": ["ask_clarifying_question", "review_needed"]
+  },
+  {
+    "name": "clear_scheduling_request",
+    "subject": "Planning call",
+    "messages": [
+      {
+        "sender_display_name": "Client Contact",
+        "sender_email": "client@example.com",
+        "body_text": "Are you free Friday at 2 pm for a planning call?"
+      }
+    ],
+    "expected_action_any": ["reply", "schedule_meeting"],
+    "expected_text": "Scheduling proposal"
+  },
+  {
+    "name": "date_only_scheduling_request",
+    "subject": "Project sync",
+    "messages": [
+      {
+        "sender_display_name": "Client Contact",
+        "sender_email": "client@example.com",
+        "body_text": "Can we meet Friday to go over the project?"
+      }
+    ],
+    "expected_action": "ask_clarifying_question",
+    "expected_text": "Date-only meeting request"
+  },
+  {
+    "name": "tax_deadline_reminder",
+    "subject": "Tax deadline",
+    "messages": [
+      {
+        "sender_display_name": "Tax Portal",
+        "sender_email": "notice@tax.example",
+        "body_text": "Reminder: your tax filing deadline is due on 2026-06-30."
+      }
+    ],
+    "expected_action": "create_calendar_reminder",
+    "expected_due_date": "2026-06-30"
+  },
+  {
+    "name": "latest_message_changes_action",
+    "subject": "Friday call",
+    "messages": [
+      {
+        "sender_display_name": "Client Contact",
+        "sender_email": "client@example.com",
+        "body_text": "Can we meet Friday at 2 pm?"
+      },
+      {
+        "sender_display_name": "Client Contact",
+        "sender_email": "client@example.com",
+        "body_text": "Actually no need to meet anymore. I found the answer."
+      }
+    ],
+    "expected_action": "no_response_needed",
+    "forbidden_draft_terms": ["Friday at 2"]
   }
 ]

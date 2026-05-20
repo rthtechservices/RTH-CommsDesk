@@ -10,7 +10,10 @@ from app.models.entities import (
     Contact,
     Message,
     MessageClassification,
+    ProposedActionReviewPackage,
+    ProposedActionType,
     UserFeedback,
+    utcnow,
 )
 from app.services.attention_service import upsert_attention_item
 from app.services.contact_service import find_contact_by_sender_email
@@ -30,12 +33,29 @@ CORRECTION_LABELS = [
     "ignore",
 ]
 
+REVIEW_PACKAGE_CORRECTION_TYPES = [
+    "correct_action_type",
+    "needs_reply",
+    "does_not_need_reply",
+    "better_summary",
+    "better_draft_instruction",
+    "correct_calendar_interpretation",
+    "mark_noise",
+    "mark_not_noise",
+]
+
 
 @dataclass(frozen=True)
 class CorrectionResult:
     feedback: UserFeedback
     classification: MessageClassification
     attention_item: AttentionItem
+
+
+@dataclass(frozen=True)
+class ReviewPackageCorrectionResult:
+    feedback: UserFeedback
+    package: ProposedActionReviewPackage
 
 
 def summarize_classification(classification: MessageClassification | None) -> str:
@@ -171,6 +191,72 @@ def apply_message_correction(
     return CorrectionResult(feedback=feedback, classification=classification, attention_item=item)
 
 
+def apply_review_package_correction(
+    db: Session,
+    package_id: int,
+    *,
+    correction_type: str,
+    corrected_value: str | None = None,
+    notes: str | None = None,
+) -> ReviewPackageCorrectionResult:
+    correction_type = correction_type.strip().lower()
+    if correction_type not in REVIEW_PACKAGE_CORRECTION_TYPES:
+        raise ValueError("Unsupported review package correction")
+    package = db.get(ProposedActionReviewPackage, package_id)
+    if not package:
+        raise ValueError("Review package not found")
+
+    original_value = _package_correction_original(package, correction_type)
+    cleaned_value = (corrected_value or "").strip() or None
+    freeform_value = cleaned_value or (notes or "").strip() or None
+    if correction_type == "correct_action_type" and cleaned_value:
+        package.action_type = ProposedActionType(cleaned_value)
+    elif correction_type == "needs_reply":
+        package.action_type = ProposedActionType.REPLY
+    elif correction_type == "does_not_need_reply":
+        package.action_type = ProposedActionType.NO_RESPONSE_NEEDED
+        package.draft_response = None
+    elif correction_type == "better_summary" and freeform_value and package.conversation_summary:
+        package.conversation_summary.summary_text = freeform_value[:1000]
+    elif correction_type == "better_draft_instruction" and freeform_value:
+        package.draft_response = freeform_value[:3000]
+    elif correction_type == "correct_calendar_interpretation" and freeform_value:
+        package.explanation = f"{package.explanation}\nCorrection: {freeform_value[:700]}"
+    elif correction_type == "mark_noise":
+        package.action_type = ProposedActionType.MARK_NOISE
+        package.draft_response = None
+    elif correction_type == "mark_not_noise" and package.action_type == ProposedActionType.MARK_NOISE:
+        package.action_type = ProposedActionType.REVIEW_NEEDED
+
+    package.status = package.status
+    package.user_note = _combine_notes(package.user_note, notes)
+    package.updated_at = utcnow()
+    feedback = UserFeedback(
+        message_id=package.message_id,
+        contact_id=package.message.thread.contact_id if package.message and package.message.thread else None,
+        feedback_type=f"review_package_{correction_type}",
+        feedback_text=(notes or "").strip() or None,
+        original_value=original_value,
+        corrected_value=freeform_value or _package_correction_original(package, correction_type),
+        corrected_label=correction_type,
+        corrected_requires_reply=package.action_type in {
+            ProposedActionType.REPLY,
+            ProposedActionType.ASK_CLARIFYING_QUESTION,
+        },
+        corrected_is_noise=package.action_type in {
+            ProposedActionType.MARK_NOISE,
+            ProposedActionType.UNSUBSCRIBE_REVIEW,
+            ProposedActionType.ARCHIVE_CANDIDATE,
+            ProposedActionType.DELETE_CANDIDATE,
+        },
+    )
+    db.add(feedback)
+    db.commit()
+    db.refresh(feedback)
+    db.refresh(package)
+    return ReviewPackageCorrectionResult(feedback=feedback, package=package)
+
+
 def _resolve_contact(db: Session, message: Message) -> Contact | None:
     if message.thread and message.thread.contact_id:
         return db.get(Contact, message.thread.contact_id)
@@ -284,3 +370,24 @@ def _apply_label_to_classification(
         classification.is_newsletter = corrected_label == "noise" or classification.is_newsletter
         classification.is_group_noise = True
         classification.classification_reason = reason
+
+
+def _package_correction_original(
+    package: ProposedActionReviewPackage, correction_type: str
+) -> str | None:
+    if correction_type == "better_summary":
+        return package.conversation_summary.summary_text if package.conversation_summary else None
+    if correction_type == "better_draft_instruction":
+        return package.draft_response
+    if correction_type == "correct_calendar_interpretation":
+        return package.explanation
+    return package.action_type.value
+
+
+def _combine_notes(existing: str | None, new_note: str | None) -> str | None:
+    cleaned = (new_note or "").strip()
+    if not cleaned:
+        return existing
+    if not existing:
+        return cleaned[:1000]
+    return f"{existing}\n{cleaned}"[:1000]

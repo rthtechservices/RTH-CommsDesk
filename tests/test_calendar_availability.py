@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from app.models.entities import (
@@ -85,14 +85,70 @@ def test_meeting_conflict_recommends_time_clarification(db_session):
 
     assert result.review_package.action_type == ProposedActionType.ASK_CLARIFYING_QUESTION
     assert result.review_package.draft_response is not None
-    assert "conflict" in result.review_package.draft_response.lower()
+    assert "do not see a time" in result.review_package.draft_response.lower()
     proposal = db_session.query(CalendarActionProposal).filter_by(review_package_id=result.review_package.id).one()
-    assert proposal.action_kind == "ask_for_time_clarification"
-    assert proposal.conflict_summary is not None
-    assert proposal.available_windows is not None
+    assert proposal.action_kind == "tentative_all_day_meeting"
+    assert proposal.proposed_start_at is not None
+    assert proposal.proposed_start_at.hour == 0
+    assert proposal.proposed_end_at is not None
+    assert proposal.proposed_end_at - proposal.proposed_start_at == timedelta(days=1)
 
 
-def _seed_single_message(db_session, *, subject: str, body_text: str) -> Message:
+def test_date_only_meeting_request_does_not_invent_timed_reminder(db_session):
+    selected = _seed_single_message(
+        db_session,
+        subject="Project sync",
+        body_text="Can we meet Friday to go over the project?",
+        received_at=datetime(2026, 5, 19, 16, 0, tzinfo=UTC),
+    )
+
+    result = analyze_message(db_session, selected, calendar_provider=AlwaysFreeProvider())
+
+    assert result.review_package.action_type == ProposedActionType.ASK_CLARIFYING_QUESTION
+    assert "what time" in (result.review_package.draft_response or "").lower()
+    proposal = db_session.query(CalendarActionProposal).filter_by(review_package_id=result.review_package.id).one()
+    assert proposal.action_kind == "tentative_all_day_meeting"
+    assert proposal.reminder_at is None
+    assert proposal.proposed_start_at.replace(tzinfo=UTC) == datetime(2026, 5, 22, 0, 0, tzinfo=UTC)
+    assert proposal.proposed_end_at.replace(tzinfo=UTC) == datetime(2026, 5, 23, 0, 0, tzinfo=UTC)
+
+
+def test_relative_this_coming_friday_uses_received_date_and_not_past(db_session):
+    selected = _seed_single_message(
+        db_session,
+        subject="Coffee chat",
+        body_text="Are you free this coming Friday at 2 pm to chat?",
+        received_at=datetime(2026, 5, 22, 9, 0, tzinfo=UTC),
+    )
+
+    result = analyze_message(db_session, selected, calendar_provider=AlwaysFreeProvider())
+
+    proposal = db_session.query(CalendarActionProposal).filter_by(review_package_id=result.review_package.id).one()
+    assert proposal.proposed_start_at.replace(tzinfo=UTC) == datetime(2026, 5, 29, 14, 0, tzinfo=UTC)
+    assert proposal.proposed_start_at.replace(tzinfo=UTC) > selected.received_at.replace(tzinfo=UTC)
+
+
+def test_past_due_date_does_not_generate_past_calendar_candidate(db_session):
+    selected = _seed_single_message(
+        db_session,
+        subject="Old renewal",
+        body_text="Your insurance renewal is due on 2026-05-01.",
+        received_at=datetime(2026, 5, 19, 12, 0, tzinfo=UTC),
+    )
+
+    result = analyze_message(db_session, selected, calendar_provider=AlwaysFreeProvider())
+
+    assert result.review_package.action_type != ProposedActionType.CREATE_CALENDAR_REMINDER
+    assert db_session.query(CalendarActionProposal).filter_by(review_package_id=result.review_package.id).count() == 0
+
+
+def _seed_single_message(
+    db_session,
+    *,
+    subject: str,
+    body_text: str,
+    received_at: datetime | None = None,
+) -> Message:
     thread = MessageThread(
         source_type="gmail",
         source_thread_id=f"calendar-thread-{subject}",
@@ -110,6 +166,7 @@ def _seed_single_message(db_session, *, subject: str, body_text: str) -> Message
         body_text=body_text,
         sender_display_name="Friend",
         sender_email="friend@example.com",
+        received_at=received_at or datetime(2026, 5, 19, 12, 0, tzinfo=UTC),
     )
     db_session.add(message)
     db_session.flush()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -40,6 +41,13 @@ SUPPORTED_DRAFT_AUDIENCES = [
     "vendor",
     SHORT_ACK_AUDIENCE,
 ]
+GENERIC_PLACEHOLDER_PATTERNS = (
+    r"\[your name\]",
+    r"\[your signature\]",
+    r"\[signature\]",
+    r"\[Your Name\]",
+    r"\[Your signature\]",
+)
 
 
 @dataclass(frozen=True)
@@ -98,9 +106,10 @@ class MockDraftProvider:
         recipient = _recipient_name(context)
         greeting = _greeting_line(context, recipient)
         subject_line = f"Re: {context.subject}" if context.subject else "Re: your note"
+        learned_signoff = _preferred_signoff(context)
 
         if context.review_package_draft_response:
-            body = context.review_package_draft_response
+            body = _apply_voice_guidance_to_body(context.review_package_draft_response, context)
         elif context.proposed_action_type == "no_response_needed":
             body = (
                 "No draft is recommended for this message because the local analysis says "
@@ -112,7 +121,7 @@ class MockDraftProvider:
                 greeting,
                 "Can you send me a bit more detail on what you need from me here? Once I have "
                 "that, I can give you a clearer answer.",
-                "Thanks",
+                learned_signoff or "Thanks",
             )
         elif context.proposed_action_type == "reply":
             detail = _specific_reply_detail(context)
@@ -120,14 +129,14 @@ class MockDraftProvider:
                 greeting,
                 f"Thanks for reaching out. I can help with {detail}. I will review the thread "
                 "context and come back with clear next steps.",
-                "Best",
+                learned_signoff or "Best",
             )
         elif audience == "friend":
             friend_greeting = greeting if context.learned_salutation_style else f"Hey {recipient},"
             body = _compose_body(
                 friend_greeting,
                 "Thanks for the note. I will take a closer look and follow up with anything specific.",
-                "Talk soon",
+                learned_signoff or "Talk soon",
             )
         elif audience == "partner":
             partner_greeting = greeting if context.learned_salutation_style else f"Hey {recipient},"
@@ -135,27 +144,27 @@ class MockDraftProvider:
                 partner_greeting,
                 "I hear you. I will look at this properly and come back with a clear answer "
                 "instead of rushing a half-response.",
-                "Love",
+                learned_signoff or "Love",
             )
         elif audience == "vendor":
             body = _compose_body(
                 greeting,
                 "Thanks for sending this. Please keep this thread updated with any required "
                 "next steps, timing, or outstanding items.",
-                "Regards",
+                learned_signoff or "Regards",
             )
         elif audience == SHORT_ACK_AUDIENCE:
             body = _compose_body(
                 greeting,
                 "Received, thank you. I will review and follow up if anything else is needed.",
-                "Thanks",
+                learned_signoff or "Thanks",
             )
         else:
             body = _compose_body(
                 greeting,
                 "Thanks for reaching out. I have this on my radar and will review the details. "
                 "I will follow up with clear next steps once I have confirmed the path forward.",
-                "Best",
+                learned_signoff or "Best",
             )
 
         if context.learned_tone_notes and "avoid corporate filler" in context.learned_tone_notes.lower():
@@ -193,6 +202,7 @@ class OpenAIDraftProvider:
         draft_body = sanitize_ai_text(payload.get("draft_body"), max_length=3000)
         if not draft_body:
             raise AIProviderError("AI draft output did not include draft_body")
+        draft_body = _strip_generic_placeholders(draft_body)
         note = "Review-only draft suggestion. This has not been sent."
         cleaned: list[str] = []
         caveats = payload.get("caveats")
@@ -247,7 +257,9 @@ def build_draft_prompt(context: DraftContext, voice_profile: VoiceProfile) -> tu
     system_prompt = (
         "You write local review-only email draft suggestions. Do not claim anything was sent, "
         "scheduled, archived, or created externally. Return only a JSON object with draft_body "
-        "and optional caveats. Avoid generic filler and mention the actual request when replying."
+        "and optional caveats. Avoid generic filler and mention the actual request when replying. "
+        "Never include placeholders such as [Your Name], [Your signature], [your name], or [signature]. "
+        "Use approved sign-off guidance when present; do not replace it with formal stock closings."
     )
     user_prompt = f"""
 Required JSON schema:
@@ -440,6 +452,7 @@ def normalize_draft_content(value: str | DraftContent, *, fallback_subject: str)
     if isinstance(value, DraftContent):
         subject = (value.send_ready_subject or fallback_subject).strip() or fallback_subject
         body = _strip_review_only_lines(value.send_ready_body or "")
+        body = _strip_generic_placeholders(body)
         return DraftContent(
             review_text=value.review_text,
             send_ready_subject=subject,
@@ -452,7 +465,7 @@ def normalize_draft_content(value: str | DraftContent, *, fallback_subject: str)
     return DraftContent(
         review_text=review_text,
         send_ready_subject=subject,
-        send_ready_body=body,
+        send_ready_body=_strip_generic_placeholders(body),
         caveats=(),
     )
 
@@ -582,7 +595,7 @@ def _strip_review_only_lines(text: str) -> str:
         if _is_review_only_text(stripped):
             continue
         lines.append(line)
-    return "\n".join(lines).strip()
+    return _strip_generic_placeholders("\n".join(lines).strip())
 
 
 def _is_review_only_text(text: str) -> bool:
@@ -608,3 +621,38 @@ def _fallback_voice_profile() -> VoiceProfile:
         humor_level=0,
         signoff_style="clear next steps",
     )
+
+
+def _preferred_signoff(context: DraftContext) -> str | None:
+    notes = context.learned_tone_notes or ""
+    match = re.search(r"preferred sign-off:\s*(.+?)(?:;|$)", notes, flags=re.IGNORECASE | re.DOTALL)
+    if not match:
+        return None
+    signoff = match.group(1).strip()
+    signoff = signoff.replace("\\n", "\n")
+    return signoff or None
+
+
+def _apply_voice_guidance_to_body(body: str, context: DraftContext) -> str:
+    cleaned = _strip_generic_placeholders(body)
+    signoff = _preferred_signoff(context)
+    if not signoff:
+        return cleaned
+    formal_closing = re.compile(
+        r"\n\n(?:Best regards|Kind regards|Regards|Best|Sincerely),?\s*(?:\n[^\n]{1,80})?\s*$",
+        flags=re.IGNORECASE,
+    )
+    if formal_closing.search(cleaned):
+        return formal_closing.sub(f"\n\n{signoff}", cleaned).strip()
+    if signoff.lower() not in cleaned.lower():
+        return f"{cleaned.rstrip()}\n\n{signoff}"
+    return cleaned
+
+
+def _strip_generic_placeholders(text: str) -> str:
+    cleaned = text or ""
+    for pattern in GENERIC_PLACEHOLDER_PATTERNS:
+        cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    cleaned = re.sub(r"[ \t]+$", "", cleaned, flags=re.MULTILINE)
+    return cleaned.strip()

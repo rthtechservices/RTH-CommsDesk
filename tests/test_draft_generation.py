@@ -9,10 +9,12 @@ from app.models.entities import (
     Contact,
     DraftReply,
     DraftStatus,
+    InferenceStatus,
     Message,
     MessageClassification,
     MessageThread,
     UserFeedback,
+    VoiceGuidance,
     VoiceProfile,
 )
 from app.services.draft_service import (
@@ -197,6 +199,51 @@ def test_live_draft_provider_falls_back_safely(db_session):
     assert draft.provider_name == "openai:test-model->mock_fallback"
     assert "mock fallback generated" in draft.draft_text
     assert "Review-only draft suggestion" in draft.draft_text
+
+
+def test_approved_global_signoff_guidance_is_applied_to_send_ready_draft(db_session):
+    message, client_voice, _ = _seed_message_with_profiles(db_session)
+    db_session.add(
+        VoiceGuidance(
+            contact_id=None,
+            relationship_type="global_operator",
+            tone_notes="concise, professional; preferred sign-off: Cheers,\nRohan.",
+            evidence_excerpt="Cheers, Rohan. appears repeatedly in sent mail.",
+            status=InferenceStatus.APPROVED,
+            is_active=True,
+            source="global_sent_inference",
+        )
+    )
+    db_session.commit()
+
+    draft = create_draft_reply(db_session, message, voice_profile_id=client_voice.id)
+
+    assert "Cheers,\nRohan." in draft.send_ready_body
+    assert "Best regards" not in draft.send_ready_body
+    assert "[Your Name]" not in draft.send_ready_body
+
+
+def test_generic_placeholders_are_removed_from_live_draft_output(db_session):
+    message, client_voice, _ = _seed_message_with_profiles(db_session)
+    client = FakeDraftJsonClient(
+        {
+            "draft_body": (
+                "Hi Client Contact,\n\nI can handle this.\n\nBest regards,\n[Your Name]"
+            ),
+            "caveats": [],
+        }
+    )
+
+    draft = create_draft_reply(
+        db_session,
+        message,
+        voice_profile_id=client_voice.id,
+        provider=OpenAIDraftProvider(client=client),
+    )
+
+    assert "[Your Name]" not in draft.send_ready_body
+    assert "[signature]" not in draft.send_ready_body
+    assert "Hi Client Contact" in draft.send_ready_body
 
 
 def _seed_message_with_profiles(db_session):

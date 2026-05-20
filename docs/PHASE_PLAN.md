@@ -22,7 +22,7 @@ Every phase should move toward useful automation and insight while keeping actio
 
 ## Current direction
 
-Phases 01 through 19 built the operational foundation: Gmail ingestion, Outlook mail read through delegated Graph, contact intelligence, full Gmail thread context, Azure OpenAI analysis, review packages, sent-mail learning, bulk triage, calendar recommendations, approved execution records, provider/operational smoke status, a dark command-center UI, and an operational test-mode lane for controlled Gmail/Calendar execution.
+Phases 01 through 20 built the operational foundation: Gmail ingestion, Outlook mail read through delegated Graph, contact intelligence, full Gmail thread context, Azure OpenAI analysis, review packages, sent-mail learning, bulk triage, calendar recommendations, approved execution records, provider/operational smoke status, a dark command-center UI, an operational test-mode lane for controlled Gmail/Calendar execution, and the first assistant-quality pass for voice, calendar reasoning, and teachable recommendations.
 
 The next product goal is not to add more connectors. The next product goal is to make CommsDesk become recognizably the operator's assistant:
 
@@ -69,24 +69,9 @@ Recent live smoke lessons to address next:
 | 18.6 | Visual design system and dashboard polish | Completed |
 | 18.7 | Interaction hierarchy, triage ergonomics, and RTH palette alignment | Completed |
 | 19 | Test email execution enablement | Completed |
+| 20 | Assistant Intelligence, Voice, and Calendar Reasoning Quality | Completed |
 
 ## Next phases
-
-## Phase 20 — Assistant Intelligence, Voice, and Calendar Reasoning Quality
-
-Primary outcome: fix the quality failures exposed by live smoke testing and make the assistant start sounding and reasoning like the operator's assistant.
-
-Scope:
-
-- Add realistic fixture conversations for action, no-reply, scheduling, reminders, noise, vague asks, latest-message-changes-action, and sent-mail voice examples.
-- Improve sent-mail learning so recurring sign-offs/signatures and global operator voice traits can be inferred, reviewed, approved, and applied.
-- Prevent generic draft placeholders such as `[Your Name]` and fake formal closings from entering send-ready drafts.
-- Improve calendar reasoning: no past reminders/events, no invented times, clarification or all-day tentative candidates for date-only meeting requests.
-- Add review-package correction controls for action type, reply/no-reply, summary, draft instruction, calendar interpretation, noise/not-noise.
-- Improve recommendation evidence display.
-- Preserve Phase 19 operational test-mode and allowlist enforcement.
-
-Assigned file: `docs/phases/PHASE_20_INBOX_INTELLIGENCE_QUALITY_PASS.md`.
 
 ## Phase 21 — Voice Memory and Assistant Personalization Console
 

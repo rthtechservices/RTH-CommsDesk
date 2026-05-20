@@ -50,8 +50,13 @@
       {% endif %}
 
       <section class="panel">
-        <h2>AI reasoning</h2>
-        <pre>{{ package.reasoning_json or "No reasoning stored." }}</pre>
+        <h2>Recommendation Evidence</h2>
+        <div class="facts">
+          <div><strong class="label">Plain-language reason</strong><span>{{ package.explanation }}</span></div>
+          <div><strong class="label">Action confidence</strong><span>{{ "%.0f"|format((package.confidence or 0) * 100) }}%</span></div>
+          <div><strong class="label">Evidence</strong><span>{{ package.conversation_summary.summary_text if package.conversation_summary else package.message.snippet if package.message else "No evidence stored." }}</span></div>
+          <div><strong class="label">If prepared</strong><span>{% if package.action_type.value in ["reply", "ask_clarifying_question"] %}A Gmail reply execution record would be prepared for approval and confirmation.{% elif package.action_type.value in ["schedule_meeting", "create_calendar_reminder"] %}A calendar execution record would be prepared for approval and confirmation.{% elif package.action_type.value in ["mark_noise", "archive_candidate"] %}A Gmail label/archive candidate would be prepared only through the guarded execution flow.{% else %}No external action is prepared automatically.{% endif %}</span></div>
+        </div>
       </section>
 
       {% if test_readiness %}
@@ -74,7 +79,7 @@
 
       {% if package.calendar_proposals %}
       <section class="panel">
-        <h2>Calendar proposal</h2>
+        <h2>Calendar Interpretation Evidence</h2>
         {% set proposal = package.calendar_proposals[0] %}
         <div class="facts">
           <div><strong class="label">Target calendar</strong><span>Configured Google Calendar</span></div>
@@ -82,6 +87,8 @@
           <div><strong class="label">Start</strong><span>{{ proposal.proposed_start_at or proposal.reminder_at or "-" }}</span></div>
           <div><strong class="label">End</strong><span>{{ proposal.proposed_end_at or proposal.reminder_at or "-" }}</span></div>
           <div><strong class="label">Reasoning</strong><span class="muted">{{ proposal.availability_reasoning or "-" }}</span></div>
+          {% if proposal.conflict_summary %}<div><strong class="label">Conflict</strong><span>{{ proposal.conflict_summary }}</span></div>{% endif %}
+          {% if proposal.available_windows %}<div><strong class="label">Alternates</strong><span>{{ proposal.available_windows }}</span></div>{% endif %}
         </div>
       </section>
       {% endif %}
@@ -92,6 +99,21 @@
         <pre>{{ package.draft_response }}</pre>
       </section>
       {% endif %}
+
+      <section class="panel">
+        <h2>Current Corrections</h2>
+        <ul class="history">
+          {% for correction in package_corrections %}
+          <li>
+            <strong>{{ correction.feedback_type.replace("review_package_", "").replace("_", " ").title() }}</strong>
+            <div class="muted">{{ correction.corrected_value or correction.corrected_label or "Correction recorded" }}</div>
+            {% if correction.feedback_text %}<div>{{ correction.feedback_text }}</div>{% endif %}
+          </li>
+          {% else %}
+          <li class="muted">No recommendation corrections recorded yet.</li>
+          {% endfor %}
+        </ul>
+      </section>
     </div>
 
     <aside style="display:grid;gap:12px">
@@ -119,6 +141,39 @@
           </form>
           <p class="muted" style="font-size:12px">Approving marks this record ready for execution preparation. Nothing is sent automatically.</p>
         </div>
+      </section>
+
+      <section class="panel">
+        <h2>Teach This Recommendation</h2>
+        <form method="post" action="/review-packages/{{ package.id }}/correct" style="display:grid;gap:8px">
+          <label style="display:grid;gap:4px">
+            <span class="label">Correction</span>
+            <select name="correction_type">
+              <option value="correct_action_type">Correct action type</option>
+              <option value="needs_reply">This does need reply</option>
+              <option value="does_not_need_reply">This does not need reply</option>
+              <option value="better_summary">Better summary</option>
+              <option value="better_draft_instruction">Better draft instruction</option>
+              <option value="correct_calendar_interpretation">Correct calendar interpretation</option>
+              <option value="mark_noise">Mark as noise</option>
+              <option value="mark_not_noise">Mark as not noise</option>
+            </select>
+          </label>
+          <label style="display:grid;gap:4px">
+            <span class="label">Corrected value</span>
+            <select name="corrected_value">
+              <option value="">Use quick correction</option>
+              {% for action in proposed_action_types %}
+              <option value="{{ action.value }}">{{ action.value.replace("_", " ").title() }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label style="display:grid;gap:4px">
+            <span class="label">Optional note</span>
+            <textarea name="notes" placeholder="Explain the correction, replacement summary, draft instruction, or calendar interpretation"></textarea>
+          </label>
+          <button class="amber" style="width:100%" type="submit">Save correction</button>
+        </form>
       </section>
     </aside>
   </div>
